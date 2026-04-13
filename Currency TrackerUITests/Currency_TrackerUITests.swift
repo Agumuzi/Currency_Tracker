@@ -5,6 +5,7 @@
 //  Created by Thomas Tao on 4/10/26.
 //
 
+import AppKit
 import XCTest
 
 final class Currency_TrackerUITests: XCTestCase {
@@ -16,6 +17,7 @@ final class Currency_TrackerUITests: XCTestCase {
         continueAfterFailure = false
 
         // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+        terminateExistingAppInstances()
     }
 
     override func tearDownWithError() throws {
@@ -23,21 +25,37 @@ final class Currency_TrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testSettingsWindowStartsBlankWithEmptyAPIState() throws {
         let app = XCUIApplication()
+        let suiteName = "CurrencyTrackerUITests.\(UUID().uuidString)"
+        app.launchEnvironment["CURRENCY_TRACKER_DEFAULTS_SUITE"] = suiteName
+        app.launchEnvironment["CURRENCY_TRACKER_RESET_DEFAULTS"] = "1"
+        app.launchEnvironment["CURRENCY_TRACKER_UI_TEST_SHOW_SETTINGS"] = "1"
+        app.launchEnvironment["CURRENCY_TRACKER_USE_IN_MEMORY_SECRETS"] = "1"
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        XCTAssertTrue(app.staticTexts["settings.empty-pairs"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["settings.currency-search"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["settings.api.twelveData.primary"].label, "编辑")
+        XCTAssertEqual(app.buttons["settings.api.openExchangeRates.primary"].label, "编辑")
     }
 
     @MainActor
     func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+        terminateExistingAppInstances()
+        let app = XCUIApplication()
+        app.launchEnvironment["CURRENCY_TRACKER_USE_IN_MEMORY_SECRETS"] = "1"
+        app.launch()
+        XCTAssertTrue(app.state == .runningForeground || app.state == .runningBackground)
+        app.terminate()
+    }
+
+    private func terminateExistingAppInstances() {
+        let bundleIdentifier = "com.thomas.Currency-Tracker"
+        for runningApplication in NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier) {
+            if runningApplication.terminate() == false {
+                runningApplication.forceTerminate()
+            }
         }
     }
 }

@@ -6,13 +6,1050 @@
 //
 
 import Foundation
-import SwiftData
+import Observation
+import ServiceManagement
+import SwiftUI
 
-@Model
-final class Item {
-    var timestamp: Date
-    
-    init(timestamp: Date) {
-        self.timestamp = timestamp
+nonisolated struct CurrencyInfo: Identifiable, Codable, Hashable, Sendable {
+    let code: String
+    let name: String
+    let englishName: String
+    let aliases: [String]
+
+    var id: String {
+        code
     }
+}
+
+nonisolated struct CurrencyPair: Identifiable, Codable, Hashable, Sendable {
+    let baseCode: String
+    let quoteCode: String
+    let baseAmount: Int
+
+    var id: String {
+        "\(baseCode)-\(quoteCode)-\(baseAmount)"
+    }
+
+    var displayName: String {
+        "\(CurrencyCatalog.name(for: baseCode)) / \(CurrencyCatalog.name(for: quoteCode))"
+    }
+
+    var compactLabel: String {
+        "\(baseCode)/\(quoteCode)"
+    }
+
+    var subtitle: String {
+        "\(baseAmount) \(baseCode) → \(quoteCode)"
+    }
+
+    var requiresCBR: Bool {
+        quoteCode == "RUB"
+    }
+
+    static let defaults: [CurrencyPair] = [
+        CurrencyPair(baseCode: "USD", quoteCode: "RUB", baseAmount: 1),
+        CurrencyPair(baseCode: "CNY", quoteCode: "RUB", baseAmount: 1),
+        CurrencyPair(baseCode: "EUR", quoteCode: "RUB", baseAmount: 1),
+        CurrencyPair(baseCode: "USD", quoteCode: "CNY", baseAmount: 1),
+        CurrencyPair(baseCode: "EUR", quoteCode: "CNY", baseAmount: 1)
+    ]
+}
+
+nonisolated enum CurrencyCatalog {
+    static let all: [CurrencyInfo] = [
+        CurrencyInfo(code: "USD", name: "美元", englishName: "US Dollar", aliases: ["美金", "dollar", "dollars", "us dollar", "united states", "usa", "america"]),
+        CurrencyInfo(code: "CNY", name: "人民币", englishName: "Chinese Yuan", aliases: ["rmb", "renminbi", "yuan", "china", "chinese yuan", "元"]),
+        CurrencyInfo(code: "EUR", name: "欧元", englishName: "Euro", aliases: ["euro", "euros", "europe"]),
+        CurrencyInfo(code: "RUB", name: "卢布", englishName: "Russian Ruble", aliases: ["ruble", "rubles", "rouble", "roubles", "russia", "russian"]),
+        CurrencyInfo(code: "GBP", name: "英镑", englishName: "British Pound", aliases: ["pound", "pounds", "sterling", "united kingdom", "britain", "uk"]),
+        CurrencyInfo(code: "JPY", name: "日元", englishName: "Japanese Yen", aliases: ["yen", "japan", "japanese"]),
+        CurrencyInfo(code: "HKD", name: "港币", englishName: "Hong Kong Dollar", aliases: ["港元", "hong kong", "hongkong"]),
+        CurrencyInfo(code: "SGD", name: "新加坡元", englishName: "Singapore Dollar", aliases: ["singapore", "singapore dollar"]),
+        CurrencyInfo(code: "CHF", name: "瑞士法郎", englishName: "Swiss Franc", aliases: ["franc", "swiss", "switzerland"]),
+        CurrencyInfo(code: "AUD", name: "澳元", englishName: "Australian Dollar", aliases: ["australia", "australian dollar"]),
+        CurrencyInfo(code: "CAD", name: "加元", englishName: "Canadian Dollar", aliases: ["canada", "canadian dollar"]),
+        CurrencyInfo(code: "NZD", name: "新西兰元", englishName: "New Zealand Dollar", aliases: ["new zealand", "newzealand", "kiwi dollar"]),
+        CurrencyInfo(code: "SEK", name: "瑞典克朗", englishName: "Swedish Krona", aliases: ["sweden", "swedish"]),
+        CurrencyInfo(code: "NOK", name: "挪威克朗", englishName: "Norwegian Krone", aliases: ["norway", "norwegian"]),
+        CurrencyInfo(code: "DKK", name: "丹麦克朗", englishName: "Danish Krone", aliases: ["denmark", "danish"]),
+        CurrencyInfo(code: "ISK", name: "冰岛克朗", englishName: "Icelandic Krona", aliases: ["iceland", "icelandic"]),
+        CurrencyInfo(code: "KRW", name: "韩元", englishName: "South Korean Won", aliases: ["won", "korea", "south korea", "korean"]),
+        CurrencyInfo(code: "THB", name: "泰铢", englishName: "Thai Baht", aliases: ["baht", "thailand", "thai"]),
+        CurrencyInfo(code: "TRY", name: "土耳其里拉", englishName: "Turkish Lira", aliases: ["turkey", "turkish", "turkish lira", "土耳其", "tr"]),
+        CurrencyInfo(code: "AED", name: "阿联酋迪拉姆", englishName: "UAE Dirham", aliases: ["dirham", "uae", "united arab emirates", "dubai"])
+    ]
+
+    static func name(for code: String) -> String {
+        info(for: code)?.name ?? code
+    }
+
+    static func englishName(for code: String) -> String {
+        info(for: code)?.englishName ?? code
+    }
+
+    static func flag(for code: String) -> String {
+        switch code {
+        case "USD": "🇺🇸"
+        case "CNY": "🇨🇳"
+        case "EUR": "🇪🇺"
+        case "RUB": "🇷🇺"
+        case "GBP": "🇬🇧"
+        case "JPY": "🇯🇵"
+        case "HKD": "🇭🇰"
+        case "SGD": "🇸🇬"
+        case "CHF": "🇨🇭"
+        case "AUD": "🇦🇺"
+        case "CAD": "🇨🇦"
+        case "NZD": "🇳🇿"
+        case "SEK": "🇸🇪"
+        case "NOK": "🇳🇴"
+        case "DKK": "🇩🇰"
+        case "ISK": "🇮🇸"
+        case "KRW": "🇰🇷"
+        case "THB": "🇹🇭"
+        case "TRY": "🇹🇷"
+        case "AED": "🇦🇪"
+        default: "🏳️"
+        }
+    }
+
+    static func info(for code: String) -> CurrencyInfo? {
+        all.first { $0.code == code }
+    }
+
+    static func matchesSearch(_ currency: CurrencyInfo, query: String) -> Bool {
+        let normalizedQuery = CurrencyInputNormalization.normalizedSearchText(query)
+        guard !normalizedQuery.isEmpty else {
+            return true
+        }
+
+        return searchableTokens(for: currency).contains { token in
+            CurrencyInputNormalization.normalizedSearchText(token).contains(normalizedQuery)
+        }
+    }
+
+    static func searchableTokens(for currency: CurrencyInfo) -> [String] {
+        [currency.code, currency.name, currency.englishName] + currency.aliases
+    }
+
+    static func supportedPair(baseCode: String, quoteCode: String, baseAmount: Int = 1) -> CurrencyPair? {
+        guard baseCode != quoteCode else {
+            return nil
+        }
+
+        guard baseCode != "RUB" else {
+            return nil
+        }
+
+        guard info(for: baseCode) != nil, info(for: quoteCode) != nil else {
+            return nil
+        }
+
+        return CurrencyPair(baseCode: baseCode, quoteCode: quoteCode, baseAmount: baseAmount)
+    }
+
+    static func supportedQuotes(for baseCode: String) -> [CurrencyInfo] {
+        all.filter { supportedPair(baseCode: baseCode, quoteCode: $0.code) != nil }
+    }
+}
+
+nonisolated enum ExchangeSource: String, Codable, Sendable, CaseIterable {
+    case twelveData = "TwelveData"
+    case openExchangeRates = "OpenExchangeRates"
+    case cbr = "CBR"
+    case ecb = "ECB"
+    case frankfurter = "Frankfurter"
+    case floatRates = "FloatRates"
+    case currencyAPI = "CurrencyAPI"
+
+    var displayName: String {
+        switch self {
+        case .twelveData:
+            "Twelve Data"
+        case .openExchangeRates:
+            "Open Exchange Rates"
+        case .cbr:
+            "CBR"
+        case .ecb:
+            "ECB Direct"
+        case .frankfurter:
+            "Frankfurter"
+        case .floatRates:
+            "FloatRates"
+        case .currencyAPI:
+            "Currency API"
+        }
+    }
+}
+
+nonisolated enum TrendRange: String, Codable, CaseIterable, Identifiable, Sendable {
+    case sixHours
+    case oneDay
+    case oneWeek
+    case all
+
+    var title: String {
+        switch self {
+        case .sixHours: "近 7 天"
+        case .oneDay: "近 30 天"
+        case .oneWeek: "近 90 天"
+        case .all: "近 180 天"
+        }
+    }
+
+    var id: String {
+        rawValue
+    }
+
+    func filter(points: [TrendPoint], now: Date = .now) -> [TrendPoint] {
+        let cutoff: Date? = switch self {
+        case .sixHours:
+            now.addingTimeInterval(-7 * 24 * 3600)
+        case .oneDay:
+            now.addingTimeInterval(-30 * 24 * 3600)
+        case .oneWeek:
+            now.addingTimeInterval(-90 * 24 * 3600)
+        case .all:
+            now.addingTimeInterval(-180 * 24 * 3600)
+        }
+
+        guard let cutoff else {
+            return points
+        }
+
+        let filtered = points.filter { $0.timestamp >= cutoff }
+        return filtered.isEmpty ? Array(points.suffix(1)) : filtered
+    }
+}
+
+nonisolated enum CardTrendRange: String, CaseIterable, Identifiable, Sendable {
+    case sevenDays
+    case oneMonth
+    case threeMonths
+    case sixMonths
+    case oneYear
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .sevenDays:
+            "7天"
+        case .oneMonth:
+            "1月"
+        case .threeMonths:
+            "3月"
+        case .sixMonths:
+            "6月"
+        case .oneYear:
+            "1年"
+        }
+    }
+
+    func filter(points: [TrendPoint], now: Date = .now) -> [TrendPoint] {
+        let dayCount: Double = switch self {
+        case .sevenDays:
+            7
+        case .oneMonth:
+            30
+        case .threeMonths:
+            90
+        case .sixMonths:
+            180
+        case .oneYear:
+            365
+        }
+
+        let cutoff = now.addingTimeInterval(-dayCount * 24 * 3600)
+        let filtered = points.filter { $0.timestamp >= cutoff }
+        return filtered.isEmpty ? Array(points.suffix(1)) : filtered
+    }
+}
+
+nonisolated struct TrendPoint: Codable, Hashable, Sendable {
+    let timestamp: Date
+    let value: Double
+}
+
+nonisolated enum TrendPointSampler {
+    static func sample(_ points: [TrendPoint], maxPoints: Int) -> [TrendPoint] {
+        guard maxPoints > 0, points.count > maxPoints else {
+            return points
+        }
+
+        guard maxPoints > 1 else {
+            return [points.last!]
+        }
+
+        let lastIndex = points.count - 1
+        let denominator = maxPoints - 1
+
+        return (0..<maxPoints).map { sampleIndex in
+            let scaledIndex = Int(round(Double(sampleIndex * lastIndex) / Double(denominator)))
+            return points[scaledIndex]
+        }
+    }
+}
+
+nonisolated struct CurrencySnapshot: Identifiable, Codable, Hashable, Sendable {
+    let pair: CurrencyPair
+    let rate: Double
+    let updatedAt: Date
+    let effectiveDateText: String?
+    let source: ExchangeSource
+    let isCached: Bool
+
+    var id: String {
+        pair.id
+    }
+
+    func withCacheFlag(_ isCached: Bool) -> CurrencySnapshot {
+        CurrencySnapshot(
+            pair: pair,
+            rate: rate,
+            updatedAt: updatedAt,
+            effectiveDateText: effectiveDateText,
+            source: source,
+            isCached: isCached
+        )
+    }
+}
+
+nonisolated enum CurrencyCardState: Sendable, Equatable {
+    case loading
+    case ready
+    case stale
+    case failed
+}
+
+nonisolated struct CurrencyCardModel: Identifiable, Sendable {
+    let pair: CurrencyPair
+    let snapshot: CurrencySnapshot?
+    let historyPoints: [TrendPoint]
+    let previousValue: Double?
+    let state: CurrencyCardState
+    let sampleLimit: Int
+
+    var id: String {
+        pair.id
+    }
+
+    var subtitle: String {
+        pair.subtitle
+    }
+
+    var compactPairLabel: String {
+        pair.compactLabel
+    }
+
+    var valueText: String {
+        guard let snapshot else {
+            switch state {
+            case .loading:
+                return "加载中"
+            case .failed:
+                return "暂不可用"
+            case .ready, .stale:
+                return "--"
+            }
+        }
+
+        return ExchangeFormatter.decimal.string(from: snapshot.rate as NSNumber) ?? String(format: "%.4f", snapshot.rate)
+    }
+
+    var valueColor: Color {
+        switch state {
+        case .loading:
+            return .secondary
+        case .failed:
+            return Color(red: 0.74, green: 0.20, blue: 0.18)
+        case .ready, .stale:
+            return Color.primary
+        }
+    }
+
+    var statusChipText: String? {
+        guard snapshot == nil else {
+            return nil
+        }
+
+        switch state {
+        case .loading:
+            return "等待数据"
+        case .failed:
+            return "需要重试"
+        case .ready, .stale:
+            return nil
+        }
+    }
+
+    var statusChipColor: Color {
+        switch state {
+        case .loading:
+            return .secondary
+        case .failed:
+            return Color(red: 0.74, green: 0.20, blue: 0.18)
+        case .ready:
+            return Color(red: 0.09, green: 0.53, blue: 0.32)
+        case .stale:
+            return Color(red: 0.78, green: 0.50, blue: 0.11)
+        }
+    }
+
+    var detailSegments: [String] {
+        guard let snapshot else {
+            switch state {
+            case .loading:
+                return ["等待首次拉取"]
+            case .failed:
+                return ["上一轮刷新未拿到该货币对"]
+            case .ready, .stale:
+                return []
+            }
+        }
+
+        var segments: [String] = []
+        if let effectiveDateText = snapshot.effectiveDateText, !effectiveDateText.isEmpty {
+            segments.append(effectiveDateText)
+        }
+        segments.append(ExchangeFormatter.time.string(from: snapshot.updatedAt))
+        if snapshot.isCached {
+            segments.append("缓存")
+        }
+        return segments
+    }
+
+    var isCached: Bool {
+        snapshot?.isCached ?? false
+    }
+
+    var changeText: String? {
+        guard snapshot != nil else {
+            return nil
+        }
+
+        guard let previousValue, previousValue > 0 else {
+            return nil
+        }
+
+        let currentRate = snapshot?.rate ?? 0
+        let delta = currentRate - previousValue
+        guard abs(delta) >= 0.000_1 else {
+            return "持平"
+        }
+
+        let prefix = delta > 0 ? "+" : ""
+        let formatted = ExchangeFormatter.compactChange.string(from: delta as NSNumber) ?? String(format: "%.4f", delta)
+        return "\(prefix)\(formatted)"
+    }
+
+    var changeColor: Color {
+        guard let previousValue, let snapshot else {
+            return .secondary
+        }
+
+        if snapshot.rate > previousValue {
+            return Color(red: 0.07, green: 0.55, blue: 0.33)
+        }
+
+        if snapshot.rate < previousValue {
+            return Color(red: 0.74, green: 0.20, blue: 0.18)
+        }
+
+        return .secondary
+    }
+
+    var sparklineColor: Color {
+        if let previousValue, let snapshot, snapshot.rate < previousValue {
+            return Color(red: 0.70, green: 0.25, blue: 0.22)
+        }
+
+        return Color(red: 0.57, green: 0.70, blue: 0.92)
+    }
+
+    func chartPoints(for range: CardTrendRange) -> [TrendPoint] {
+        let filtered = range.filter(points: historyPoints)
+        return TrendPointSampler.sample(filtered, maxPoints: sampleLimit)
+    }
+}
+
+nonisolated enum ExchangeFormatter {
+    static let decimal: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 4
+        return formatter
+    }()
+
+    static let compactChange: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 4
+        return formatter
+    }()
+
+    static let time: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+}
+
+nonisolated struct CachedExchangeState: Codable, Sendable {
+    var snapshots: [CurrencySnapshot]
+    var history: [String: [TrendPoint]]
+    var lastRefreshAttempt: Date?
+    var lastSuccessfulRefreshAt: Date? = nil
+    var lastAutomaticRefreshAttempt: Date? = nil
+    var lastHistoricalRefresh: Date? = nil
+    var refreshLog: [RefreshLogEntry]
+}
+
+nonisolated struct EnhancedSourceConfiguration: Codable, Hashable, Sendable {
+    let twelveDataAPIKey: String
+    let openExchangeRatesAppID: String
+
+    init(twelveDataAPIKey: String = "", openExchangeRatesAppID: String = "") {
+        self.twelveDataAPIKey = twelveDataAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.openExchangeRatesAppID = openExchangeRatesAppID.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var hasTwelveDataKey: Bool {
+        !twelveDataAPIKey.isEmpty
+    }
+
+    var hasOpenExchangeRatesAppID: Bool {
+        !openExchangeRatesAppID.isEmpty
+    }
+
+    static let empty = EnhancedSourceConfiguration()
+}
+
+nonisolated struct DispatchLogEntry: Sendable {
+    let level: RefreshLogEntry.Level
+    let message: String
+}
+
+nonisolated struct ExchangeFetchResult: Sendable {
+    var snapshots: [CurrencySnapshot]
+    var errors: [String]
+    var sourceStatuses: [SourceStatus]
+    var logs: [DispatchLogEntry]
+}
+
+nonisolated struct ProviderFetchResult: Sendable {
+    var snapshots: [CurrencySnapshot]
+    var errors: [String]
+    var sourceStatus: SourceStatus
+    var logs: [DispatchLogEntry]
+}
+
+nonisolated struct HistoricalFetchResult: Sendable {
+    var historyByPairID: [String: [TrendPoint]]
+    var errors: [String]
+}
+
+nonisolated enum SourceDateParser {
+    private static let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? TimeZone.current
+        return calendar
+    }()
+    private static let httpDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter
+    }()
+
+    static func isoDay(_ string: String) -> Date? {
+        let parts = string.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else {
+            return nil
+        }
+
+        return calendar.date(from: DateComponents(
+            timeZone: calendar.timeZone,
+            year: parts[0],
+            month: parts[1],
+            day: parts[2],
+            hour: 12
+        ))
+    }
+
+    static func cbrDay(_ string: String) -> Date? {
+        let parts = string.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 3 else {
+            return nil
+        }
+
+        return calendar.date(from: DateComponents(
+            timeZone: calendar.timeZone,
+            year: parts[2],
+            month: parts[1],
+            day: parts[0],
+            hour: 12
+        ))
+    }
+
+    static func httpDay(_ string: String) -> Date? {
+        guard let parsedDate = httpDateFormatter.date(from: string) else {
+            return nil
+        }
+
+        let components = calendar.dateComponents([.year, .month, .day], from: parsedDate)
+        return calendar.date(from: DateComponents(
+            timeZone: calendar.timeZone,
+            year: components.year,
+            month: components.month,
+            day: components.day,
+            hour: 12
+        ))
+    }
+
+    static func isoQueryString(from date: Date) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", components.year ?? 1970, components.month ?? 1, components.day ?? 1)
+    }
+
+    static func cbrQueryString(from date: Date) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%02d/%02d/%04d", components.day ?? 1, components.month ?? 1, components.year ?? 1970)
+    }
+}
+
+nonisolated struct SourceStatus: Codable, Hashable, Sendable, Identifiable {
+    let source: ExchangeSource
+    let state: State
+    let message: String
+    let timestamp: Date
+
+    enum State: String, Codable, Sendable {
+        case success
+        case partial
+        case failure
+        case idle
+    }
+
+    var id: String {
+        source.rawValue
+    }
+}
+
+nonisolated struct RefreshLogEntry: Codable, Hashable, Sendable, Identifiable {
+    let id: UUID
+    let timestamp: Date
+    let level: Level
+    let message: String
+
+    enum Level: String, Codable, Sendable {
+        case info
+        case warning
+        case error
+    }
+
+    init(id: UUID = UUID(), timestamp: Date, level: Level, message: String) {
+        self.id = id
+        self.timestamp = timestamp
+        self.level = level
+        self.message = message
+    }
+}
+
+@MainActor
+@Observable
+final class PreferencesStore {
+    var selectedPairIDs: [String]
+    var autoRefreshMinutes: Int
+    var menuBarOpenRefreshEnabled: Bool
+    var trendPointLimit: Int
+    var featuredPairID: String
+    var showsFlags: Bool
+    var baseCurrencyCode: String
+    var textConversionShortcut: GlobalShortcutDescriptor?
+
+    private let userDefaults: UserDefaults
+    private let selectedPairsKey = "selectedPairIDs"
+    private let autoRefreshKey = "autoRefreshMinutes"
+    private let menuBarOpenRefreshKey = "menuBarOpenRefreshEnabled"
+    private let trendPointLimitKey = "trendPointLimit"
+    private let featuredPairKey = "featuredPairID"
+    private let showsFlagsKey = "showsFlags"
+    private let baseCurrencyKey = "baseCurrencyCode"
+    private let textConversionShortcutKey = "textConversionShortcut"
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+
+        let storedPairIDs = userDefaults.stringArray(forKey: selectedPairsKey) ?? []
+        let initialSelectedPairIDs = storedPairIDs.filter { Self.pair(for: $0) != nil }
+        selectedPairIDs = initialSelectedPairIDs
+
+        if let storedRefresh = userDefaults.object(forKey: autoRefreshKey) as? Int,
+           [0, 5, 10, 30, 60].contains(storedRefresh) {
+            autoRefreshMinutes = storedRefresh
+        } else {
+            autoRefreshMinutes = 10
+        }
+
+        if userDefaults.object(forKey: menuBarOpenRefreshKey) == nil {
+            menuBarOpenRefreshEnabled = true
+        } else {
+            menuBarOpenRefreshEnabled = userDefaults.bool(forKey: menuBarOpenRefreshKey)
+        }
+
+        let storedTrendLimit = userDefaults.integer(forKey: trendPointLimitKey)
+        trendPointLimit = [12, 20, 30, 50].contains(storedTrendLimit) ? storedTrendLimit : 20
+
+        let storedFeaturedPairID = userDefaults.string(forKey: featuredPairKey)
+        featuredPairID = initialSelectedPairIDs.contains(storedFeaturedPairID ?? "") ? (storedFeaturedPairID ?? "") : (initialSelectedPairIDs.first ?? "")
+
+        if userDefaults.object(forKey: showsFlagsKey) == nil {
+            showsFlags = false
+        } else {
+            showsFlags = userDefaults.bool(forKey: showsFlagsKey)
+        }
+
+        let storedBaseCurrency = userDefaults.string(forKey: baseCurrencyKey)?.uppercased()
+        if let storedBaseCurrency, CurrencyCatalog.info(for: storedBaseCurrency) != nil {
+            baseCurrencyCode = storedBaseCurrency
+        } else {
+            baseCurrencyCode = Self.defaultBaseCurrencyCode()
+        }
+
+        textConversionShortcut = Self.decodeShortcut(from: userDefaults.data(forKey: textConversionShortcutKey))
+    }
+
+    var selectedPairs: [CurrencyPair] {
+        selectedPairIDs.compactMap(Self.pair(for:))
+    }
+
+    var availableBaseCurrencies: [CurrencyInfo] {
+        CurrencyCatalog.all.filter { $0.code != "RUB" }
+    }
+
+    var availableBaseCurrencyOptions: [CurrencyInfo] {
+        CurrencyCatalog.all
+    }
+
+    var autoRefreshIntervalOptions: [Int] {
+        [0, 5, 10, 30, 60]
+    }
+
+    func availableQuoteCurrencies(for baseCode: String) -> [CurrencyInfo] {
+        CurrencyCatalog.supportedQuotes(for: baseCode)
+    }
+
+    func contains(_ pair: CurrencyPair) -> Bool {
+        selectedPairIDs.contains(pair.id)
+    }
+
+    func addPair(baseCode: String, quoteCode: String) {
+        guard let pair = CurrencyCatalog.supportedPair(baseCode: baseCode, quoteCode: quoteCode) else {
+            return
+        }
+
+        guard !selectedPairIDs.contains(pair.id) else {
+            return
+        }
+
+        selectedPairIDs.append(pair.id)
+        if selectedPairIDs.count == 1 {
+            featuredPairID = pair.id
+        }
+        persist()
+    }
+
+    func removePair(id: String) {
+        selectedPairIDs.removeAll { $0 == id }
+        if featuredPairID == id {
+            featuredPairID = selectedPairIDs.first ?? ""
+        }
+        persist()
+    }
+
+    func movePairs(from source: IndexSet, to destination: Int) {
+        selectedPairIDs.move(fromOffsets: source, toOffset: destination)
+        persist()
+    }
+
+    func movePair(id: String, to index: Int) {
+        guard let sourceIndex = selectedPairIDs.firstIndex(of: id) else {
+            return
+        }
+
+        let clampedIndex = max(0, min(index, selectedPairIDs.count))
+        guard sourceIndex != clampedIndex && sourceIndex + 1 != clampedIndex else {
+            return
+        }
+
+        movePairs(from: IndexSet(integer: sourceIndex), to: clampedIndex)
+    }
+
+    func movePairUp(id: String) {
+        guard let index = selectedPairIDs.firstIndex(of: id), index > 0 else {
+            return
+        }
+
+        selectedPairIDs.swapAt(index, index - 1)
+        persist()
+    }
+
+    func movePairDown(id: String) {
+        guard let index = selectedPairIDs.firstIndex(of: id), index < selectedPairIDs.count - 1 else {
+            return
+        }
+
+        selectedPairIDs.swapAt(index, index + 1)
+        persist()
+    }
+
+    func setFeaturedPair(id: String) {
+        guard selectedPairIDs.contains(id) else {
+            return
+        }
+
+        featuredPairID = id
+        persist()
+    }
+
+    func setAutoRefreshMinutes(_ value: Int) {
+        guard autoRefreshIntervalOptions.contains(value) else {
+            return
+        }
+
+        autoRefreshMinutes = value
+        persist()
+    }
+
+    func setMenuBarOpenRefreshEnabled(_ value: Bool) {
+        menuBarOpenRefreshEnabled = value
+        persist()
+    }
+
+    func setTrendPointLimit(_ value: Int) {
+        trendPointLimit = value
+        persist()
+    }
+
+    func setShowsFlags(_ value: Bool) {
+        showsFlags = value
+        persist()
+    }
+
+    func setBaseCurrencyCode(_ value: String) {
+        let normalized = value.uppercased()
+        guard CurrencyCatalog.info(for: normalized) != nil else {
+            return
+        }
+
+        baseCurrencyCode = normalized
+        persist()
+    }
+
+    func setTextConversionShortcut(_ shortcut: GlobalShortcutDescriptor?) {
+        textConversionShortcut = shortcut
+        persist()
+    }
+
+    private func persist() {
+        userDefaults.set(selectedPairIDs, forKey: selectedPairsKey)
+        userDefaults.set(autoRefreshMinutes, forKey: autoRefreshKey)
+        userDefaults.set(menuBarOpenRefreshEnabled, forKey: menuBarOpenRefreshKey)
+        userDefaults.set(trendPointLimit, forKey: trendPointLimitKey)
+        userDefaults.set(featuredPairID, forKey: featuredPairKey)
+        userDefaults.set(showsFlags, forKey: showsFlagsKey)
+        userDefaults.set(baseCurrencyCode, forKey: baseCurrencyKey)
+        userDefaults.set(Self.encodeShortcut(textConversionShortcut), forKey: textConversionShortcutKey)
+    }
+
+    private static func pair(for id: String) -> CurrencyPair? {
+        let components = id.split(separator: "-")
+        guard components.count == 3 else {
+            return nil
+        }
+
+        guard let baseAmount = Int(components[2]) else {
+            return nil
+        }
+
+        return CurrencyCatalog.supportedPair(
+            baseCode: String(components[0]),
+            quoteCode: String(components[1]),
+            baseAmount: baseAmount
+        )
+    }
+
+    private static func defaultBaseCurrencyCode() -> String {
+        if let localeCurrency = Locale.autoupdatingCurrent.currency?.identifier.uppercased(),
+           CurrencyCatalog.info(for: localeCurrency) != nil {
+            return localeCurrency
+        }
+
+        return "USD"
+    }
+
+    private static func encodeShortcut(_ shortcut: GlobalShortcutDescriptor?) -> Data? {
+        guard let shortcut else {
+            return nil
+        }
+
+        return try? JSONEncoder().encode(shortcut)
+    }
+
+    private static func decodeShortcut(from data: Data?) -> GlobalShortcutDescriptor? {
+        guard let data else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(GlobalShortcutDescriptor.self, from: data)
+    }
+}
+
+@MainActor
+@Observable
+final class LaunchAtLoginController {
+    var isEnabled = false
+    var requiresApproval = false
+    var lastErrorMessage: String?
+
+    init() {
+        refreshStatus()
+    }
+
+    func refreshStatus() {
+        let status = SMAppService.mainApp.status
+        isEnabled = status == .enabled
+        requiresApproval = status == .requiresApproval
+
+        if status == .notFound {
+            lastErrorMessage = "系统暂时无法确认开机启动状态。"
+        } else {
+            lastErrorMessage = nil
+        }
+    }
+
+    func setEnabled(_ enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+
+            refreshStatus()
+        } catch {
+            refreshStatus()
+            lastErrorMessage = enabled ? "开机启动注册失败" : "开机启动关闭失败"
+        }
+    }
+
+    func openSystemSettings() {
+        SMAppService.openSystemSettingsLoginItems()
+    }
+}
+
+actor ExchangeRateStore {
+    private let cacheURL: URL
+    private let decoder = JSONDecoder()
+    private let encoder = JSONEncoder()
+
+    init() {
+        let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        let directoryURL = baseURL.appendingPathComponent("CurrencyTracker", isDirectory: true)
+
+        try? FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+
+        cacheURL = directoryURL.appendingPathComponent("exchange-cache.json")
+        decoder.dateDecodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    }
+
+    func load() async -> CachedExchangeState? {
+        guard let data = try? Data(contentsOf: cacheURL) else {
+            return nil
+        }
+
+        if let state = try? decoder.decode(CachedExchangeState.self, from: data) {
+            return state
+        }
+
+        guard let legacyState = try? decoder.decode(LegacyCachedExchangeState.self, from: data) else {
+            return nil
+        }
+
+        return CachedExchangeState(
+            snapshots: legacyState.snapshots,
+            history: legacyState.history,
+            lastRefreshAttempt: legacyState.lastRefreshAttempt,
+            refreshLog: []
+        )
+    }
+
+    func save(_ state: CachedExchangeState) async {
+        guard let data = try? encoder.encode(state) else {
+            return
+        }
+
+        try? data.write(to: cacheURL, options: [.atomic])
+    }
+}
+
+
+extension CachedExchangeState {
+    static let empty = CachedExchangeState(snapshots: [], history: [:], lastRefreshAttempt: nil, refreshLog: [])
+
+    mutating func mergeSnapshots(_ snapshots: [CurrencySnapshot]) {
+        guard !snapshots.isEmpty else {
+            return
+        }
+
+        var snapshotsByID = Dictionary(uniqueKeysWithValues: self.snapshots.map { ($0.id, $0) })
+        for snapshot in snapshots {
+            snapshotsByID[snapshot.id] = snapshot
+        }
+        self.snapshots = Array(snapshotsByID.values)
+    }
+
+    mutating func prependLogs(_ entries: [RefreshLogEntry]) {
+        guard !entries.isEmpty else {
+            return
+        }
+
+        refreshLog = entries.reversed() + refreshLog
+        refreshLog = Array(refreshLog.prefix(30))
+    }
+
+    static let sample = CachedExchangeState(
+        snapshots: [
+            CurrencySnapshot(pair: CurrencyPair.defaults[0], rate: 92.37, updatedAt: .now, effectiveDateText: "2026-04-10", source: .cbr, isCached: false),
+            CurrencySnapshot(pair: CurrencyPair.defaults[1], rate: 12.74, updatedAt: .now, effectiveDateText: "2026-04-10", source: .cbr, isCached: false),
+            CurrencySnapshot(pair: CurrencyPair.defaults[2], rate: 100.21, updatedAt: .now, effectiveDateText: "2026-04-10", source: .cbr, isCached: false),
+            CurrencySnapshot(pair: CurrencyPair.defaults[3], rate: 7.24, updatedAt: .now, effectiveDateText: "2026-04-10", source: .ecb, isCached: false),
+            CurrencySnapshot(pair: CurrencyPair.defaults[4], rate: 7.89, updatedAt: .now, effectiveDateText: "2026-04-10", source: .ecb, isCached: false)
+        ],
+        history: [
+            CurrencyPair.defaults[0].id: [
+                TrendPoint(timestamp: .now.addingTimeInterval(-5 * 24 * 3600), value: 91.82),
+                TrendPoint(timestamp: .now.addingTimeInterval(-4 * 24 * 3600), value: 92.05),
+                TrendPoint(timestamp: .now.addingTimeInterval(-2 * 24 * 3600), value: 92.11),
+                TrendPoint(timestamp: .now.addingTimeInterval(-24 * 3600), value: 92.37)
+            ]
+        ],
+        lastRefreshAttempt: .now,
+        refreshLog: [
+            RefreshLogEntry(timestamp: .now.addingTimeInterval(-120), level: .info, message: "预览数据已载入"),
+            RefreshLogEntry(timestamp: .now.addingTimeInterval(-60), level: .warning, message: "ECB 预览来源仅用于界面展示")
+        ]
+    )
 }
