@@ -5,6 +5,7 @@
 //  Created by Codex on 4/12/26.
 //
 
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -13,6 +14,7 @@ enum SettingsSection: String, CaseIterable, Hashable, Sendable {
     case rates
     case refresh
     case dataSources
+    case updates
     case system
 
     var title: LocalizedStringKey {
@@ -25,6 +27,8 @@ enum SettingsSection: String, CaseIterable, Hashable, Sendable {
             "刷新"
         case .dataSources:
             "数据源"
+        case .updates:
+            "更新"
         case .system:
             "系统"
         }
@@ -40,6 +44,8 @@ enum SettingsSection: String, CaseIterable, Hashable, Sendable {
             "自动更新行为"
         case .dataSources:
             "API key 与增强来源"
+        case .updates:
+            "版本与下载"
         case .system:
             "开机启动"
         }
@@ -55,10 +61,20 @@ enum SettingsSection: String, CaseIterable, Hashable, Sendable {
             "arrow.clockwise"
         case .dataSources:
             "key"
+        case .updates:
+            "arrow.down.circle"
         case .system:
             "power"
         }
     }
+}
+
+private enum SoftwareUpdateCheckState: Equatable {
+    case idle
+    case checking
+    case upToDate(version: String)
+    case available(SoftwareUpdateInfo)
+    case failed(String)
 }
 
 struct SettingsView: View {
@@ -67,6 +83,7 @@ struct SettingsView: View {
     let viewModel: ExchangePanelViewModel
     let apiConfigurationViewModel: APIConfigurationViewModel
     let globalShortcutHandler: GlobalShortcutHandler
+    let softwareUpdateWindowController: SoftwareUpdateWindowController
     let focusSection: SettingsSection?
 
     @State private var draftBaseCode = "USD"
@@ -75,6 +92,8 @@ struct SettingsView: View {
     @State private var draggedPairID: String?
     @State private var selectedSection: SettingsSection = .rates
     @State private var isShowingAPIPrivacyDetails = false
+    @State private var updateCheckState: SoftwareUpdateCheckState = .idle
+    @State private var lastUpdateCheckDate: Date?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -159,6 +178,8 @@ struct SettingsView: View {
             refreshBehaviorSection
         case .dataSources:
             apiConfigurationSection
+        case .updates:
+            softwareUpdateSection
         case .system:
             launchSection
         }
@@ -465,40 +486,145 @@ struct SettingsView: View {
             sectionTitle("数据增强")
 
             VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("留空则继续使用默认公共数据源；API key 只用于增强最新快照。")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
+                HStack(alignment: .top, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("选择你正在使用的供应商，下方只显示已添加的数据源。")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
 
-                    DisclosureGroup("详细说明", isExpanded: $isShowingAPIPrivacyDetails) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("只有在你点击“保存”后，API 信息才会写入本地凭证文件（Application Support/CurrencyTracker）。")
-                            Text("外部数据源只能看到本次汇率请求本身及常规网络元数据；应用不会上传本地文件、剪贴板或其他设备内容，并且请求会强制走 HTTPS。")
+                        Text("留空则继续使用默认公共数据源；API key 只用于增强最新快照。")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        DisclosureGroup("详细说明", isExpanded: $isShowingAPIPrivacyDetails) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("只有在你点击“保存”后，API 信息才会写入本地凭证文件（Application Support/CurrencyTracker）。")
+                                Text("外部数据源只能看到本次汇率请求本身及常规网络元数据；应用不会上传本地文件、剪贴板或其他设备内容，并且请求会强制走 HTTPS。")
+                            }
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 4)
                         }
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 4)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
                     }
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+
+                    Spacer()
+
+                    Menu {
+                        ForEach(apiConfigurationViewModel.availableKindsToAdd) { kind in
+                            Button(kind.displayName) {
+                                apiConfigurationViewModel.addProvider(kind)
+                            }
+                        }
+                    } label: {
+                        Label("添加 API 数据源", systemImage: "plus")
+                    }
+                    .menuStyle(.button)
+                    .disabled(apiConfigurationViewModel.availableKindsToAdd.isEmpty)
+                    .help(apiConfigurationViewModel.availableKindsToAdd.isEmpty ? "已添加所有支持的数据源" : "添加 API 数据源")
                 }
 
-                APIConfigurationRow(
-                    field: apiConfigurationViewModel.field(for: .twelveData),
-                    onValueChange: { apiConfigurationViewModel.updateDraft($0, for: .twelveData) },
-                    onToggleReveal: { apiConfigurationViewModel.toggleReveal(for: .twelveData) },
-                    onPrimaryAction: {
-                        await apiConfigurationViewModel.performPrimaryAction(for: .twelveData)
+                VStack(spacing: 10) {
+                    ForEach(apiConfigurationViewModel.selectedKinds) { kind in
+                        APIConfigurationRow(
+                            field: apiConfigurationViewModel.field(for: kind),
+                            onValueChange: { apiConfigurationViewModel.updateDraft($0, for: kind) },
+                            onToggleReveal: { apiConfigurationViewModel.toggleReveal(for: kind) },
+                            onPrimaryAction: {
+                                await apiConfigurationViewModel.performPrimaryAction(for: kind)
+                            }
+                        )
                     }
-                )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(sectionCardBackground)
+        }
+    }
 
-                APIConfigurationRow(
-                    field: apiConfigurationViewModel.field(for: .openExchangeRates),
-                    onValueChange: { apiConfigurationViewModel.updateDraft($0, for: .openExchangeRates) },
-                    onToggleReveal: { apiConfigurationViewModel.toggleReveal(for: .openExchangeRates) },
-                    onPrimaryAction: {
-                        await apiConfigurationViewModel.performPrimaryAction(for: .openExchangeRates)
+    private var softwareUpdateSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("软件更新")
+
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .center, spacing: 14) {
+                    updateStatusIcon
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(String(format: String(localized: "当前版本 %@"), SoftwareUpdateChecker.currentVersion()))
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+
+                        Text(updateStatusText)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if let lastUpdateCheckDate {
+                            Text(String(format: String(localized: "上次检查：%@"), ExchangeFormatter.time.string(from: lastUpdateCheckDate)))
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                        }
+
+                        if updateCheckState == .checking {
+                            ProgressView()
+                                .progressViewStyle(.linear)
+                                .controlSize(.small)
+                                .tint(.accentColor)
+                                .frame(maxWidth: 260)
+                                .transition(.opacity)
+                        }
                     }
-                )
+
+                    Spacer(minLength: 16)
+
+                    VStack(alignment: .trailing, spacing: 8) {
+                        Button(updateCheckButtonTitle) {
+                            Task {
+                                await checkForUpdates()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(updateCheckState == .checking)
+                        .accessibilityIdentifier("settings.updates.check")
+
+                        if let releaseURL = updateReleaseURL {
+                            Button(updateDownloadButtonTitle) {
+                                NSWorkspace.shared.open(releaseURL)
+                            }
+                            .buttonStyle(.link)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        }
+                    }
+                }
+
+                Divider()
+
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("自动检查更新")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        Text("启动时每天最多检查一次；发现新版本时会弹出更新窗口。")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: Binding(
+                        get: { preferences.automaticUpdateChecksEnabled },
+                        set: { preferences.setAutomaticUpdateChecksEnabled($0) }
+                    ))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                }
+
+                Text("安装包会从 GitHub Releases 下载。")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
@@ -542,6 +668,103 @@ struct SettingsView: View {
                 .buttonStyle(.link)
                 .font(.system(size: 12, weight: .medium, design: .rounded))
             }
+        }
+    }
+
+    private var updateStatusIcon: some View {
+        ZStack {
+            Circle()
+                .fill(updateStatusTint.opacity(0.14))
+            Image(systemName: updateStatusSymbolName)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(updateStatusTint)
+        }
+        .frame(width: 44, height: 44)
+    }
+
+    private var updateStatusSymbolName: String {
+        switch updateCheckState {
+        case .idle:
+            "arrow.down.circle"
+        case .checking:
+            "arrow.triangle.2.circlepath"
+        case .upToDate:
+            "checkmark.circle.fill"
+        case .available:
+            "sparkles"
+        case .failed:
+            "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var updateStatusTint: Color {
+        switch updateCheckState {
+        case .idle, .checking:
+            .secondary
+        case .upToDate:
+            Color(red: 0.09, green: 0.53, blue: 0.32)
+        case .available:
+            Color.accentColor
+        case .failed:
+            Color(red: 0.74, green: 0.20, blue: 0.18)
+        }
+    }
+
+    private var updateStatusText: String {
+        switch updateCheckState {
+        case .idle:
+            return String(localized: "点击检查更新以获取 GitHub 上的最新版本。")
+        case .checking:
+            return String(localized: "正在检查 GitHub Releases…")
+        case .upToDate(let version):
+            return String(format: String(localized: "已是最新版本 %@"), version)
+        case .available(let info):
+            return String(format: String(localized: "发现新版本 %@"), info.version)
+        case .failed(let message):
+            return message
+        }
+    }
+
+    private var updateReleaseURL: URL? {
+        if case .available(let info) = updateCheckState {
+            return info.downloadURL ?? info.releaseURL
+        }
+
+        return SoftwareUpdateChecker.releasesURL
+    }
+
+    private var updateDownloadButtonTitle: LocalizedStringKey {
+        if case .available = updateCheckState {
+            return "打开下载页面"
+        }
+
+        return "打开发布页面"
+    }
+
+    private var updateCheckButtonTitle: LocalizedStringKey {
+        updateCheckState == .checking ? "正在检查" : "检查更新"
+    }
+
+    @MainActor
+    private func checkForUpdates() async {
+        guard updateCheckState != .checking else {
+            return
+        }
+
+        updateCheckState = .checking
+
+        do {
+            let latestInfo = try await SoftwareUpdateChecker.fetchLatestRelease()
+            lastUpdateCheckDate = .now
+            if latestInfo.isNewer(than: SoftwareUpdateChecker.currentVersion()) {
+                updateCheckState = .available(latestInfo)
+                softwareUpdateWindowController.show(updateInfo: latestInfo, preferences: preferences)
+            } else {
+                updateCheckState = .upToDate(version: latestInfo.version)
+            }
+        } catch {
+            lastUpdateCheckDate = .now
+            updateCheckState = .failed(String(localized: "检查更新失败，请稍后重试"))
         }
     }
 
@@ -793,11 +1016,15 @@ private struct APIConfigurationRow: View {
 
                 Spacer()
 
-                Text(LocalizedStringKey(field.phase.statusText))
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(field.phase.tintColor)
-                    .accessibilityLabel(field.phase.statusText)
-                    .accessibilityIdentifier("\(identifierPrefix).status")
+                HStack(spacing: 5) {
+                    Image(systemName: statusSymbolName)
+                        .font(.system(size: 9, weight: .bold))
+                    Text(LocalizedStringKey(field.phase.statusText))
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                }
+                .foregroundStyle(field.phase.tintColor)
+                .accessibilityLabel(field.phase.statusText)
+                .accessibilityIdentifier("\(identifierPrefix).status")
             }
 
             HStack(spacing: 8) {
@@ -861,6 +1088,21 @@ private struct APIConfigurationRow: View {
 
     private var identifierPrefix: String {
         "settings.api.\(field.kind.rawValue)"
+    }
+
+    private var statusSymbolName: String {
+        switch field.phase {
+        case .enabled:
+            "checkmark.circle.fill"
+        case .failure:
+            "exclamationmark.triangle.fill"
+        case .saving:
+            "circle.dotted"
+        case .editing:
+            "pencil.circle"
+        case .empty:
+            "circle"
+        }
     }
 }
 

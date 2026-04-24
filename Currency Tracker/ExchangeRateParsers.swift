@@ -162,6 +162,151 @@ nonisolated enum OpenExchangeRatesParser {
     }
 }
 
+nonisolated struct ExchangeRateAPILatest: Sendable {
+    let timestamp: Date?
+    let baseCode: String
+    let rates: [String: Double]
+
+    func rate(for currencyCode: String) -> Double? {
+        if currencyCode == baseCode {
+            return 1
+        }
+
+        return rates[currencyCode]
+    }
+}
+
+nonisolated enum ExchangeRateAPIParser {
+    static func parseLatest(from data: Data) throws -> ExchangeRateAPILatest {
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let object else {
+            throw EnhancedProviderError.noData
+        }
+
+        if let result = object["result"] as? String, result.lowercased() != "success" {
+            let message = object["error-type"] as? String ?? result
+            throw EnhancedProviderError.transport(message)
+        }
+
+        guard let baseCode = object["base_code"] as? String,
+              let rawRates = object["conversion_rates"] as? [String: Any] else {
+            throw EnhancedProviderError.noData
+        }
+
+        let rates = parseNumberMap(rawRates)
+        let timestampValue = object["time_last_update_unix"] as? TimeInterval
+            ?? (object["time_last_update_unix"] as? NSNumber)?.doubleValue
+
+        return ExchangeRateAPILatest(
+            timestamp: timestampValue.map { Date(timeIntervalSince1970: $0) },
+            baseCode: baseCode.uppercased(),
+            rates: rates
+        )
+    }
+}
+
+nonisolated struct FixerLatest: Sendable {
+    let timestamp: Date?
+    let date: String?
+    let baseCode: String
+    let rates: [String: Double]
+
+    func rate(for currencyCode: String) -> Double? {
+        if currencyCode == baseCode {
+            return 1
+        }
+
+        return rates[currencyCode]
+    }
+}
+
+nonisolated enum FixerParser {
+    static func parseLatest(from data: Data) throws -> FixerLatest {
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let object else {
+            throw EnhancedProviderError.noData
+        }
+
+        if let success = object["success"] as? Bool, success == false {
+            let errorObject = object["error"] as? [String: Any]
+            let message = errorObject?["info"] as? String
+                ?? errorObject?["type"] as? String
+                ?? "Fixer error"
+            throw EnhancedProviderError.transport(message)
+        }
+
+        guard let rawRates = object["rates"] as? [String: Any] else {
+            throw EnhancedProviderError.noData
+        }
+
+        let timestampValue = object["timestamp"] as? TimeInterval
+            ?? (object["timestamp"] as? NSNumber)?.doubleValue
+        let baseCode = (object["base"] as? String ?? "EUR").uppercased()
+
+        return FixerLatest(
+            timestamp: timestampValue.map { Date(timeIntervalSince1970: $0) },
+            date: object["date"] as? String,
+            baseCode: baseCode,
+            rates: parseNumberMap(rawRates)
+        )
+    }
+}
+
+nonisolated struct CurrencyLayerLive: Sendable {
+    let timestamp: Date?
+    let sourceCode: String
+    let quotes: [String: Double]
+
+    func rate(for currencyCode: String) -> Double? {
+        if currencyCode == sourceCode {
+            return 1
+        }
+
+        return quotes["\(sourceCode)\(currencyCode)"]
+    }
+}
+
+nonisolated enum CurrencyLayerParser {
+    static func parseLive(from data: Data) throws -> CurrencyLayerLive {
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let object else {
+            throw EnhancedProviderError.noData
+        }
+
+        if let success = object["success"] as? Bool, success == false {
+            let errorObject = object["error"] as? [String: Any]
+            let message = errorObject?["info"] as? String
+                ?? errorObject?["type"] as? String
+                ?? "Currencylayer error"
+            throw EnhancedProviderError.transport(message)
+        }
+
+        guard let rawQuotes = object["quotes"] as? [String: Any] else {
+            throw EnhancedProviderError.noData
+        }
+
+        let timestampValue = object["timestamp"] as? TimeInterval
+            ?? (object["timestamp"] as? NSNumber)?.doubleValue
+        let sourceCode = (object["source"] as? String ?? "USD").uppercased()
+
+        return CurrencyLayerLive(
+            timestamp: timestampValue.map { Date(timeIntervalSince1970: $0) },
+            sourceCode: sourceCode,
+            quotes: parseNumberMap(rawQuotes)
+        )
+    }
+}
+
+nonisolated private func parseNumberMap(_ rawValues: [String: Any]) -> [String: Double] {
+    rawValues.reduce(into: [String: Double]()) { partialResult, entry in
+        if let value = entry.value as? Double {
+            partialResult[entry.key.uppercased()] = value
+        } else if let number = entry.value as? NSNumber {
+            partialResult[entry.key.uppercased()] = number.doubleValue
+        }
+    }
+}
+
 nonisolated struct ECBDataResponse: Decodable, Sendable {
     let dataSets: [ECBDataSet]
     let structure: ECBStructure

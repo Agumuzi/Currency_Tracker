@@ -5,11 +5,13 @@
 "汇率" = "Rates";
 "刷新" = "Refresh";
 "数据源" = "Data Sources";
+"更新" = "Updates";
 "系统" = "System";
 "基准货币与文本换算" = "Base currency and text conversion";
 "展示列表与新增汇率" = "Shown pairs and new rates";
 "自动更新行为" = "Automatic update behavior";
 "API key 与增强来源" = "API keys and enhanced sources";
+"版本与下载" = "Version and downloads";
 "开机启动" = "Launch at login";
 
 "基准货币" = "Base Currency";
@@ -52,20 +54,49 @@
 
 "数据增强" = "Data Enhancement";
 "留空则继续使用默认公共数据源；填写后只会增强最新快照刷新，不会改变主界面的结构。" = "Leave blank to keep using the default public sources. Adding keys only enhances latest snapshot refreshes and does not change the main interface.";
+"选择你正在使用的供应商，下方只显示已添加的数据源。" = "Choose the providers you use. Only added data sources are shown below.";
+"添加 API 数据源" = "Add API Source";
+"已添加所有支持的数据源" = "All supported sources have been added";
 "只有在你点击“保存”后，API 信息才会写入本地凭证文件（Application Support/CurrencyTracker）。" = "API credentials are written to local credential storage only after you click Save.";
 "外部数据源只能看到本次汇率请求本身及常规网络元数据；应用不会上传本地文件、剪贴板或其他设备内容，并且请求会强制走 HTTPS。" = "External data providers only see the rate request and normal network metadata. The app does not upload local files, clipboard contents, or other device data, and requests are forced over HTTPS.";
 "留空则不启用" = "Leave blank to disable";
 "未填写" = "Not set";
 "已保存" = "Saved";
+"已启用" = "Enabled";
 "编辑中" = "Editing";
 "保存中" = "Saving";
 "验证成功" = "Verified";
 "保存" = "Save";
 "编辑" = "Edit";
+"填写" = "Fill In";
 "验证失败，请检查 key" = "Validation failed. Check the key.";
 "验证失败，当前额度不可用" = "Validation failed. Current quota is unavailable.";
 "验证失败，请稍后重试" = "Validation failed. Try again later.";
 "保存失败，请重试" = "Save failed. Try again.";
+
+"软件更新" = "Software Update";
+"当前版本 %@" = "Current version %@";
+"点击检查更新以获取 GitHub 上的最新版本。" = "Check for the latest version on GitHub.";
+"正在检查 GitHub Releases…" = "Checking GitHub Releases...";
+"已是最新版本 %@" = "You are up to date on %@";
+"发现新版本 %@" = "Version %@ is available";
+"检查更新失败，请稍后重试" = "Could not check for updates. Try again later.";
+"安装包会从 GitHub Releases 下载。" = "Downloads are provided through GitHub Releases.";
+"检查更新" = "Check for Updates";
+"正在检查" = "Checking";
+"打开下载页面" = "Open Download Page";
+"打开发布页面" = "Open Releases";
+"上次检查：%@" = "Last checked: %@";
+"自动检查更新" = "Automatically check for updates";
+"启动时每天最多检查一次；发现新版本时会弹出更新窗口。" = "Checks at most once per day on launch and shows the update window when a new version is available.";
+"新版的 Currency Tracker 已经发布" = "A new version of Currency Tracker is available";
+"Currency Tracker %@ 可供下载，您现在的版本是 %@。" = "Currency Tracker %@ is available to download. You are currently using %@.";
+"版本 %@：更新说明" = "Version %@: Release Notes";
+"打开 GitHub Releases 查看完整更新说明。" = "Open GitHub Releases to view the full release notes.";
+"以后自动检查更新" = "Automatically check for updates";
+"跳过这个版本" = "Skip This Version";
+"稍后提醒我" = "Remind Me Later";
+"下载更新" = "Download Update";
 
 "启动" = "Startup";
 "开机自动启动" = "Launch at login";
@@ -91,8 +122,11 @@
 "缓存" = "Cached";
 "尚未添加汇率" = "No rates added";
 "基准 %@ · %d 个汇率" = "%@ base · %d rates";
+"历史" = "History";
 "趋势" = "Trend";
 "换算" = "Convert";
+"展开详情" = "Show details";
+"收起详情" = "Hide details";
 "等待图表数据" = "Waiting for chart data";
 "暂时没有图表数据" = "No chart data yet";
 "图表数据不足" = "Not enough chart data";

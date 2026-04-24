@@ -41,6 +41,9 @@ final class Currency_TrackerUITests: XCTestCase {
         app.buttons["settings.sidebar.dataSources"].click()
         XCTAssertTrue(app.buttons["settings.api.twelveData.primary"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["settings.api.openExchangeRates.primary"].waitForExistence(timeout: 5))
+
+        app.buttons["settings.sidebar.updates"].click()
+        XCTAssertTrue(app.buttons["settings.updates.check"].waitForExistence(timeout: 5))
     }
 
     @MainActor

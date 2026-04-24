@@ -159,7 +159,10 @@ nonisolated enum CurrencyCatalog {
 
 nonisolated enum ExchangeSource: String, Codable, Sendable, CaseIterable {
     case twelveData = "TwelveData"
+    case exchangeRateAPI = "ExchangeRateAPI"
     case openExchangeRates = "OpenExchangeRates"
+    case fixer = "Fixer"
+    case currencyLayer = "CurrencyLayer"
     case cbr = "CBR"
     case ecb = "ECB"
     case frankfurter = "Frankfurter"
@@ -170,8 +173,14 @@ nonisolated enum ExchangeSource: String, Codable, Sendable, CaseIterable {
         switch self {
         case .twelveData:
             "Twelve Data"
+        case .exchangeRateAPI:
+            "ExchangeRate-API"
         case .openExchangeRates:
             "Open Exchange Rates"
+        case .fixer:
+            "Fixer"
+        case .currencyLayer:
+            "Currencylayer"
         case .cbr:
             "CBR"
         case .ecb:
@@ -522,19 +531,58 @@ nonisolated struct CachedExchangeState: Codable, Sendable {
 
 nonisolated struct EnhancedSourceConfiguration: Codable, Hashable, Sendable {
     let twelveDataAPIKey: String
+    let exchangeRateAPIKey: String
     let openExchangeRatesAppID: String
+    let fixerAPIKey: String
+    let currencyLayerAPIKey: String
 
-    init(twelveDataAPIKey: String = "", openExchangeRatesAppID: String = "") {
+    init(
+        twelveDataAPIKey: String = "",
+        exchangeRateAPIKey: String = "",
+        openExchangeRatesAppID: String = "",
+        fixerAPIKey: String = "",
+        currencyLayerAPIKey: String = ""
+    ) {
         self.twelveDataAPIKey = twelveDataAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.exchangeRateAPIKey = exchangeRateAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         self.openExchangeRatesAppID = openExchangeRatesAppID.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.fixerAPIKey = fixerAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.currencyLayerAPIKey = currencyLayerAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var hasTwelveDataKey: Bool {
         !twelveDataAPIKey.isEmpty
     }
 
+    var hasExchangeRateAPIKey: Bool {
+        !exchangeRateAPIKey.isEmpty
+    }
+
     var hasOpenExchangeRatesAppID: Bool {
         !openExchangeRatesAppID.isEmpty
+    }
+
+    var hasFixerAPIKey: Bool {
+        !fixerAPIKey.isEmpty
+    }
+
+    var hasCurrencyLayerAPIKey: Bool {
+        !currencyLayerAPIKey.isEmpty
+    }
+
+    func credential(for kind: EnhancedCredentialKind) -> String {
+        switch kind {
+        case .twelveData:
+            twelveDataAPIKey
+        case .exchangeRateAPI:
+            exchangeRateAPIKey
+        case .openExchangeRates:
+            openExchangeRatesAppID
+        case .fixer:
+            fixerAPIKey
+        case .currencyLayer:
+            currencyLayerAPIKey
+        }
     }
 
     static let empty = EnhancedSourceConfiguration()
@@ -683,6 +731,9 @@ final class PreferencesStore {
     var showsFlags: Bool
     var baseCurrencyCode: String
     var textConversionShortcut: GlobalShortcutDescriptor?
+    var automaticUpdateChecksEnabled: Bool
+    var skippedUpdateVersion: String?
+    var lastAutomaticUpdateCheckAt: Date?
 
     private let userDefaults: UserDefaults
     private let selectedPairsKey = "selectedPairIDs"
@@ -693,6 +744,9 @@ final class PreferencesStore {
     private let showsFlagsKey = "showsFlags"
     private let baseCurrencyKey = "baseCurrencyCode"
     private let textConversionShortcutKey = "textConversionShortcut"
+    private let automaticUpdateChecksKey = "automaticUpdateChecksEnabled"
+    private let skippedUpdateVersionKey = "skippedUpdateVersion"
+    private let lastAutomaticUpdateCheckAtKey = "lastAutomaticUpdateCheckAt"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -734,6 +788,14 @@ final class PreferencesStore {
         }
 
         textConversionShortcut = Self.decodeShortcut(from: userDefaults.data(forKey: textConversionShortcutKey))
+
+        if userDefaults.object(forKey: automaticUpdateChecksKey) == nil {
+            automaticUpdateChecksEnabled = true
+        } else {
+            automaticUpdateChecksEnabled = userDefaults.bool(forKey: automaticUpdateChecksKey)
+        }
+        skippedUpdateVersion = userDefaults.string(forKey: skippedUpdateVersionKey)
+        lastAutomaticUpdateCheckAt = userDefaults.object(forKey: lastAutomaticUpdateCheckAtKey) as? Date
     }
 
     var selectedPairs: [CurrencyPair] {
@@ -868,6 +930,21 @@ final class PreferencesStore {
         persist()
     }
 
+    func setAutomaticUpdateChecksEnabled(_ value: Bool) {
+        automaticUpdateChecksEnabled = value
+        persist()
+    }
+
+    func skipUpdate(version: String) {
+        skippedUpdateVersion = version
+        persist()
+    }
+
+    func setLastAutomaticUpdateCheckAt(_ date: Date?) {
+        lastAutomaticUpdateCheckAt = date
+        persist()
+    }
+
     private func persist() {
         userDefaults.set(selectedPairIDs, forKey: selectedPairsKey)
         userDefaults.set(autoRefreshMinutes, forKey: autoRefreshKey)
@@ -877,6 +954,19 @@ final class PreferencesStore {
         userDefaults.set(showsFlags, forKey: showsFlagsKey)
         userDefaults.set(baseCurrencyCode, forKey: baseCurrencyKey)
         userDefaults.set(Self.encodeShortcut(textConversionShortcut), forKey: textConversionShortcutKey)
+        userDefaults.set(automaticUpdateChecksEnabled, forKey: automaticUpdateChecksKey)
+
+        if let skippedUpdateVersion {
+            userDefaults.set(skippedUpdateVersion, forKey: skippedUpdateVersionKey)
+        } else {
+            userDefaults.removeObject(forKey: skippedUpdateVersionKey)
+        }
+
+        if let lastAutomaticUpdateCheckAt {
+            userDefaults.set(lastAutomaticUpdateCheckAt, forKey: lastAutomaticUpdateCheckAtKey)
+        } else {
+            userDefaults.removeObject(forKey: lastAutomaticUpdateCheckAtKey)
+        }
     }
 
     private static func pair(for id: String) -> CurrencyPair? {

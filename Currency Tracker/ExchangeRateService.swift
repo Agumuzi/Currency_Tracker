@@ -8,14 +8,13 @@
 import Foundation
 
 protocol APIValidationServicing: Sendable {
-    func validateTwelveDataAPIKey(_ apiKey: String) async -> String?
-    func validateOpenExchangeRatesAppID(_ appID: String) async -> String?
+    func validateCredential(_ credential: String, for kind: EnhancedCredentialKind) async -> String?
 }
 
 nonisolated private enum ExchangeRateServiceConstants {
     static let historicalLookbackDays = 365
     static let publicNonRubSources: [ExchangeSource] = [.ecb, .frankfurter, .floatRates, .currencyAPI]
-    static let snapshotSourceOrder: [ExchangeSource] = [.twelveData, .openExchangeRates, .cbr, .ecb, .frankfurter, .floatRates, .currencyAPI]
+    static let snapshotSourceOrder: [ExchangeSource] = [.twelveData, .exchangeRateAPI, .openExchangeRates, .fixer, .currencyLayer, .cbr, .ecb, .frankfurter, .floatRates, .currencyAPI]
     static let twelveDataRequestHeaders = ["X-API-Version": "last"]
     static let rateLimitCooldown: TimeInterval = 15 * 60
     static let authenticationCooldown: TimeInterval = 30 * 60
@@ -97,6 +96,16 @@ actor ExchangeRateService: APIValidationServicing {
         logs.append(contentsOf: twelveDataResult.logs)
         remainingPairs = unresolvedPairs(from: remainingPairs, resolvedPairIDs: Set(twelveDataResult.snapshots.map(\.id)))
 
+        let exchangeRateAPIResult = await fetchExchangeRateAPISnapshotsIfNeeded(
+            for: remainingPairs,
+            apiKey: configuration.exchangeRateAPIKey
+        )
+        snapshots.append(contentsOf: exchangeRateAPIResult.snapshots)
+        errors.append(contentsOf: exchangeRateAPIResult.errors)
+        sourceStatuses.append(exchangeRateAPIResult.sourceStatus)
+        logs.append(contentsOf: exchangeRateAPIResult.logs)
+        remainingPairs = unresolvedPairs(from: remainingPairs, resolvedPairIDs: Set(exchangeRateAPIResult.snapshots.map(\.id)))
+
         let openExchangeRatesResult = await fetchOpenExchangeRatesSnapshotsIfNeeded(
             for: remainingPairs,
             appID: configuration.openExchangeRatesAppID
@@ -106,6 +115,26 @@ actor ExchangeRateService: APIValidationServicing {
         sourceStatuses.append(openExchangeRatesResult.sourceStatus)
         logs.append(contentsOf: openExchangeRatesResult.logs)
         remainingPairs = unresolvedPairs(from: remainingPairs, resolvedPairIDs: Set(openExchangeRatesResult.snapshots.map(\.id)))
+
+        let fixerResult = await fetchFixerSnapshotsIfNeeded(
+            for: remainingPairs,
+            apiKey: configuration.fixerAPIKey
+        )
+        snapshots.append(contentsOf: fixerResult.snapshots)
+        errors.append(contentsOf: fixerResult.errors)
+        sourceStatuses.append(fixerResult.sourceStatus)
+        logs.append(contentsOf: fixerResult.logs)
+        remainingPairs = unresolvedPairs(from: remainingPairs, resolvedPairIDs: Set(fixerResult.snapshots.map(\.id)))
+
+        let currencyLayerResult = await fetchCurrencyLayerSnapshotsIfNeeded(
+            for: remainingPairs,
+            apiKey: configuration.currencyLayerAPIKey
+        )
+        snapshots.append(contentsOf: currencyLayerResult.snapshots)
+        errors.append(contentsOf: currencyLayerResult.errors)
+        sourceStatuses.append(currencyLayerResult.sourceStatus)
+        logs.append(contentsOf: currencyLayerResult.logs)
+        remainingPairs = unresolvedPairs(from: remainingPairs, resolvedPairIDs: Set(currencyLayerResult.snapshots.map(\.id)))
 
         let rubPairs = remainingPairs.filter { $0.requiresCBR }
         let nonRubPairs = remainingPairs.filter { !$0.requiresCBR }
@@ -185,6 +214,21 @@ actor ExchangeRateService: APIValidationServicing {
         )
     }
 
+    func validateCredential(_ credential: String, for kind: EnhancedCredentialKind) async -> String? {
+        switch kind {
+        case .twelveData:
+            return await validateTwelveDataAPIKey(credential)
+        case .exchangeRateAPI:
+            return await validateExchangeRateAPIKey(credential)
+        case .openExchangeRates:
+            return await validateOpenExchangeRatesAppID(credential)
+        case .fixer:
+            return await validateFixerAPIKey(credential)
+        case .currencyLayer:
+            return await validateCurrencyLayerAPIKey(credential)
+        }
+    }
+
     func validateTwelveDataAPIKey(_ apiKey: String) async -> String? {
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
@@ -218,6 +262,33 @@ actor ExchangeRateService: APIValidationServicing {
         }
     }
 
+    func validateExchangeRateAPIKey(_ apiKey: String) async -> String? {
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            return nil
+        }
+
+        do {
+            let requestURL = URL(string: "https://v6.exchangerate-api.com/v6/\(trimmedKey)/latest/USD")!
+            let data = try await responseData(
+                from: requestURL,
+                retryCount: 0,
+                timeoutInterval: ExchangeRateServiceConstants.validationTimeout
+            )
+            _ = try ExchangeRateAPIParser.parseLatest(from: data)
+            return nil
+        } catch {
+            switch mapGenericEnhancedProviderError(error) {
+            case .authenticationFailed:
+                return "验证失败，请检查 key"
+            case .rateLimited:
+                return "验证失败，当前额度不可用"
+            case .unsupportedPair, .noData, .transport:
+                return "验证失败，请稍后重试"
+            }
+        }
+    }
+
     func validateOpenExchangeRatesAppID(_ appID: String) async -> String? {
         let trimmedAppID = appID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedAppID.isEmpty else {
@@ -241,6 +312,68 @@ actor ExchangeRateService: APIValidationServicing {
             return nil
         } catch {
             switch mapOpenExchangeRatesError(error) {
+            case .authenticationFailed:
+                return "验证失败，请检查 key"
+            case .rateLimited:
+                return "验证失败，当前额度不可用"
+            case .unsupportedPair, .noData, .transport:
+                return "验证失败，请稍后重试"
+            }
+        }
+    }
+
+    func validateFixerAPIKey(_ apiKey: String) async -> String? {
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            return nil
+        }
+
+        do {
+            var components = URLComponents(string: "https://data.fixer.io/api/latest")!
+            components.queryItems = [
+                URLQueryItem(name: "access_key", value: trimmedKey),
+                URLQueryItem(name: "symbols", value: "USD")
+            ]
+            let data = try await responseData(
+                from: components.url!,
+                retryCount: 0,
+                timeoutInterval: ExchangeRateServiceConstants.validationTimeout
+            )
+            _ = try FixerParser.parseLatest(from: data)
+            return nil
+        } catch {
+            switch mapGenericEnhancedProviderError(error) {
+            case .authenticationFailed:
+                return "验证失败，请检查 key"
+            case .rateLimited:
+                return "验证失败，当前额度不可用"
+            case .unsupportedPair, .noData, .transport:
+                return "验证失败，请稍后重试"
+            }
+        }
+    }
+
+    func validateCurrencyLayerAPIKey(_ apiKey: String) async -> String? {
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            return nil
+        }
+
+        do {
+            var components = URLComponents(string: "https://api.currencylayer.com/live")!
+            components.queryItems = [
+                URLQueryItem(name: "access_key", value: trimmedKey),
+                URLQueryItem(name: "currencies", value: "EUR")
+            ]
+            let data = try await responseData(
+                from: components.url!,
+                retryCount: 0,
+                timeoutInterval: ExchangeRateServiceConstants.validationTimeout
+            )
+            _ = try CurrencyLayerParser.parseLive(from: data)
+            return nil
+        } catch {
+            switch mapGenericEnhancedProviderError(error) {
             case .authenticationFailed:
                 return "验证失败，请检查 key"
             case .rateLimited:
@@ -366,16 +499,18 @@ actor ExchangeRateService: APIValidationServicing {
     }
 
     private func syncEnhancedStateIfNeeded(for configuration: EnhancedSourceConfiguration) {
-        let signature = "\(configuration.twelveDataAPIKey)|\(configuration.openExchangeRatesAppID)"
+        let signature = EnhancedCredentialKind.allCases
+            .map { configuration.credential(for: $0) }
+            .joined(separator: "|")
         guard signature != enhancedConfigurationSignature else {
             return
         }
 
         enhancedConfigurationSignature = signature
-        sourceCooldownUntil[.twelveData] = nil
-        sourceCooldownUntil[.openExchangeRates] = nil
-        unsupportedPairsBySource[.twelveData] = []
-        unsupportedPairsBySource[.openExchangeRates] = []
+        for source in ExchangeRateServiceConstants.snapshotSourceOrder {
+            sourceCooldownUntil[source] = nil
+            unsupportedPairsBySource[source] = []
+        }
     }
 
     private func isSourceCoolingDown(_ source: ExchangeSource, now: Date = .now) -> Date? {
@@ -440,6 +575,31 @@ actor ExchangeRateService: APIValidationServicing {
         return await fetchTwelveDataSnapshots(for: eligiblePairs, apiKey: apiKey)
     }
 
+    private func fetchExchangeRateAPISnapshotsIfNeeded(
+        for pairs: [CurrencyPair],
+        apiKey: String
+    ) async -> ProviderFetchResult {
+        guard !pairs.isEmpty else {
+            return skippedEnhancedProviderResult(for: .exchangeRateAPI, message: "当前没有待补全的货币对")
+        }
+
+        guard !apiKey.isEmpty else {
+            return skippedEnhancedProviderResult(for: .exchangeRateAPI, message: "未填写 API Key，继续使用默认公共数据源")
+        }
+
+        if let cooldownUntil = isSourceCoolingDown(.exchangeRateAPI) {
+            let timeText = ExchangeFormatter.time.string(from: cooldownUntil)
+            return skippedEnhancedProviderResult(for: .exchangeRateAPI, message: "处于冷却中，\(timeText) 后重试", level: .warning)
+        }
+
+        let eligiblePairs = eligiblePairs(for: .exchangeRateAPI, from: pairs)
+        guard !eligiblePairs.isEmpty else {
+            return skippedEnhancedProviderResult(for: .exchangeRateAPI, message: "当前剩余币对已判定为暂不支持")
+        }
+
+        return await fetchExchangeRateAPISnapshots(for: eligiblePairs, apiKey: apiKey)
+    }
+
     private func fetchOpenExchangeRatesSnapshotsIfNeeded(
         for pairs: [CurrencyPair],
         appID: String
@@ -463,6 +623,56 @@ actor ExchangeRateService: APIValidationServicing {
         }
 
         return await fetchOpenExchangeRatesSnapshots(for: eligiblePairs, appID: appID)
+    }
+
+    private func fetchFixerSnapshotsIfNeeded(
+        for pairs: [CurrencyPair],
+        apiKey: String
+    ) async -> ProviderFetchResult {
+        guard !pairs.isEmpty else {
+            return skippedEnhancedProviderResult(for: .fixer, message: "当前没有待补全的货币对")
+        }
+
+        guard !apiKey.isEmpty else {
+            return skippedEnhancedProviderResult(for: .fixer, message: "未填写 API Key，继续使用默认公共数据源")
+        }
+
+        if let cooldownUntil = isSourceCoolingDown(.fixer) {
+            let timeText = ExchangeFormatter.time.string(from: cooldownUntil)
+            return skippedEnhancedProviderResult(for: .fixer, message: "处于冷却中，\(timeText) 后重试", level: .warning)
+        }
+
+        let eligiblePairs = eligiblePairs(for: .fixer, from: pairs)
+        guard !eligiblePairs.isEmpty else {
+            return skippedEnhancedProviderResult(for: .fixer, message: "当前剩余币对已判定为暂不支持")
+        }
+
+        return await fetchFixerSnapshots(for: eligiblePairs, apiKey: apiKey)
+    }
+
+    private func fetchCurrencyLayerSnapshotsIfNeeded(
+        for pairs: [CurrencyPair],
+        apiKey: String
+    ) async -> ProviderFetchResult {
+        guard !pairs.isEmpty else {
+            return skippedEnhancedProviderResult(for: .currencyLayer, message: "当前没有待补全的货币对")
+        }
+
+        guard !apiKey.isEmpty else {
+            return skippedEnhancedProviderResult(for: .currencyLayer, message: "未填写 API Key，继续使用默认公共数据源")
+        }
+
+        if let cooldownUntil = isSourceCoolingDown(.currencyLayer) {
+            let timeText = ExchangeFormatter.time.string(from: cooldownUntil)
+            return skippedEnhancedProviderResult(for: .currencyLayer, message: "处于冷却中，\(timeText) 后重试", level: .warning)
+        }
+
+        let eligiblePairs = eligiblePairs(for: .currencyLayer, from: pairs)
+        guard !eligiblePairs.isEmpty else {
+            return skippedEnhancedProviderResult(for: .currencyLayer, message: "当前剩余币对已判定为暂不支持")
+        }
+
+        return await fetchCurrencyLayerSnapshots(for: eligiblePairs, apiKey: apiKey)
     }
 
     private func fetchCBRHistoricalSeries(for pairs: [CurrencyPair]) async -> HistoricalFetchResult {
@@ -691,6 +901,89 @@ actor ExchangeRateService: APIValidationServicing {
         )
     }
 
+    private func fetchExchangeRateAPISnapshots(for pairs: [CurrencyPair], apiKey: String) async -> ProviderFetchResult {
+        let refreshedAt = Date()
+        let groups = Dictionary(grouping: pairs, by: \.baseCode)
+        var snapshots: [CurrencySnapshot] = []
+        var errors: [String] = []
+        var logs: [DispatchLogEntry] = []
+        var hadFailure = false
+        var effectiveDates: [String] = []
+
+        for (baseCode, group) in groups {
+            do {
+                let requestURL = URL(string: "https://v6.exchangerate-api.com/v6/\(apiKey)/latest/\(baseCode)")!
+                let data = try await responseData(from: requestURL, retryCount: 0)
+                let response = try ExchangeRateAPIParser.parseLatest(from: data)
+                let effectiveDate = response.timestamp.map(SourceDateParser.isoQueryString(from:))
+                if let effectiveDate {
+                    effectiveDates.append(effectiveDate)
+                }
+
+                for pair in group {
+                    guard let quoteRate = response.rate(for: pair.quoteCode), quoteRate > 0 else {
+                        markUnsupported(pair, for: .exchangeRateAPI)
+                        hadFailure = true
+                        errors.append("ExchangeRate-API 缺少 \(pair.compactLabel)")
+                        logs.append(DispatchLogEntry(level: .info, message: "ExchangeRate-API 已跳过 \(pair.compactLabel)：返回结果中缺少币种"))
+                        continue
+                    }
+
+                    snapshots.append(CurrencySnapshot(
+                        pair: pair,
+                        rate: quoteRate * Double(pair.baseAmount),
+                        updatedAt: refreshedAt,
+                        effectiveDateText: effectiveDate,
+                        source: .exchangeRateAPI,
+                        isCached: false
+                    ))
+                }
+            } catch {
+                let providerError = mapGenericEnhancedProviderError(error)
+                switch providerError {
+                case .rateLimited:
+                    beginCooldown(for: .exchangeRateAPI, duration: ExchangeRateServiceConstants.rateLimitCooldown)
+                    errors.append("ExchangeRate-API 已触发限额，转入下一个来源")
+                    logs.append(DispatchLogEntry(level: .warning, message: "ExchangeRate-API 触发限额，已切换到下一个来源"))
+                    return providerFailureResult(for: .exchangeRateAPI, snapshots: snapshots, errors: errors, logs: logs, refreshedAt: refreshedAt, attemptedCount: pairs.count, message: "ExchangeRate-API 触发限额")
+                case .authenticationFailed:
+                    beginCooldown(for: .exchangeRateAPI, duration: ExchangeRateServiceConstants.authenticationCooldown)
+                    errors.append("ExchangeRate-API API Key 无效或暂不可用，已回退到下一个来源")
+                    logs.append(DispatchLogEntry(level: .warning, message: "ExchangeRate-API 认证失败，已进入冷却并回退到下一个来源"))
+                    return providerFailureResult(for: .exchangeRateAPI, snapshots: snapshots, errors: errors, logs: logs, refreshedAt: refreshedAt, attemptedCount: pairs.count, message: "ExchangeRate-API 认证失败")
+                case .unsupportedPair:
+                    hadFailure = true
+                    for pair in group {
+                        markUnsupported(pair, for: .exchangeRateAPI)
+                    }
+                    errors.append("ExchangeRate-API 暂不支持 \(baseCode) 相关货币对")
+                    logs.append(DispatchLogEntry(level: .info, message: "ExchangeRate-API 已跳过 \(baseCode)：该基准货币暂不支持"))
+                case .noData:
+                    hadFailure = true
+                    errors.append("ExchangeRate-API 未返回 \(baseCode) 的有效汇率")
+                    logs.append(DispatchLogEntry(level: .warning, message: "ExchangeRate-API 未返回 \(baseCode) 的有效汇率，继续 fallback"))
+                case .transport(let message):
+                    hadFailure = true
+                    errors.append("ExchangeRate-API 刷新失败：\(baseCode)")
+                    logs.append(DispatchLogEntry(level: .warning, message: "ExchangeRate-API 刷新失败：\(baseCode) · \(message)"))
+                }
+            }
+        }
+
+        let state = providerState(resolvedCount: snapshots.count, attemptedCount: pairs.count, hadFailure: hadFailure)
+        let message = providerMessage(for: .exchangeRateAPI, state: state, effectiveDate: effectiveDates.sorted().last)
+        if !snapshots.isEmpty {
+            logs.append(DispatchLogEntry(level: .info, message: "ExchangeRate-API 命中 \(snapshots.count) 个货币对"))
+        }
+
+        return ProviderFetchResult(
+            snapshots: snapshots,
+            errors: errors,
+            sourceStatus: SourceStatus(source: .exchangeRateAPI, state: state, message: message, timestamp: refreshedAt),
+            logs: logs
+        )
+    }
+
     private func fetchOpenExchangeRatesSnapshots(for pairs: [CurrencyPair], appID: String) async -> ProviderFetchResult {
         let refreshedAt = Date()
         let requestedCurrencies = Set(pairs.flatMap { [$0.baseCode, $0.quoteCode] }).sorted()
@@ -758,27 +1051,27 @@ actor ExchangeRateService: APIValidationServicing {
                     errors: ["Open Exchange Rates 不支持当前剩余货币对"],
                     sourceStatus: SourceStatus(source: .openExchangeRates, state: .failure, message: "Open Exchange Rates 不支持当前剩余货币对", timestamp: refreshedAt),
                     logs: [
-                        DispatchLogEntry(level: .warning, message: "Open Exchange Rates 不支持当前剩余货币对，已回退到默认公共来源")
+                        DispatchLogEntry(level: .warning, message: "Open Exchange Rates 不支持当前剩余货币对，已回退到下一个来源")
                     ]
                 )
             case .rateLimited:
                 beginCooldown(for: .openExchangeRates, duration: ExchangeRateServiceConstants.rateLimitCooldown)
                 return ProviderFetchResult(
                     snapshots: [],
-                    errors: ["Open Exchange Rates 已触发限额，转入默认公共来源"],
+                    errors: ["Open Exchange Rates 已触发限额，转入下一个来源"],
                     sourceStatus: SourceStatus(source: .openExchangeRates, state: .failure, message: "Open Exchange Rates 触发限额", timestamp: refreshedAt),
                     logs: [
-                        DispatchLogEntry(level: .warning, message: "Open Exchange Rates 触发限额，已进入冷却并回退到默认公共来源")
+                        DispatchLogEntry(level: .warning, message: "Open Exchange Rates 触发限额，已进入冷却并回退到下一个来源")
                     ]
                 )
             case .authenticationFailed:
                 beginCooldown(for: .openExchangeRates, duration: ExchangeRateServiceConstants.authenticationCooldown)
                 return ProviderFetchResult(
                     snapshots: [],
-                    errors: ["Open Exchange Rates App ID 无效或暂不可用，已回退到默认公共来源"],
+                    errors: ["Open Exchange Rates App ID 无效或暂不可用，已回退到下一个来源"],
                     sourceStatus: SourceStatus(source: .openExchangeRates, state: .failure, message: "Open Exchange Rates 认证失败", timestamp: refreshedAt),
                     logs: [
-                        DispatchLogEntry(level: .warning, message: "Open Exchange Rates 认证失败，已进入冷却并回退到默认公共来源")
+                        DispatchLogEntry(level: .warning, message: "Open Exchange Rates 认证失败，已进入冷却并回退到下一个来源")
                     ]
                 )
             case .noData:
@@ -787,7 +1080,7 @@ actor ExchangeRateService: APIValidationServicing {
                     errors: ["Open Exchange Rates 未返回有效汇率"],
                     sourceStatus: SourceStatus(source: .openExchangeRates, state: .failure, message: "Open Exchange Rates 未返回有效汇率", timestamp: refreshedAt),
                     logs: [
-                        DispatchLogEntry(level: .warning, message: "Open Exchange Rates 未返回有效汇率，已回退到默认公共来源")
+                        DispatchLogEntry(level: .warning, message: "Open Exchange Rates 未返回有效汇率，已回退到下一个来源")
                     ]
                 )
             case .transport(let message):
@@ -800,6 +1093,96 @@ actor ExchangeRateService: APIValidationServicing {
                     ]
                 )
             }
+        }
+    }
+
+    private func fetchFixerSnapshots(for pairs: [CurrencyPair], apiKey: String) async -> ProviderFetchResult {
+        let refreshedAt = Date()
+        let requestedCurrencies = Set(pairs.flatMap { [$0.baseCode, $0.quoteCode] }).sorted()
+
+        do {
+            var components = URLComponents(string: "https://data.fixer.io/api/latest")!
+            components.queryItems = [
+                URLQueryItem(name: "access_key", value: apiKey),
+                URLQueryItem(name: "symbols", value: requestedCurrencies.joined(separator: ","))
+            ]
+            let data = try await responseData(from: components.url!, retryCount: 0)
+            let response = try FixerParser.parseLatest(from: data)
+            let effectiveDate = response.date ?? response.timestamp.map(SourceDateParser.isoQueryString(from:))
+
+            let result = crossRateSnapshots(
+                for: pairs,
+                source: .fixer,
+                refreshedAt: refreshedAt,
+                effectiveDate: effectiveDate,
+                missingMessagePrefix: "Fixer",
+                rate: { response.rate(for: $0) }
+            )
+            let state = providerState(resolvedCount: result.snapshots.count, attemptedCount: pairs.count, hadFailure: result.hadFailure)
+            let message = providerMessage(for: .fixer, state: state, effectiveDate: effectiveDate)
+            var logs = result.logs
+            if !result.snapshots.isEmpty {
+                logs.append(DispatchLogEntry(level: .info, message: "Fixer 命中 \(result.snapshots.count) 个货币对"))
+            }
+
+            return ProviderFetchResult(
+                snapshots: result.snapshots,
+                errors: result.errors,
+                sourceStatus: SourceStatus(source: .fixer, state: state, message: message, timestamp: refreshedAt),
+                logs: logs
+            )
+        } catch {
+            return enhancedProviderErrorResult(
+                for: .fixer,
+                error: error,
+                refreshedAt: refreshedAt,
+                authenticationMessage: "Fixer API Key 无效或暂不可用，已回退到下一个来源"
+            )
+        }
+    }
+
+    private func fetchCurrencyLayerSnapshots(for pairs: [CurrencyPair], apiKey: String) async -> ProviderFetchResult {
+        let refreshedAt = Date()
+        let requestedCurrencies = Set(pairs.flatMap { [$0.baseCode, $0.quoteCode] }.filter { $0 != "USD" }).sorted()
+
+        do {
+            var components = URLComponents(string: "https://api.currencylayer.com/live")!
+            components.queryItems = [
+                URLQueryItem(name: "access_key", value: apiKey),
+                URLQueryItem(name: "currencies", value: requestedCurrencies.isEmpty ? "EUR" : requestedCurrencies.joined(separator: ","))
+            ]
+            let data = try await responseData(from: components.url!, retryCount: 0)
+            let response = try CurrencyLayerParser.parseLive(from: data)
+            let effectiveDate = response.timestamp.map(SourceDateParser.isoQueryString(from:))
+
+            let result = crossRateSnapshots(
+                for: pairs,
+                source: .currencyLayer,
+                refreshedAt: refreshedAt,
+                effectiveDate: effectiveDate,
+                missingMessagePrefix: "Currencylayer",
+                rate: { response.rate(for: $0) }
+            )
+            let state = providerState(resolvedCount: result.snapshots.count, attemptedCount: pairs.count, hadFailure: result.hadFailure)
+            let message = providerMessage(for: .currencyLayer, state: state, effectiveDate: effectiveDate)
+            var logs = result.logs
+            if !result.snapshots.isEmpty {
+                logs.append(DispatchLogEntry(level: .info, message: "Currencylayer 命中 \(result.snapshots.count) 个货币对"))
+            }
+
+            return ProviderFetchResult(
+                snapshots: result.snapshots,
+                errors: result.errors,
+                sourceStatus: SourceStatus(source: .currencyLayer, state: state, message: message, timestamp: refreshedAt),
+                logs: logs
+            )
+        } catch {
+            return enhancedProviderErrorResult(
+                for: .currencyLayer,
+                error: error,
+                refreshedAt: refreshedAt,
+                authenticationMessage: "Currencylayer API Key 无效或暂不可用，已回退到下一个来源"
+            )
         }
     }
 
@@ -1207,6 +1590,109 @@ actor ExchangeRateService: APIValidationServicing {
         Dictionary(uniqueKeysWithValues: points.map { (SourceDateParser.isoQueryString(from: $0.timestamp), $0.value) })
     }
 
+    private func crossRateSnapshots(
+        for pairs: [CurrencyPair],
+        source: ExchangeSource,
+        refreshedAt: Date,
+        effectiveDate: String?,
+        missingMessagePrefix: String,
+        rate: (String) -> Double?
+    ) -> (snapshots: [CurrencySnapshot], errors: [String], logs: [DispatchLogEntry], hadFailure: Bool) {
+        var snapshots: [CurrencySnapshot] = []
+        var errors: [String] = []
+        var logs: [DispatchLogEntry] = []
+        var hadFailure = false
+
+        for pair in pairs {
+            guard let baseRate = rate(pair.baseCode),
+                  let quoteRate = rate(pair.quoteCode),
+                  baseRate > 0 else {
+                markUnsupported(pair, for: source)
+                hadFailure = true
+                errors.append("\(missingMessagePrefix) 缺少 \(pair.compactLabel)")
+                logs.append(DispatchLogEntry(level: .info, message: "\(missingMessagePrefix) 已跳过 \(pair.compactLabel)：返回结果中缺少币种"))
+                continue
+            }
+
+            snapshots.append(CurrencySnapshot(
+                pair: pair,
+                rate: (quoteRate / baseRate) * Double(pair.baseAmount),
+                updatedAt: refreshedAt,
+                effectiveDateText: effectiveDate,
+                source: source,
+                isCached: false
+            ))
+        }
+
+        return (snapshots, errors, logs, hadFailure)
+    }
+
+    private func providerFailureResult(
+        for source: ExchangeSource,
+        snapshots: [CurrencySnapshot],
+        errors: [String],
+        logs: [DispatchLogEntry],
+        refreshedAt: Date,
+        attemptedCount: Int,
+        message: String
+    ) -> ProviderFetchResult {
+        let state = providerState(resolvedCount: snapshots.count, attemptedCount: attemptedCount, hadFailure: true)
+        return ProviderFetchResult(
+            snapshots: snapshots,
+            errors: errors,
+            sourceStatus: SourceStatus(source: source, state: state, message: state == .failure ? message : "\(source.displayName) 部分成功，随后失败", timestamp: refreshedAt),
+            logs: logs
+        )
+    }
+
+    private func enhancedProviderErrorResult(
+        for source: ExchangeSource,
+        error: Error,
+        refreshedAt: Date,
+        authenticationMessage: String
+    ) -> ProviderFetchResult {
+        let providerError = mapGenericEnhancedProviderError(error)
+        switch providerError {
+        case .unsupportedPair:
+            return ProviderFetchResult(
+                snapshots: [],
+                errors: ["\(source.displayName) 不支持当前剩余货币对"],
+                sourceStatus: SourceStatus(source: source, state: .failure, message: "\(source.displayName) 不支持当前剩余货币对", timestamp: refreshedAt),
+                logs: [DispatchLogEntry(level: .warning, message: "\(source.displayName) 不支持当前剩余货币对，已回退到下一个来源")]
+            )
+        case .rateLimited:
+            beginCooldown(for: source, duration: ExchangeRateServiceConstants.rateLimitCooldown)
+            return ProviderFetchResult(
+                snapshots: [],
+                errors: ["\(source.displayName) 已触发限额，转入下一个来源"],
+                sourceStatus: SourceStatus(source: source, state: .failure, message: "\(source.displayName) 触发限额", timestamp: refreshedAt),
+                logs: [DispatchLogEntry(level: .warning, message: "\(source.displayName) 触发限额，已进入冷却并回退到下一个来源")]
+            )
+        case .authenticationFailed:
+            beginCooldown(for: source, duration: ExchangeRateServiceConstants.authenticationCooldown)
+            return ProviderFetchResult(
+                snapshots: [],
+                errors: [authenticationMessage],
+                sourceStatus: SourceStatus(source: source, state: .failure, message: "\(source.displayName) 认证失败", timestamp: refreshedAt),
+                logs: [DispatchLogEntry(level: .warning, message: "\(source.displayName) 认证失败，已进入冷却并回退到下一个来源")]
+            )
+        case .noData:
+            return ProviderFetchResult(
+                snapshots: [],
+                errors: ["\(source.displayName) 未返回有效汇率"],
+                sourceStatus: SourceStatus(source: source, state: .failure, message: "\(source.displayName) 未返回有效汇率", timestamp: refreshedAt),
+                logs: [DispatchLogEntry(level: .warning, message: "\(source.displayName) 未返回有效汇率，已回退到下一个来源")]
+            )
+        case .transport(let message):
+            return ProviderFetchResult(
+                snapshots: [],
+                errors: ["\(source.displayName) 刷新失败"],
+                sourceStatus: SourceStatus(source: source, state: .failure, message: "\(source.displayName) 刷新失败", timestamp: refreshedAt),
+                logs: [DispatchLogEntry(level: .warning, message: "\(source.displayName) 刷新失败：\(message)")]
+            )
+        }
+    }
+
     private func providerState(resolvedCount: Int, attemptedCount: Int, hadFailure: Bool = false) -> SourceStatus.State {
         if resolvedCount == 0 {
             return attemptedCount == 0 ? .idle : .failure
@@ -1322,6 +1808,70 @@ actor ExchangeRateService: APIValidationServicing {
         }
 
         return message
+    }
+
+    private func mapGenericEnhancedProviderError(_ error: Error) -> EnhancedProviderError {
+        if let providerError = error as? EnhancedProviderError {
+            switch providerError {
+            case .transport(let message):
+                let lowercased = message.lowercased()
+                if lowercased.contains("quota")
+                    || lowercased.contains("credits")
+                    || lowercased.contains("limit")
+                    || lowercased.contains("usage")
+                    || lowercased.contains("too many") {
+                    return .rateLimited
+                }
+                if lowercased.contains("unsupported")
+                    || lowercased.contains("not supported")
+                    || lowercased.contains("unsupported-code")
+                    || lowercased.contains("invalid base")
+                    || lowercased.contains("invalid currency") {
+                    return .unsupportedPair
+                }
+                if lowercased.contains("invalid")
+                    || lowercased.contains("api key")
+                    || lowercased.contains("access key")
+                    || lowercased.contains("inactive-account")
+                    || lowercased.contains("malformed-request")
+                    || lowercased.contains("not allowed")
+                    || lowercased.contains("unauthorized") {
+                    return .authenticationFailed
+                }
+                return .transport(message)
+            default:
+                return providerError
+            }
+        }
+
+        if let httpError = error as? HTTPStatusError {
+            let message = providerErrorMessage(from: httpError.body).lowercased()
+            if message.contains("quota") || message.contains("limit") || message.contains("credits") {
+                return .rateLimited
+            }
+            if message.contains("unsupported") || message.contains("not supported") || message.contains("not found") {
+                return .unsupportedPair
+            }
+            if message.contains("invalid") || message.contains("api key") || message.contains("access key") {
+                return .authenticationFailed
+            }
+            if httpError.statusCode == 401 || httpError.statusCode == 403 {
+                return .authenticationFailed
+            }
+            if httpError.statusCode == 404 {
+                return .unsupportedPair
+            }
+            if httpError.statusCode == 429 {
+                return .rateLimited
+            }
+            return .transport("HTTP \(httpError.statusCode)")
+        }
+
+        if let urlError = error as? URLError {
+            return .transport(urlError.localizedDescription)
+        }
+
+        return .transport(error.localizedDescription)
     }
 
     private func mapOpenExchangeRatesError(_ error: Error) -> EnhancedProviderError {

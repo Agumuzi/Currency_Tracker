@@ -145,6 +145,25 @@ struct Currency_TrackerTests {
 
     @MainActor
     @Test
+    func preferencesStorePersistsSoftwareUpdateOptions() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let lastCheck = Date(timeIntervalSince1970: 1_777_000_000)
+
+        let store = PreferencesStore(userDefaults: defaults)
+        store.setAutomaticUpdateChecksEnabled(false)
+        store.skipUpdate(version: "1.2")
+        store.setLastAutomaticUpdateCheckAt(lastCheck)
+
+        let reloaded = PreferencesStore(userDefaults: defaults)
+
+        #expect(reloaded.automaticUpdateChecksEnabled == false)
+        #expect(reloaded.skippedUpdateVersion == "1.2")
+        #expect(reloaded.lastAutomaticUpdateCheckAt == lastCheck)
+    }
+
+    @MainActor
+    @Test
     func credentialStoreReadsAndWritesSecretsFromLocalAdapter() throws {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
@@ -153,11 +172,31 @@ struct Currency_TrackerTests {
 
         try store.save("  td-key  ", for: .twelveData)
         try store.save("  oxr-id  ", for: .openExchangeRates)
+        try store.save("  era-key  ", for: .exchangeRateAPI)
 
         #expect(store.storedValue(for: .twelveData) == "td-key")
         #expect(store.storedValue(for: .openExchangeRates) == "oxr-id")
+        #expect(store.storedValue(for: .exchangeRateAPI) == "era-key")
         #expect(store.configuration.hasTwelveDataKey)
         #expect(store.configuration.hasOpenExchangeRatesAppID)
+        #expect(store.configuration.hasExchangeRateAPIKey)
+    }
+
+    @MainActor
+    @Test
+    func credentialStorePersistsSelectedAPISources() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let secretStore = InMemorySecretStore()
+        let store = EnhancedSourceCredentialStore(secretStore: secretStore, userDefaults: defaults)
+
+        store.addSelectedKind(.fixer)
+
+        let reloaded = EnhancedSourceCredentialStore(secretStore: secretStore, userDefaults: defaults)
+
+        #expect(reloaded.selectedKinds.contains(.twelveData))
+        #expect(reloaded.selectedKinds.contains(.openExchangeRates))
+        #expect(reloaded.selectedKinds.contains(.fixer))
     }
 
     @MainActor
@@ -211,7 +250,7 @@ struct Currency_TrackerTests {
         let credentialStore = EnhancedSourceCredentialStore(secretStore: secretStore, userDefaults: defaults)
         let viewModel = APIConfigurationViewModel(
             credentialStore: credentialStore,
-            service: StubValidationService(twelveDataResult: nil, openExchangeRatesResult: nil),
+            service: StubValidationService(results: [:]),
             logHandler: { _, _ in }
         )
 
@@ -221,7 +260,8 @@ struct Currency_TrackerTests {
 
         let field = viewModel.field(for: .twelveData)
         #expect(field.isEditing == false)
-        #expect(field.phase == .success)
+        #expect(field.phase == .enabled)
+        #expect(field.buttonTitle == "编辑")
         #expect(credentialStore.storedValue(for: .twelveData) == "valid-key")
     }
 
@@ -233,7 +273,7 @@ struct Currency_TrackerTests {
         let credentialStore = EnhancedSourceCredentialStore(secretStore: InMemorySecretStore(), userDefaults: defaults)
         let viewModel = APIConfigurationViewModel(
             credentialStore: credentialStore,
-            service: StubValidationService(twelveDataResult: "验证失败，请检查 key", openExchangeRatesResult: nil),
+            service: StubValidationService(results: [.twelveData: "验证失败，请检查 key"]),
             logHandler: { _, _ in }
         )
 
@@ -273,6 +313,42 @@ struct Currency_TrackerTests {
         #expect(isRefreshDecision(decision))
     }
 
+    @Test
+    func softwareUpdateComparatorHandlesTaggedSemanticVersions() {
+        #expect(SoftwareVersionComparator.normalized("v1.2.0") == "1.2.0")
+        #expect(SoftwareVersionComparator.compare("v1.2", "1.1.9") == .orderedDescending)
+        #expect(SoftwareVersionComparator.compare("1.1.0", "1.1") == .orderedSame)
+        #expect(SoftwareVersionComparator.compare("1.0.9", "1.1") == .orderedAscending)
+    }
+
+    @Test
+    func softwareUpdateParserExtractsZipAsset() throws {
+        let data = Data(
+            #"""
+            {
+              "tag_name": "v1.2",
+              "name": "Currency Tracker 1.2",
+              "body": "Improved update window.",
+              "html_url": "https://github.com/Agumuzi/Currency_Tracker/releases/tag/v1.2",
+              "assets": [
+                {
+                  "name": "Currency-Tracker-1.2.zip",
+                  "browser_download_url": "https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.2/Currency-Tracker-1.2.zip"
+                }
+              ]
+            }
+            """#.utf8
+        )
+
+        let info = try SoftwareUpdateChecker.parseLatestRelease(from: data)
+
+        #expect(info.version == "1.2")
+        #expect(info.isNewer(than: "1.1"))
+        #expect(info.downloadURL?.absoluteString.hasSuffix("Currency-Tracker-1.2.zip") == true)
+        #expect(info.title == "Currency Tracker 1.2")
+        #expect(info.releaseNotes == "Improved update window.")
+    }
+
     @MainActor
     @Test
     func panelWindowControllerPinnedStateDisablesAutoRefreshAndRestoresPanelBehavior() {
@@ -310,7 +386,7 @@ struct Currency_TrackerTests {
 
     @MainActor
     @Test
-    func panelWindowControllerUsesDetachedPinnedWindowWhenFactoryIsConfigured() {
+    func panelWindowControllerKeepsPinnedStateOnMenuWindowAndDismissesTransientWindows() {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
         let preferences = PreferencesStore(userDefaults: defaults)
@@ -327,30 +403,33 @@ struct Currency_TrackerTests {
             backing: .buffered,
             defer: false
         )
-        var detachedWindow: NSWindow?
-        controller.configurePinnedWindowFactory {
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 420, height: 520),
-                styleMask: [.titled, .closable],
-                backing: .buffered,
-                defer: false
-            )
-            detachedWindow = window
-            return window
-        }
+        menuPanel.hidesOnDeactivate = true
+        let transientPanel = NSPanel(
+            contentRect: NSRect(x: 20, y: 20, width: 320, height: 240),
+            styleMask: [.titled, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
 
         controller.registerMenuBarWindow(menuPanel)
         controller.togglePinnedPanel(from: menuPanel)
 
         #expect(controller.isPinned)
-        #expect(detachedWindow?.isVisible == true)
-        #expect(menuPanel.isVisible == false)
+        #expect(menuPanel.level == .floating)
+        #expect(menuPanel.hidesOnDeactivate == false)
         #expect(viewModel.shouldAutoRefreshOnOpen() == false)
 
-        controller.togglePinnedPanel(from: detachedWindow)
+        transientPanel.orderFront(nil)
+        controller.registerMenuBarWindow(transientPanel)
+
+        #expect(controller.isPinned)
+        #expect(transientPanel.isVisible == false)
+        #expect(menuPanel.level == .floating)
+
+        controller.togglePinnedPanel(from: menuPanel)
 
         #expect(controller.isPinned == false)
-        #expect(detachedWindow?.isVisible == false)
+        #expect(menuPanel.hidesOnDeactivate == true)
     }
 
     @MainActor
@@ -562,6 +641,74 @@ struct Currency_TrackerTests {
 
         let parsed = try OpenExchangeRatesParser.parseLatest(from: payload)
 
+        #expect(parsed.rate(for: "USD") == 1)
+        #expect(parsed.rate(for: "CNY") == 6.8284)
+        #expect(parsed.rate(for: "RUB") == 85.21)
+    }
+
+    @Test
+    func exchangeRateAPIParserExtractsLatestRates() throws {
+        let payload = """
+        {
+          "result": "success",
+          "time_last_update_unix": 1775865600,
+          "base_code": "USD",
+          "conversion_rates": {
+            "USD": 1,
+            "CNY": 6.8284,
+            "RUB": 85.21
+          }
+        }
+        """.data(using: .utf8)!
+
+        let parsed = try ExchangeRateAPIParser.parseLatest(from: payload)
+
+        #expect(parsed.baseCode == "USD")
+        #expect(parsed.rate(for: "USD") == 1)
+        #expect(parsed.rate(for: "CNY") == 6.8284)
+        #expect(parsed.timestamp.map(SourceDateParser.isoQueryString(from:)) == "2026-04-11")
+    }
+
+    @Test
+    func fixerParserExtractsLatestRates() throws {
+        let payload = """
+        {
+          "success": true,
+          "timestamp": 1775865600,
+          "base": "EUR",
+          "date": "2026-04-11",
+          "rates": {
+            "USD": 1.1387,
+            "CNY": 7.7742
+          }
+        }
+        """.data(using: .utf8)!
+
+        let parsed = try FixerParser.parseLatest(from: payload)
+
+        #expect(parsed.baseCode == "EUR")
+        #expect(parsed.rate(for: "EUR") == 1)
+        #expect(parsed.rate(for: "USD") == 1.1387)
+        #expect(parsed.date == "2026-04-11")
+    }
+
+    @Test
+    func currencyLayerParserExtractsLiveQuotes() throws {
+        let payload = """
+        {
+          "success": true,
+          "timestamp": 1775865600,
+          "source": "USD",
+          "quotes": {
+            "USDCNY": 6.8284,
+            "USDRUB": 85.21
+          }
+        }
+        """.data(using: .utf8)!
+
+        let parsed = try CurrencyLayerParser.parseLive(from: payload)
+
+        #expect(parsed.sourceCode == "USD")
         #expect(parsed.rate(for: "USD") == 1)
         #expect(parsed.rate(for: "CNY") == 6.8284)
         #expect(parsed.rate(for: "RUB") == 85.21)
@@ -1167,15 +1314,10 @@ private final class FailingReadSecretStore: SecretStoring {
 }
 
 private struct StubValidationService: APIValidationServicing {
-    let twelveDataResult: String?
-    let openExchangeRatesResult: String?
+    let results: [EnhancedCredentialKind: String]
 
-    func validateTwelveDataAPIKey(_ apiKey: String) async -> String? {
-        twelveDataResult
-    }
-
-    func validateOpenExchangeRatesAppID(_ appID: String) async -> String? {
-        openExchangeRatesResult
+    func validateCredential(_ credential: String, for kind: EnhancedCredentialKind) async -> String? {
+        results[kind]
     }
 }
 

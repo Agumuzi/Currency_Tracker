@@ -16,6 +16,8 @@ struct Currency_TrackerApp: App {
     private let launchController: LaunchAtLoginController
     private let settingsWindowController: SettingsWindowController
     private let panelWindowController: PanelWindowController
+    private let softwareUpdateWindowController: SoftwareUpdateWindowController
+    private let automaticUpdateCoordinator: AutomaticSoftwareUpdateCoordinator
     private let serviceActionHandler: ServiceActionHandler
     private let globalShortcutHandler: GlobalShortcutHandler
     private let initialLaunchCoordinator: InitialLaunchCoordinator
@@ -41,6 +43,7 @@ struct Currency_TrackerApp: App {
             viewModel.recordInternalEvent(message, level: level)
         }
         let panelWindowController = PanelWindowController(viewModel: viewModel)
+        let softwareUpdateWindowController = SoftwareUpdateWindowController()
         let promptPanel = LightweightPromptPanel()
         let clipboardWriter = ClipboardWriter()
         let conversionCoordinator = ConversionCoordinator(
@@ -73,26 +76,18 @@ struct Currency_TrackerApp: App {
             viewModel: viewModel,
             service: service,
             dockVisibilityController: dockVisibilityController,
-            globalShortcutHandler: globalShortcutHandler
+            globalShortcutHandler: globalShortcutHandler,
+            softwareUpdateWindowController: softwareUpdateWindowController
         )
-        panelWindowController.configurePinnedWindowFactory {
-            let rootView = ContentView(
-                viewModel: viewModel,
-                preferences: preferences,
-                settingsWindowController: settingsWindowController,
-                panelWindowController: panelWindowController,
-                autoBootstrap: false,
-                presentationMode: .pinned
-            )
-            let hostingController = NSHostingController(rootView: rootView)
-            return DetachedPinnedPanelWindow(
-                contentViewController: hostingController,
-                contentSize: NSSize(width: 424, height: 520)
-            )
-        }
+        let automaticUpdateCoordinator = AutomaticSoftwareUpdateCoordinator(
+            preferences: preferences,
+            updateWindowController: softwareUpdateWindowController,
+            isRunningUITests: isRunningUITests
+        )
         let initialLaunchCoordinator = InitialLaunchCoordinator(
             userDefaults: userDefaults,
             settingsWindowController: settingsWindowController,
+            automaticUpdateCoordinator: automaticUpdateCoordinator,
             isRunningUITests: isRunningUITests
         )
         self.isRunningUITests = isRunningUITests
@@ -102,6 +97,8 @@ struct Currency_TrackerApp: App {
         self.launchController = launchController
         self.settingsWindowController = settingsWindowController
         self.panelWindowController = panelWindowController
+        self.softwareUpdateWindowController = softwareUpdateWindowController
+        self.automaticUpdateCoordinator = automaticUpdateCoordinator
         self.serviceActionHandler = serviceActionHandler
         self.globalShortcutHandler = globalShortcutHandler
         self.initialLaunchCoordinator = initialLaunchCoordinator
@@ -182,6 +179,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let service: ExchangeRateService
     private let dockVisibilityController: DockVisibilityController
     private let globalShortcutHandler: GlobalShortcutHandler
+    private let softwareUpdateWindowController: SoftwareUpdateWindowController
     private lazy var apiConfigurationViewModel = APIConfigurationViewModel(
         credentialStore: credentialStore,
         service: service,
@@ -199,7 +197,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         viewModel: ExchangePanelViewModel,
         service: ExchangeRateService,
         dockVisibilityController: DockVisibilityController,
-        globalShortcutHandler: GlobalShortcutHandler
+        globalShortcutHandler: GlobalShortcutHandler,
+        softwareUpdateWindowController: SoftwareUpdateWindowController
     ) {
         self.preferences = preferences
         self.credentialStore = credentialStore
@@ -208,6 +207,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         self.service = service
         self.dockVisibilityController = dockVisibilityController
         self.globalShortcutHandler = globalShortcutHandler
+        self.softwareUpdateWindowController = softwareUpdateWindowController
         super.init()
     }
 
@@ -254,6 +254,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             viewModel: viewModel,
             apiConfigurationViewModel: apiConfigurationViewModel,
             globalShortcutHandler: globalShortcutHandler,
+            softwareUpdateWindowController: softwareUpdateWindowController,
             focusSection: focusSection
         )
     }

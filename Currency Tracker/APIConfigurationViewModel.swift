@@ -10,24 +10,21 @@ import SwiftUI
 
 enum APIFieldPhase: Equatable, Sendable {
     case empty
-    case saved
+    case enabled
     case editing
     case saving
-    case success
     case failure(String)
 
     var statusText: String {
         switch self {
         case .empty:
             "未填写"
-        case .saved:
-            "已保存"
+        case .enabled:
+            "已启用"
         case .editing:
             "编辑中"
         case .saving:
             "保存中"
-        case .success:
-            "验证成功"
         case .failure(let message):
             message
         }
@@ -35,11 +32,11 @@ enum APIFieldPhase: Equatable, Sendable {
 
     var tintColor: Color {
         switch self {
-        case .empty, .saved, .editing:
+        case .empty, .editing:
             .secondary
         case .saving:
             Color(red: 0.08, green: 0.43, blue: 0.74)
-        case .success:
+        case .enabled:
             Color(red: 0.09, green: 0.53, blue: 0.32)
         case .failure:
             Color(red: 0.74, green: 0.20, blue: 0.18)
@@ -63,15 +60,15 @@ struct APIFieldState: Equatable, Sendable {
             return "保存"
         }
 
-        return hasStoredValue ? "已保存" : "编辑"
+        return hasStoredValue ? "编辑" : "填写"
     }
 }
 
 @MainActor
 @Observable
 final class APIConfigurationViewModel {
-    var twelveDataField: APIFieldState
-    var openExchangeRatesField: APIFieldState
+    var fieldsByKind: [EnhancedCredentialKind: APIFieldState]
+    var selectedKinds: [EnhancedCredentialKind]
 
     private let credentialStore: EnhancedSourceCredentialStore
     private let service: any APIValidationServicing
@@ -85,26 +82,35 @@ final class APIConfigurationViewModel {
         self.credentialStore = credentialStore
         self.service = service
         self.logHandler = logHandler
-        self.twelveDataField = APIFieldState(kind: .twelveData, draftValue: "", isEditing: false, isRevealed: false, phase: .empty)
-        self.openExchangeRatesField = APIFieldState(kind: .openExchangeRates, draftValue: "", isEditing: false, isRevealed: false, phase: .empty)
+        self.fieldsByKind = Dictionary(
+            uniqueKeysWithValues: EnhancedCredentialKind.allCases.map {
+                ($0, APIFieldState(kind: $0, draftValue: "", isEditing: false, isRevealed: false, phase: .empty))
+            }
+        )
+        self.selectedKinds = credentialStore.selectedKinds
         reloadFromStore()
     }
 
     func reloadFromStore() {
         credentialStore.reload()
-        syncField(.twelveData, phaseOverride: nil, keepEditing: false)
-        syncField(.openExchangeRates, phaseOverride: nil, keepEditing: false)
-        applyStoreLoadIssueIfNeeded(for: .twelveData)
-        applyStoreLoadIssueIfNeeded(for: .openExchangeRates)
+        selectedKinds = credentialStore.selectedKinds
+        for kind in EnhancedCredentialKind.allCases {
+            syncField(kind, phaseOverride: nil, keepEditing: false)
+            applyStoreLoadIssueIfNeeded(for: kind)
+        }
+    }
+
+    var availableKindsToAdd: [EnhancedCredentialKind] {
+        credentialStore.availableKindsToAdd
+    }
+
+    func addProvider(_ kind: EnhancedCredentialKind) {
+        credentialStore.addSelectedKind(kind)
+        selectedKinds = credentialStore.selectedKinds
     }
 
     func field(for kind: EnhancedCredentialKind) -> APIFieldState {
-        switch kind {
-        case .twelveData:
-            twelveDataField
-        case .openExchangeRates:
-            openExchangeRatesField
-        }
+        fieldsByKind[kind] ?? APIFieldState(kind: kind, draftValue: "", isEditing: false, isRevealed: false, phase: .empty)
     }
 
     func updateDraft(_ value: String, for kind: EnhancedCredentialKind) {
@@ -176,7 +182,8 @@ final class APIConfigurationViewModel {
 
         do {
             try credentialStore.save(trimmedValue, for: kind)
-            syncField(kind, phaseOverride: .success, keepEditing: false)
+            selectedKinds = credentialStore.selectedKinds
+            syncField(kind, phaseOverride: .enabled, keepEditing: false)
             logHandler(.info, "\(kind.displayName) 保存后验证成功")
         } catch {
             mutateField(kind) {
@@ -188,12 +195,7 @@ final class APIConfigurationViewModel {
     }
 
     private func validationFailureMessage(for kind: EnhancedCredentialKind, value: String) async -> String? {
-        switch kind {
-        case .twelveData:
-            await service.validateTwelveDataAPIKey(value)
-        case .openExchangeRates:
-            await service.validateOpenExchangeRatesAppID(value)
-        }
+        await service.validateCredential(value, for: kind)
     }
 
     private func syncField(
@@ -206,17 +208,14 @@ final class APIConfigurationViewModel {
             $0.draftValue = storedValue
             $0.isEditing = keepEditing
             $0.isRevealed = false
-            $0.phase = phaseOverride ?? (storedValue.isEmpty ? .empty : .saved)
+            $0.phase = phaseOverride ?? (storedValue.isEmpty ? .empty : .enabled)
         }
     }
 
     private func mutateField(_ kind: EnhancedCredentialKind, transform: (inout APIFieldState) -> Void) {
-        switch kind {
-        case .twelveData:
-            transform(&twelveDataField)
-        case .openExchangeRates:
-            transform(&openExchangeRatesField)
-        }
+        var field = fieldsByKind[kind] ?? APIFieldState(kind: kind, draftValue: "", isEditing: false, isRevealed: false, phase: .empty)
+        transform(&field)
+        fieldsByKind[kind] = field
     }
 
     private func applyStoreLoadIssueIfNeeded(for kind: EnhancedCredentialKind) {

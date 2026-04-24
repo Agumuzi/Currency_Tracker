@@ -9,7 +9,10 @@ import Foundation
 
 enum EnhancedCredentialKind: String, CaseIterable, Identifiable, Sendable {
     case twelveData
+    case exchangeRateAPI
     case openExchangeRates
+    case fixer
+    case currencyLayer
 
     var id: String {
         rawValue
@@ -19,8 +22,14 @@ enum EnhancedCredentialKind: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .twelveData:
             "Twelve Data"
+        case .exchangeRateAPI:
+            "ExchangeRate-API"
         case .openExchangeRates:
             "Open Exchange Rates"
+        case .fixer:
+            "Fixer"
+        case .currencyLayer:
+            "Currencylayer"
         }
     }
 
@@ -28,8 +37,14 @@ enum EnhancedCredentialKind: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .twelveData:
             "Twelve Data API Key"
+        case .exchangeRateAPI:
+            "ExchangeRate-API Key"
         case .openExchangeRates:
             "Open Exchange Rates App ID"
+        case .fixer:
+            "Fixer API Key"
+        case .currencyLayer:
+            "Currencylayer API Access Key"
         }
     }
 
@@ -41,8 +56,14 @@ enum EnhancedCredentialKind: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .twelveData:
             "enhanced-source.twelve-data.api-key"
+        case .exchangeRateAPI:
+            "enhanced-source.exchange-rate-api.api-key"
         case .openExchangeRates:
             "enhanced-source.open-exchange-rates.app-id"
+        case .fixer:
+            "enhanced-source.fixer.api-key"
+        case .currencyLayer:
+            "enhanced-source.currencylayer.access-key"
         }
     }
 
@@ -50,8 +71,14 @@ enum EnhancedCredentialKind: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .twelveData:
             "twelveDataAPIKey"
+        case .exchangeRateAPI:
+            "exchangeRateAPIKey"
         case .openExchangeRates:
             "openExchangeRatesAppID"
+        case .fixer:
+            "fixerAPIKey"
+        case .currencyLayer:
+            "currencyLayerAccessKey"
         }
     }
 }
@@ -130,6 +157,8 @@ final class EnhancedSourceCredentialStore {
     private let userDefaults: UserDefaults
     private var valuesByKind: [EnhancedCredentialKind: String] = [:]
     private var loadErrorsByKind: [EnhancedCredentialKind: String] = [:]
+    private(set) var selectedKinds: [EnhancedCredentialKind] = []
+    private let selectedKindsKey = "selectedEnhancedCredentialKinds"
 
     init(
         secretStore: (any SecretStoring)? = nil,
@@ -139,13 +168,21 @@ final class EnhancedSourceCredentialStore {
         self.userDefaults = userDefaults
         migrateLegacyCredentialsIfNeeded()
         reload()
+        loadSelectedKinds()
     }
 
     var configuration: EnhancedSourceConfiguration {
         EnhancedSourceConfiguration(
             twelveDataAPIKey: storedValue(for: .twelveData),
-            openExchangeRatesAppID: storedValue(for: .openExchangeRates)
+            exchangeRateAPIKey: storedValue(for: .exchangeRateAPI),
+            openExchangeRatesAppID: storedValue(for: .openExchangeRates),
+            fixerAPIKey: storedValue(for: .fixer),
+            currencyLayerAPIKey: storedValue(for: .currencyLayer)
         )
+    }
+
+    var availableKindsToAdd: [EnhancedCredentialKind] {
+        EnhancedCredentialKind.allCases.filter { !selectedKinds.contains($0) }
     }
 
     func hasStoredValue(for kind: EnhancedCredentialKind) -> Bool {
@@ -162,6 +199,7 @@ final class EnhancedSourceCredentialStore {
 
     func save(_ value: String, for kind: EnhancedCredentialKind) throws {
         let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        addSelectedKind(kind)
 
         if trimmedValue.isEmpty {
             try secretStore.delete(account: kind.account)
@@ -200,6 +238,16 @@ final class EnhancedSourceCredentialStore {
             loadErrorsByKind[kind] = nil
             valuesByKind[kind] = legacyValue(for: kind) ?? ""
         }
+        loadSelectedKinds()
+    }
+
+    func addSelectedKind(_ kind: EnhancedCredentialKind) {
+        guard !selectedKinds.contains(kind) else {
+            return
+        }
+
+        selectedKinds.append(kind)
+        persistSelectedKinds()
     }
 
     private func migrateLegacyCredentialsIfNeeded() {
@@ -233,5 +281,23 @@ final class EnhancedSourceCredentialStore {
         }
 
         return legacyValue
+    }
+
+    private func loadSelectedKinds() {
+        let storedKinds = (userDefaults.stringArray(forKey: selectedKindsKey) ?? [])
+            .compactMap(EnhancedCredentialKind.init(rawValue:))
+        let storedValueKinds = EnhancedCredentialKind.allCases.filter { !storedValue(for: $0).isEmpty }
+
+        var resolvedKinds = storedKinds.isEmpty ? [.twelveData, .openExchangeRates] : storedKinds
+        for kind in storedValueKinds where !resolvedKinds.contains(kind) {
+            resolvedKinds.append(kind)
+        }
+
+        selectedKinds = resolvedKinds.filter { EnhancedCredentialKind.allCases.contains($0) }
+        persistSelectedKinds()
+    }
+
+    private func persistSelectedKinds() {
+        userDefaults.set(selectedKinds.map(\.rawValue), forKey: selectedKindsKey)
     }
 }

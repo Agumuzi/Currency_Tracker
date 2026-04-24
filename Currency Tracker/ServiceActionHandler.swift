@@ -49,16 +49,19 @@ final class ServiceActionHandler: NSObject {
 final class InitialLaunchCoordinator {
     private let userDefaults: UserDefaults
     private let settingsWindowController: SettingsWindowController
+    private let automaticUpdateCoordinator: AutomaticSoftwareUpdateCoordinator
     private let isRunningUITests: Bool
     private var observer: NSObjectProtocol?
 
     init(
         userDefaults: UserDefaults,
         settingsWindowController: SettingsWindowController,
+        automaticUpdateCoordinator: AutomaticSoftwareUpdateCoordinator,
         isRunningUITests: Bool
     ) {
         self.userDefaults = userDefaults
         self.settingsWindowController = settingsWindowController
+        self.automaticUpdateCoordinator = automaticUpdateCoordinator
         self.isRunningUITests = isRunningUITests
         self.observer = NotificationCenter.default.addObserver(
             forName: NSApplication.didFinishLaunchingNotification,
@@ -90,6 +93,7 @@ final class InitialLaunchCoordinator {
         let isDebugLaunch = ProcessInfo.processInfo.arguments.contains("-NSDocumentRevisionsDebugMode")
         let shouldPresent = !hasShownInitialSettingsWindow || isDebugLaunch
         guard shouldPresent else {
+            automaticUpdateCoordinator.checkIfNeeded()
             return
         }
 

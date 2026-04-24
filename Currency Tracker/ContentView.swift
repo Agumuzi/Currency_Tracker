@@ -28,7 +28,7 @@ struct ContentView: View {
             footer
         }
         .padding(16)
-        .frame(width: 392, height: panelHeight, alignment: .top)
+        .frame(width: 408, height: panelHeight, alignment: .top)
         .background(panelBackground)
         .task {
             if autoBootstrap {
@@ -109,10 +109,12 @@ struct ContentView: View {
             Button {
                 panelWindowController.togglePinnedPanel(from: currentWindow)
             } label: {
-                toolbarButtonLabel(systemName: panelWindowController.isPinned ? "pin.fill" : "pin")
+                toolbarButtonLabel(
+                    systemName: panelWindowController.isPinned ? "pin.fill" : "pin",
+                    isActive: panelWindowController.isPinned
+                )
             }
             .buttonStyle(.plain)
-            .foregroundStyle(panelWindowController.isPinned ? Color.accentColor : .secondary)
             .help(panelWindowController.isPinned ? "解除锁定" : "锁定面板")
 
             Button {
@@ -258,9 +260,11 @@ struct ContentView: View {
             )
             .frame(maxWidth: .infinity, minHeight: cardAreaHeight, maxHeight: cardAreaHeight, alignment: .topLeading)
         } else if shouldScrollCards {
-            ScrollView(.vertical, showsIndicators: false) {
+            ScrollView(.vertical, showsIndicators: true) {
                 cardStack
+                    .padding(.trailing, 8)
             }
+            .scrollIndicators(.visible)
             .frame(maxWidth: .infinity, minHeight: cardAreaHeight, maxHeight: cardAreaHeight, alignment: .top)
         } else {
             cardStack
@@ -291,12 +295,6 @@ struct ContentView: View {
                 .lineLimit(1)
 
             Spacer()
-
-            if panelWindowController.isPinned {
-                Label("已固定", systemImage: "pin.fill")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
         }
         .foregroundStyle(.secondary)
         .padding(.horizontal, 10)
@@ -373,13 +371,18 @@ struct ContentView: View {
         expandedCardID == card.id ? 262 : 110
     }
 
-    private func toolbarButtonLabel(systemName: String) -> some View {
+    private func toolbarButtonLabel(systemName: String, isActive: Bool = false) -> some View {
         Image(systemName: systemName)
             .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
             .frame(width: 28, height: 28)
             .background(
                 Circle()
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .fill(isActive ? Color.accentColor.opacity(0.14) : Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                Circle()
+                    .strokeBorder(isActive ? Color.accentColor.opacity(0.24) : Color.black.opacity(0.05), lineWidth: 1)
             )
     }
 
@@ -401,12 +404,12 @@ struct ContentView: View {
     }
 
     private func resizePinnedWindowIfNeeded() {
-        guard presentationMode == .pinned,
+        guard panelWindowController.isPinned,
               let currentWindow else {
             return
         }
 
-        let targetSize = NSSize(width: 424, height: panelHeight + 32)
+        let targetSize = NSSize(width: 440, height: panelHeight + 32)
         if currentWindow.contentLayoutRect.size != targetSize {
             currentWindow.setContentSize(targetSize)
         }
@@ -419,6 +422,7 @@ private struct CurrencyCardView: View {
     let showsFlags: Bool
     let isExpanded: Bool
     @Binding var expandedCardID: String?
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var selectedRange: CardTrendRange = .oneMonth
     @State private var baseAmountText = ""
@@ -444,9 +448,18 @@ private struct CurrencyCardView: View {
         var title: LocalizedStringKey {
             switch self {
             case .trend:
-                "趋势"
+                "历史"
             case .converter:
                 "换算"
+            }
+        }
+
+        var symbolName: String {
+            switch self {
+            case .trend:
+                "chart.line.uptrend.xyaxis"
+            case .converter:
+                "arrow.left.arrow.right"
             }
         }
     }
@@ -495,40 +508,48 @@ private struct CurrencyCardView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 8) {
-                    if showsFlags {
-                        Text("\(CurrencyCatalog.flag(for: card.pair.baseCode)) \(CurrencyCatalog.flag(for: card.pair.quoteCode))")
-                            .font(.system(size: 15))
-                    }
+        HStack(alignment: .center, spacing: 12) {
+            if showsFlags {
+                Text("\(CurrencyCatalog.flag(for: card.pair.baseCode))\n\(CurrencyCatalog.flag(for: card.pair.quoteCode))")
+                    .font(.system(size: 13))
+                    .multilineTextAlignment(.center)
+                    .frame(width: 28, height: 38)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(Color(nsColor: .underPageBackgroundColor).opacity(0.82))
+                    )
+            }
 
-                    HStack(spacing: 6) {
-                        Text(card.pair.displayName)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .lineLimit(1)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(card.compactPairLabel)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.86)
 
-                        if canExpand {
-                            Button {
-                                toggleExpanded()
-                            } label: {
-                                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 18, height: 18)
-                            }
-                            .buttonStyle(.plain)
+                    if canExpand {
+                        Button {
+                            toggleExpanded()
+                        } label: {
+                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 20, height: 20)
+                                .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
+                        .help(isExpanded ? "收起详情" : "展开详情")
                     }
                 }
 
-                Text(card.subtitle)
+                Text(pairSecondaryText)
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .truncationMode(.tail)
             }
-
-            Spacer(minLength: 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
 
             VStack(alignment: .trailing, spacing: 6) {
                 Text(card.valueText)
@@ -536,6 +557,8 @@ private struct CurrencyCardView: View {
                     .contentTransition(.numericText())
                     .foregroundStyle(card.valueColor)
                     .multilineTextAlignment(.trailing)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.74)
 
                 if let changeText = card.changeText {
                     valueChip(text: changeText, color: card.changeColor)
@@ -543,6 +566,7 @@ private struct CurrencyCardView: View {
                     valueChip(text: statusChipText, color: card.statusChipColor)
                 }
             }
+            .frame(minWidth: 104, alignment: .trailing)
         }
     }
 
@@ -682,6 +706,14 @@ private struct CurrencyCardView: View {
         return segments.joined(separator: " · ")
     }
 
+    private var pairSecondaryText: String {
+        if card.pair.baseAmount == 1 {
+            return card.pair.displayName
+        }
+
+        return "\(card.pair.displayName) · \(card.subtitle)"
+    }
+
     private func normalizedDateText(from rawText: String) -> String {
         let parsedDate = SourceDateParser.isoDay(rawText)
             ?? SourceDateParser.cbrDay(rawText)
@@ -707,12 +739,32 @@ private struct CurrencyCardView: View {
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color(nsColor: .windowBackgroundColor))
+            .fill(Color(nsColor: .controlBackgroundColor))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(cardHighlightColor)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(borderColor, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(isFeatured ? 0.04 : 0.018), radius: isFeatured ? 6 : 2, y: isFeatured ? 2 : 1)
+            .shadow(color: .black.opacity(cardShadowOpacity), radius: isFeatured ? 7 : 3, y: isFeatured ? 3 : 1)
+    }
+
+    private var cardHighlightColor: Color {
+        if colorScheme == .dark {
+            return Color.white.opacity(isFeatured ? 0.055 : 0.035)
+        }
+
+        return Color.white.opacity(isFeatured ? 0.36 : 0.22)
+    }
+
+    private var cardShadowOpacity: Double {
+        if colorScheme == .dark {
+            return isFeatured ? 0.24 : 0.14
+        }
+
+        return isFeatured ? 0.08 : 0.045
     }
 
     private var borderColor: Color {
@@ -787,17 +839,26 @@ private struct CurrencyCardView: View {
                         focusedField = .base
                     }
                 } label: {
-                    Text(mode.title)
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                        .foregroundStyle(selectedContentMode == mode ? Color.primary : Color.secondary)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(selectedContentMode == mode ? Color(nsColor: .windowBackgroundColor) : Color.clear)
-                        )
+                    HStack(spacing: 6) {
+                        Image(systemName: mode.symbolName)
+                            .font(.system(size: 10, weight: .bold))
+                        Text(mode.title)
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 30)
+                    .foregroundStyle(selectedContentMode == mode ? Color.primary : Color.secondary)
+                    .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(selectedContentMode == mode ? Color(nsColor: .windowBackgroundColor) : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(selectedContentMode == mode ? Color.black.opacity(0.06) : Color.clear, lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
+                .help(mode.title)
             }
         }
         .padding(3)
@@ -1245,7 +1306,8 @@ private struct TrendAreaShape: Shape {
         viewModel: viewModel,
         service: service,
         dockVisibilityController: DockVisibilityController(logHandler: { _, _ in }),
-        globalShortcutHandler: globalShortcutHandler
+        globalShortcutHandler: globalShortcutHandler,
+        softwareUpdateWindowController: SoftwareUpdateWindowController()
     )
     let panelController = PanelWindowController(viewModel: viewModel)
     ContentView(

@@ -1,118 +1,82 @@
 # Currency Tracker
 
-一个给 macOS 用的菜单栏汇率小工具。
+Currency Tracker is a lightweight macOS menu bar app for checking the exchange rates you use every day. It keeps frequently viewed currency pairs one click away, supports quick conversion, and lets you bring your own API keys when you want enhanced rate sources.
 
-做这个软件的原因很简单：平时会反复看几组固定汇率，也经常在网页上看到外币价格，想顺手换算成自己更熟悉的货币。如果每次都去开浏览器、搜 Google、切计算器，其实挺烦的，所以就做了这个尽量轻、尽量直接的小工具。
+<p>
+  <a href="https://github.com/Agumuzi/Currency_Tracker/releases/latest"><strong>Download the latest release</strong></a>
+  ·
+  <a href="https://agumuzi.github.io/Currency_Tracker/">Product page</a>
+  ·
+  <a href="https://github.com/Agumuzi/Currency_Tracker/releases">Release notes</a>
+</p>
 
-它不是专业交易软件，也不是做大而全的金融终端。  
-它更像一个给自己日常高频使用的菜单栏工具：打开快，看到就走，少折腾。
+## Screenshots
 
-## 现在能做什么
+### Menu bar panel
 
-- 在菜单栏里查看常用货币对
-- 支持手动刷新
-- 支持按设置自动刷新
-- 可以自定义关注的货币对
-- 可以把金额换算成自己设定的基准货币
-- 支持基于选中文本做快速换算
+<img src="assets/screenshots/menu-panel.png" width="420" alt="Currency Tracker menu bar panel showing currency pair cards, latest rates, trend badges, pinning, refresh, and quick actions.">
 
-## 适合什么场景
+### Settings
 
-比较适合下面这种情况：
+| Rates and pair management | API data sources |
+| --- | --- |
+| <img src="assets/screenshots/settings-window.png" alt="Currency Tracker settings window with sidebar navigation and currency pair management."> | <img src="assets/screenshots/data-sources-window.png" alt="Currency Tracker data source settings with an API provider menu and credential rows."> |
 
-- 长期关注几组固定汇率
-- 经常会在购物网站、聊天记录、文章里看到外币价格
-- 想快速知道它大概等于多少人民币 / 卢布 / 美元
-- 不想每次都专门开网页查
+## Highlights
 
-## 下载
+- View selected currency pairs directly from the macOS menu bar.
+- Switch between rate history and conversion from the same compact panel.
+- Add, remove, reorder, and manage the pairs shown in the panel.
+- Convert selected text through macOS Services or a global shortcut.
+- Use public fallback sources by default, or enable your own provider credentials.
+- Check for updates from Settings, with optional automatic update checks.
+- Run the interface in English, Russian, or Simplified Chinese.
 
-请到仓库右侧的 **Releases** 页面下载最新版。
+## Data Sources
 
-## 为什么第一次打开会被 macOS 拦一下
+Currency Tracker works without user-provided API keys by falling back to public exchange-rate sources. For better coverage and reliability, you can add credentials for these providers from Settings:
 
-因为这个软件没有走 Apple 官方的开发者签名和 notarization 分发流程。
+- Twelve Data
+- ExchangeRate-API
+- Open Exchange Rates
+- Fixer
+- Currencylayer
 
-说人话就是：开发者没有订阅苹果开发者服务，所以 macOS 第一次打开时，可能会把它拦下来。这是系统正常的安全机制，不代表软件本身有问题。
+Credentials are stored locally on your Mac under Application Support. External providers only receive the exchange-rate requests needed for refreshes.
 
-如果被拦了，按下面操作就行：
+## Version 1.2
 
-**系统设置 → 隐私与安全性 → 仍要打开 / Open Anyway**
+Version 1.2 focuses on data source customization and interface polish:
 
-点完之后再打开一次，通常后面就正常了。
+- Added a provider picker for custom API data sources.
+- Added support for ExchangeRate-API, Fixer, and Currencylayer alongside the existing enhanced sources.
+- Updated API credential rows with clear enabled states and edit actions.
+- Refined the menu bar cards, scrolling behavior, panel pinning, and settings layout.
+- Added software update checks and automatic update preferences.
+- Reworked the README with English copy and screenshots of the main app surfaces.
 
-## 为什么用了这两个 API
+## Installation
 
-这个软件目前把 **Twelve Data** 和 **Open Exchange Rates** 作为可选增强数据源。
+Download `Currency-Tracker-1.2.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
-原因很简单：我想要的是一个对个人使用来说足够稳定、免费额度够用、而且不用把整个软件做得很重的数据方案。只绑死一个源其实不太稳，一旦遇到额度、失败或者限流，体验就会直接掉下去。所以最后用了一个“主源 + 备用源”的思路。
+The app is distributed through GitHub Releases and is not notarized through Apple. On first launch, macOS may block it. Open:
 
-### Twelve Data
+`System Settings` -> `Privacy & Security` -> `Open Anyway`
 
-Twelve Data 是这个项目里优先级更高的数据源。
+After you approve it once, future launches should work normally.
 
-主要原因是它更适合放在前面做主力刷新。免费计划每天提供 800 API credits。按照这个项目当前的请求方式，一次完整刷新大约会消耗 8 credits，所以实际可以大致理解为每天约 100 次刷新，对个人使用已经很充足了。
+## Requirements
 
-它还有一个优点是定位更偏金融市场数据平台，不只是汇率，还覆盖股票、加密货币等数据。对这个项目来说，它的意义不是“现在非要用到所有市场数据”，而是以后如果想继续扩展，不需要从头换掉整套思路。
+- macOS 26.4 or later
+- Internet access for live exchange-rate refreshes
 
-所以 Twelve Data 更适合放在前面，原因主要是：
+## Privacy
 
-- 免费额度按天给，日常使用更从容
-- 更适合当前这种频繁查看的小工具场景
-- 后续扩展空间更大
+Currency Tracker is designed as a local-first utility. Preferences, selected pairs, refresh behavior, and API credentials are stored on your Mac. The app does not upload local files, clipboard contents, or device data to any backend service owned by this project.
 
-官网：<https://twelvedata.com/>  
-文档：<https://twelvedata.com/docs>
+## Distribution
 
-### Open Exchange Rates
+Source code and packaged builds are available on GitHub:
 
-Open Exchange Rates 在这个项目里更像一个稳定的备用方案。
-
-它免费计划的规则很清楚：每月 1000 次请求，免费计划按小时更新。对于这个软件来说，这样的更新频率已经足够覆盖大多数普通查看场景。
-
-它适合放在第二位，不是因为它差，而是因为它更适合作为一个“稳妥兜底”的汇率源：
-
-- 免费规则明确
-- 覆盖货币广
-- 小时级更新对于大多数普通查看场景已经够用
-- 作为备用源很合适
-
-官网：<https://openexchangerates.org/>  
-文档：<https://docs.openexchangerates.org/>
-
-### 为什么不是只用一个
-
-这个软件是菜单栏小工具，不是专业交易终端。  
-对我来说，最重要的不是极限低延迟，而是：
-
-- 平时打开就能用
-- 额度不要太容易撞线
-- 某个源短时失败时不要整体验崩掉
-
-所以最后的思路不是“选出唯一最强 API”，而是：
-
-- **Twelve Data 负责主力刷新**
-- **Open Exchange Rates 负责备用兜底**
-
-这样做的好处很实际：日常主要吃 Twelve Data 的按天额度；如果 Twelve Data 因为额度、失败、限流或别的问题暂时不可用，可以切到 Open Exchange Rates；整体可用性会比只绑一个源更稳。
-
-## 关于数据和设置
-
-这个软件是偏本地使用的轻工具，配置和一些使用数据会保存在本机，用来保存货币对、刷新策略之类的内容。
-
-如果填写了自定义 API，也会保存在本地，方便后续直接使用。
-
-## 当前分发方式
-
-目前就是最直接的这条路：
-
-- GitHub 放源码
-- GitHub Releases 放下载文件
-- 不上 App Store
-- 不走苹果官方签名分发
-
-所以第一次打开需要手动允许，这一点提前说明一下。
-
-## 后续
-
-后面如果继续更新，会继续直接发到 Releases。
+- [Repository](https://github.com/Agumuzi/Currency_Tracker)
+- [Releases](https://github.com/Agumuzi/Currency_Tracker/releases)
