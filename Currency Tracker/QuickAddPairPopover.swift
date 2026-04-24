@@ -56,7 +56,7 @@ struct QuickAddPairPopover: View {
                         .foregroundStyle(.secondary)
                     Picker("目标货币", selection: $targetCode) {
                         ForEach(availableTargets) { currency in
-                            Text("\(currency.name) · \(currency.code)")
+                            Text("\(CurrencyCatalog.name(for: currency.code)) · \(currency.code)")
                                 .tag(currency.code)
                         }
                     }
@@ -178,7 +178,7 @@ private struct QuickAddCurrencyRow: View {
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("\(currency.name) · \(currency.code)")
+                Text("\(CurrencyCatalog.name(for: currency.code)) · \(currency.code)")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                 Text(currency.englishName)
                     .font(.system(size: 11, weight: .medium, design: .rounded))

@@ -1,6 +1,335 @@
-<p>Hello!</p>
-<p>Здравствуйте!</p>
-<p>Welcome to Tao International Trading Company</p>
-<p>Добро пожаловать в Тао Международная Торговая Компания</p>
-<p>Due to the tech issue, our web will be back online soon.<p>
-<p>Из-за технической проблемы наш веб-сайт скоро снова будет онлайн.<p>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Currency Tracker for macOS</title>
+  <meta name="description" content="Currency Tracker is a lightweight macOS menu bar app for exchange rates, quick conversions, and system-wide selected-text currency conversion.">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --text: #111318;
+      --muted: #5f6673;
+      --border: #d9dde5;
+      --accent: #1f6feb;
+      --accent-strong: #1756bd;
+      --shadow: 0 16px 45px rgba(17, 19, 24, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101216;
+        --panel: #171a20;
+        --text: #f3f5f7;
+        --muted: #a7aeb9;
+        --border: #2c313a;
+        --accent: #6ea8fe;
+        --accent-strong: #9bc2ff;
+        --shadow: 0 16px 45px rgba(0, 0, 0, 0.28);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 12px 0 28px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 0.96fr) minmax(360px, 1.04fr);
+      gap: 36px;
+      align-items: center;
+      min-height: 620px;
+      padding: 30px 0 52px;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(42px, 7vw, 78px);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .lede {
+      max-width: 650px;
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 20px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+
+    .button.primary:hover {
+      background: var(--accent-strong);
+    }
+
+    .meta {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .hero-media {
+      display: grid;
+      gap: 16px;
+    }
+
+    .screenshot {
+      display: block;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .screenshot.small {
+      width: min(72%, 420px);
+      justify-self: end;
+    }
+
+    .section {
+      padding: 54px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .section h2 {
+      margin: 0 0 18px;
+      font-size: 32px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      min-height: 170px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .card p,
+    .section p,
+    li {
+      color: var(--muted);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 28px;
+      align-items: start;
+    }
+
+    .bullets {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .bullets li + li {
+      margin-top: 10px;
+    }
+
+    footer {
+      padding: 36px 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 860px) {
+      .page {
+        padding: 20px;
+      }
+
+      .hero,
+      .split,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        min-height: auto;
+        padding-top: 12px;
+      }
+
+      .screenshot.small {
+        width: 100%;
+      }
+
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <nav class="nav" aria-label="Primary">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">$</span>
+        <span>Currency Tracker</span>
+      </div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="https://github.com/Agumuzi/Currency_Tracker">GitHub</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div>
+        <h1>Exchange rates from the macOS menu bar.</h1>
+        <p class="lede">Currency Tracker keeps the rates you care about one click away, with quick pair management, compact trend charts, and selected-text conversion across macOS.</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/Agumuzi/Currency_Tracker/releases/latest/download/Currency-Tracker-1.1.zip">Download v1.1</a>
+          <a class="button" href="https://github.com/Agumuzi/Currency_Tracker/releases">View releases</a>
+        </div>
+        <p class="meta">Requires macOS 26.4 or later. The app runs from the menu bar and can optionally use your own API keys for enhanced rate sources.</p>
+      </div>
+      <div class="hero-media" id="screenshots">
+        <img class="screenshot" src="assets/screenshots/settings-window.png" alt="Currency Tracker settings window with sections for rates, refresh behavior, data sources, and system settings.">
+        <img class="screenshot small" src="assets/screenshots/data-sources-window.png" alt="Currency Tracker data source settings with optional API key fields.">
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <h2>Built for everyday currency checks.</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Menu bar rates</h3>
+          <p>Pin the pairs you use most and open the compact panel whenever you need current rates.</p>
+        </article>
+        <article class="card">
+          <h3>Charts and conversion</h3>
+          <p>Expand a pair to inspect recent trends or switch to the converter without leaving the panel.</p>
+        </article>
+        <article class="card">
+          <h3>System text conversion</h3>
+          <p>Select an amount in another app and convert it to your base currency using Services or a global shortcut.</p>
+        </article>
+        <article class="card">
+          <h3>Multiple data sources</h3>
+          <p>Use built-in public sources by default, or add Twelve Data and Open Exchange Rates credentials for enhanced coverage.</p>
+        </article>
+        <article class="card">
+          <h3>Localized interface</h3>
+          <p>The app supports English, Russian, and Simplified Chinese across the main panel and settings window.</p>
+        </article>
+        <article class="card">
+          <h3>Local-first settings</h3>
+          <p>Preferences and credentials stay on your Mac. External providers only receive the exchange-rate requests you make.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="split">
+        <div>
+          <h2>What is new in 1.1</h2>
+          <p>Version 1.1 improves API compatibility, localization, and the overall macOS interface.</p>
+        </div>
+        <ul class="bullets">
+          <li>Updated Twelve Data requests for standard HTTP error codes.</li>
+          <li>Added English and Russian localization.</li>
+          <li>Redesigned the settings window with a sidebar and separated sections.</li>
+          <li>Refined the menu panel layout, cards, status messages, and expanded rate details.</li>
+          <li>Added direct controls for reordering currency pairs.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      <p>Currency Tracker is maintained by Agumuzi. Source code and releases are available on GitHub.</p>
+    </footer>
+  </main>
+</body>
+</html>

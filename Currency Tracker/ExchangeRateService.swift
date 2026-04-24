@@ -16,6 +16,7 @@ nonisolated private enum ExchangeRateServiceConstants {
     static let historicalLookbackDays = 365
     static let publicNonRubSources: [ExchangeSource] = [.ecb, .frankfurter, .floatRates, .currencyAPI]
     static let snapshotSourceOrder: [ExchangeSource] = [.twelveData, .openExchangeRates, .cbr, .ecb, .frankfurter, .floatRates, .currencyAPI]
+    static let twelveDataRequestHeaders = ["X-API-Version": "last"]
     static let rateLimitCooldown: TimeInterval = 15 * 60
     static let authenticationCooldown: TimeInterval = 30 * 60
     static let standardTimeout: TimeInterval = 5
@@ -200,7 +201,8 @@ actor ExchangeRateService: APIValidationServicing {
             let data = try await responseData(
                 from: components.url!,
                 retryCount: 0,
-                timeoutInterval: ExchangeRateServiceConstants.validationTimeout
+                timeoutInterval: ExchangeRateServiceConstants.validationTimeout,
+                additionalHeaders: ExchangeRateServiceConstants.twelveDataRequestHeaders
             )
             _ = try TwelveDataParser.parseExchangeRate(from: data)
             return nil
@@ -616,7 +618,11 @@ actor ExchangeRateService: APIValidationServicing {
                     URLQueryItem(name: "apikey", value: apiKey)
                 ]
                 let requestURL = components.url!
-                let data = try await responseData(from: requestURL, retryCount: 0)
+                let data = try await responseData(
+                    from: requestURL,
+                    retryCount: 0,
+                    additionalHeaders: ExchangeRateServiceConstants.twelveDataRequestHeaders
+                )
                 let response = try TwelveDataParser.parseExchangeRate(from: data)
 
                 let effectiveDate = response.timestamp.map(SourceDateParser.isoQueryString(from:))
@@ -1251,14 +1257,18 @@ actor ExchangeRateService: APIValidationServicing {
             switch providerError {
             case .transport(let message):
                 let lowercased = message.lowercased()
-                if lowercased.contains("api key") || lowercased.contains("apikey") || lowercased.contains("unauthorized") || lowercased.contains("invalid") {
-                    return .authenticationFailed
-                }
                 if lowercased.contains("limit") || lowercased.contains("quota") || lowercased.contains("credits") {
                     return .rateLimited
                 }
-                if lowercased.contains("not found") || lowercased.contains("not support") || lowercased.contains("not available") || lowercased.contains("invalid symbol") {
+                if lowercased.contains("not found")
+                    || lowercased.contains("not support")
+                    || lowercased.contains("not available")
+                    || lowercased.contains("invalid symbol")
+                    || (lowercased.contains("symbol") && lowercased.contains("invalid")) {
                     return .unsupportedPair
+                }
+                if lowercased.contains("api key") || lowercased.contains("apikey") || lowercased.contains("unauthorized") || lowercased.contains("invalid") {
+                    return .authenticationFailed
                 }
                 return .transport(message)
             default:
@@ -1267,21 +1277,28 @@ actor ExchangeRateService: APIValidationServicing {
         }
 
         if let httpError = error as? HTTPStatusError {
+            let message = providerErrorMessage(from: httpError.body).lowercased()
+            if message.contains("quota") || message.contains("credits") || message.contains("limit") {
+                return .rateLimited
+            }
+            if message.contains("not support")
+                || message.contains("not found")
+                || message.contains("not available")
+                || message.contains("invalid symbol")
+                || (message.contains("symbol") && message.contains("invalid")) {
+                return .unsupportedPair
+            }
+            if message.contains("invalid") || message.contains("api key") || message.contains("apikey") {
+                return .authenticationFailed
+            }
             if httpError.statusCode == 401 || httpError.statusCode == 403 {
                 return .authenticationFailed
             }
+            if httpError.statusCode == 404 {
+                return .unsupportedPair
+            }
             if httpError.statusCode == 429 {
                 return .rateLimited
-            }
-            let body = httpError.body?.lowercased() ?? ""
-            if body.contains("quota") || body.contains("credits") || body.contains("limit") {
-                return .rateLimited
-            }
-            if body.contains("invalid") || body.contains("api key") || body.contains("apikey") {
-                return .authenticationFailed
-            }
-            if body.contains("not support") || body.contains("not found") || body.contains("invalid symbol") {
-                return .unsupportedPair
             }
             return .transport("HTTP \(httpError.statusCode)")
         }
@@ -1291,6 +1308,20 @@ actor ExchangeRateService: APIValidationServicing {
         }
 
         return .transport(error.localizedDescription)
+    }
+
+    private func providerErrorMessage(from body: String?) -> String {
+        guard let body else {
+            return ""
+        }
+
+        guard let data = body.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let message = object["message"] as? String else {
+            return body
+        }
+
+        return message
     }
 
     private func mapOpenExchangeRatesError(_ error: Error) -> EnhancedProviderError {
@@ -1337,7 +1368,8 @@ actor ExchangeRateService: APIValidationServicing {
     private func responseData(
         from url: URL,
         retryCount: Int = 1,
-        timeoutInterval: TimeInterval = ExchangeRateServiceConstants.standardTimeout
+        timeoutInterval: TimeInterval = ExchangeRateServiceConstants.standardTimeout,
+        additionalHeaders: [String: String] = [:]
     ) async throws -> Data {
         guard url.scheme?.lowercased() == "https" else {
             throw URLError(.secureConnectionFailed)
@@ -1353,6 +1385,9 @@ actor ExchangeRateService: APIValidationServicing {
                 request.httpShouldHandleCookies = false
                 request.setValue("application/json, text/plain, */*", forHTTPHeaderField: "Accept")
                 request.setValue("CurrencyTracker/1.0", forHTTPHeaderField: "User-Agent")
+                for (field, value) in additionalHeaders {
+                    request.setValue(value, forHTTPHeaderField: field)
+                }
 
                 let (data, response) = try await urlSession.data(for: request)
 

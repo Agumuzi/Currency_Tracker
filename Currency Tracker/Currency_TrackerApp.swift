@@ -223,8 +223,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             window.titlebarAppearsTransparent = true
             window.toolbarStyle = .unifiedCompact
             window.isReleasedWhenClosed = false
-            window.setContentSize(NSSize(width: 760, height: 560))
-            window.minSize = NSSize(width: 700, height: 520)
+            window.setContentSize(NSSize(width: 880, height: 600))
+            window.minSize = NSSize(width: 780, height: 540)
             window.center()
 
             windowController = NSWindowController(window: window)

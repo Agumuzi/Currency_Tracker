@@ -21,8 +21,8 @@ struct ContentView: View {
     @State private var isShowingQuickAddPanel = false
 
     var body: some View {
-        VStack(spacing: 14) {
-            panelToolbar
+        VStack(spacing: 12) {
+            panelHeader
             compactStatusBanner
             cardList
             footer
@@ -71,10 +71,26 @@ struct ContentView: View {
         }
     }
 
-    private var panelToolbar: some View {
-        HStack(spacing: 8) {
-            Spacer()
+    private var panelHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Currency Tracker")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .lineLimit(1)
 
+                Text(headerSubtitle)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            panelActions
+        }
+    }
+
+    private var panelActions: some View {
+        HStack(spacing: 8) {
             Button {
                 isShowingQuickAddPanel = true
             } label: {
@@ -150,15 +166,15 @@ struct ContentView: View {
 
                 Section("设置与行为") {
                     Button("API 设置…") {
-                        settingsWindowController.show(section: .apiConfiguration)
+                        settingsWindowController.show(section: .dataSources)
                     }
 
                     Button("基准货币设置…") {
-                        settingsWindowController.show(section: .baseCurrency)
+                        settingsWindowController.show(section: .general)
                     }
 
                     Button("文本换算快捷键设置…") {
-                        settingsWindowController.show(section: .textConversionShortcut)
+                        settingsWindowController.show(section: .general)
                     }
 
                     Button("打开完整设置窗口") {
@@ -180,22 +196,37 @@ struct ContentView: View {
         }
     }
 
+    private var headerSubtitle: String {
+        guard !preferences.selectedPairs.isEmpty else {
+            return String(localized: "尚未添加汇率")
+        }
+
+        return String(
+            format: String(localized: "基准 %@ · %d 个汇率"),
+            preferences.baseCurrencyCode,
+            preferences.selectedPairs.count
+        )
+    }
+
     @ViewBuilder
     private var compactStatusBanner: some View {
         if let message = viewModel.statusMessage, shouldShowStatusBanner {
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
                 Image(systemName: viewModel.statusSymbolName)
                     .font(.system(size: 10, weight: .bold))
+                    .padding(.top, 1)
                 Text(message)
                     .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .foregroundStyle(viewModel.statusColor)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                Capsule(style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(viewModel.statusBackgroundColor)
             )
         }
@@ -210,11 +241,19 @@ struct ContentView: View {
                 Text("点击右上角 + 快速加入需要展示的汇率，或在 … 里打开完整设置窗口。")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
+                Button {
+                    isShowingQuickAddPanel = true
+                } label: {
+                    Label("添加汇率", systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .padding(.top, 4)
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(Color(nsColor: .controlBackgroundColor))
             )
             .frame(maxWidth: .infinity, minHeight: cardAreaHeight, maxHeight: cardAreaHeight, alignment: .topLeading)
@@ -263,30 +302,20 @@ struct ContentView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor).opacity(0.92))
         )
         .padding(.top, 8)
     }
 
     private var panelBackground: some View {
-        RoundedRectangle(cornerRadius: 24, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color(nsColor: .windowBackgroundColor),
-                        Color(nsColor: .windowBackgroundColor),
-                        Color(nsColor: .underPageBackgroundColor)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(Color(nsColor: .windowBackgroundColor))
             .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.06), radius: 10, y: 6)
+            .shadow(color: .black.opacity(0.045), radius: 8, y: 4)
     }
 
     private var shouldShowStatusBanner: Bool {
@@ -333,15 +362,15 @@ struct ContentView: View {
     }
 
     private var chromeHeight: CGFloat {
-        let toolbarHeight: CGFloat = 28
-        let bannerHeight: CGFloat = shouldShowStatusBanner ? 34 : 0
+        let toolbarHeight: CGFloat = 38
+        let bannerHeight: CGFloat = shouldShowStatusBanner ? 44 : 0
         let footerHeight: CGFloat = 46
         let spacingCount: CGFloat = shouldShowStatusBanner ? 3 : 2
-        return 32 + toolbarHeight + bannerHeight + footerHeight + (spacingCount * 14)
+        return 32 + toolbarHeight + bannerHeight + footerHeight + (spacingCount * 12)
     }
 
     private func estimatedHeight(for card: CurrencyCardModel) -> CGFloat {
-        expandedCardID == card.id ? 328 : 118
+        expandedCardID == card.id ? 262 : 110
     }
 
     private func toolbarButtonLabel(systemName: String) -> some View {
@@ -357,17 +386,17 @@ struct ContentView: View {
     private func refreshIntervalTitle(for value: Int) -> String {
         switch value {
         case 0:
-            "关闭"
+            String(localized: "关闭")
         case 5:
-            "5分钟"
+            String(localized: "5分钟")
         case 10:
-            "10分钟"
+            String(localized: "10分钟")
         case 30:
-            "30分钟"
+            String(localized: "30分钟")
         case 60:
-            "1小时"
+            String(localized: "1小时")
         default:
-            "\(value)分钟"
+            String(format: String(localized: "%d分钟"), value)
         }
     }
 
@@ -396,11 +425,30 @@ private struct CurrencyCardView: View {
     @State private var quoteAmountText = ""
     @State private var isSynchronizingConversion = false
     @State private var lastEditedField: ConversionField = .base
+    @State private var selectedDetailMode: CardDetailMode = .trend
     @FocusState private var focusedField: ConversionField?
 
     private enum ConversionField {
         case base
         case quote
+    }
+
+    private enum CardDetailMode: String, CaseIterable, Identifiable {
+        case trend
+        case converter
+
+        var id: String {
+            rawValue
+        }
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .trend:
+                "趋势"
+            case .converter:
+                "换算"
+            }
+        }
     }
 
     var body: some View {
@@ -418,7 +466,7 @@ private struct CurrencyCardView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cardBackground)
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onTapGesture {
             guard canExpand, isExpanded == false else {
                 return
@@ -431,8 +479,9 @@ private struct CurrencyCardView: View {
         }
         .onChange(of: isExpanded) { _, newValue in
             if newValue {
+                selectedDetailMode = .trend
                 resetConversionFields()
-                focusedField = .base
+                focusedField = nil
             } else {
                 focusedField = nil
             }
@@ -499,31 +548,42 @@ private struct CurrencyCardView: View {
 
     @ViewBuilder
     private var expandedContent: some View {
-        if showsChartSection {
-            chartSection
-                .transition(.opacity.combined(with: .move(edge: .top)))
+        if canSwitchDetailMode {
+            detailModePicker
+                .transition(.opacity)
         }
 
-        if card.snapshot != nil {
-            converterSection
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-        }
-
-        HStack(alignment: .bottom, spacing: 10) {
-            if !expandedMetaText.isEmpty {
-                Text(expandedMetaText)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+        switch selectedContentMode {
+        case .trend:
+            if showsChartSection {
+                chartSection
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
+        case .converter:
+            if card.snapshot != nil {
+                converterSection
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+
+        detailFooter
+            .transition(.opacity)
+    }
+
+    private var detailFooter: some View {
+        HStack(alignment: .bottom, spacing: 10) {
+            Text(expandedMetaText)
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 8)
 
-            if showsChartSection {
+            if selectedContentMode == .trend && showsChartSection {
                 TrendRangePicker(selectedRange: $selectedRange)
             }
         }
-        .transition(.opacity)
     }
 
     private var chartSection: some View {
@@ -557,6 +617,7 @@ private struct CurrencyCardView: View {
                 alignment: .trailing
             )
         }
+        .frame(height: 132, alignment: .center)
     }
 
     private func metaRow(text: String) -> some View {
@@ -579,6 +640,18 @@ private struct CurrencyCardView: View {
 
     private var showsChartSection: Bool {
         displayedChartPoints.count >= 2 || card.snapshot != nil
+    }
+
+    private var canSwitchDetailMode: Bool {
+        showsChartSection && card.snapshot != nil
+    }
+
+    private var selectedContentMode: CardDetailMode {
+        if selectedDetailMode == .converter, card.snapshot != nil {
+            return .converter
+        }
+
+        return .trend
     }
 
     private var collapsedMetaText: String {
@@ -604,7 +677,7 @@ private struct CurrencyCardView: View {
         }
         segments.append(ExchangeFormatter.time.string(from: snapshot.updatedAt))
         if snapshot.isCached {
-            segments.append("缓存")
+            segments.append(String(localized: "缓存"))
         }
         return segments.joined(separator: " · ")
     }
@@ -624,22 +697,22 @@ private struct CurrencyCardView: View {
     private var chartPlaceholderText: String {
         switch card.state {
         case .loading:
-            return "等待图表数据"
+            return String(localized: "等待图表数据")
         case .failed:
-            return "暂时没有图表数据"
+            return String(localized: "暂时没有图表数据")
         case .ready, .stale:
-            return "图表数据不足"
+            return String(localized: "图表数据不足")
         }
     }
 
     private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(Color(nsColor: .windowBackgroundColor))
             .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(borderColor, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(isFeatured ? 0.05 : 0.02), radius: isFeatured ? 8 : 3, y: isFeatured ? 3 : 1)
+            .shadow(color: .black.opacity(isFeatured ? 0.04 : 0.018), radius: isFeatured ? 6 : 2, y: isFeatured ? 2 : 1)
     }
 
     private var borderColor: Color {
@@ -696,12 +769,41 @@ private struct CurrencyCardView: View {
         .padding(.vertical, 11)
         .frame(maxWidth: .infinity, alignment: alignment)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(nsColor: .underPageBackgroundColor).opacity(0.96))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
                 )
+        )
+    }
+
+    private var detailModePicker: some View {
+        HStack(spacing: 4) {
+            ForEach(CardDetailMode.allCases) { mode in
+                Button {
+                    selectedDetailMode = mode
+                    if mode == .converter {
+                        focusedField = .base
+                    }
+                } label: {
+                    Text(mode.title)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .foregroundStyle(selectedContentMode == mode ? Color.primary : Color.secondary)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(selectedContentMode == mode ? Color(nsColor: .windowBackgroundColor) : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .underPageBackgroundColor).opacity(0.86))
         )
     }
 
@@ -917,7 +1019,7 @@ private struct TrendChartView: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -929,7 +1031,7 @@ private struct TrendChartView: View {
                     )
                 )
 
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
 
             if points.count >= 2 {

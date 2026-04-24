@@ -80,7 +80,11 @@ nonisolated enum CurrencyCatalog {
     ]
 
     static func name(for code: String) -> String {
-        info(for: code)?.name ?? code
+        guard let name = info(for: code)?.name else {
+            return code
+        }
+
+        return String(localized: String.LocalizationValue(name))
     }
 
     static func englishName(for code: String) -> String {
@@ -190,10 +194,14 @@ nonisolated enum TrendRange: String, Codable, CaseIterable, Identifiable, Sendab
 
     var title: String {
         switch self {
-        case .sixHours: "近 7 天"
-        case .oneDay: "近 30 天"
-        case .oneWeek: "近 90 天"
-        case .all: "近 180 天"
+        case .sixHours:
+            String(localized: "近 7 天")
+        case .oneDay:
+            String(localized: "近 30 天")
+        case .oneWeek:
+            String(localized: "近 90 天")
+        case .all:
+            String(localized: "近 180 天")
         }
     }
 
@@ -236,15 +244,15 @@ nonisolated enum CardTrendRange: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .sevenDays:
-            "7天"
+            String(localized: "7天")
         case .oneMonth:
-            "1月"
+            String(localized: "1月")
         case .threeMonths:
-            "3月"
+            String(localized: "3月")
         case .sixMonths:
-            "6月"
+            String(localized: "6月")
         case .oneYear:
-            "1年"
+            String(localized: "1年")
         }
     }
 
@@ -348,9 +356,9 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
         guard let snapshot else {
             switch state {
             case .loading:
-                return "加载中"
+                return String(localized: "加载中")
             case .failed:
-                return "暂不可用"
+                return String(localized: "暂不可用")
             case .ready, .stale:
                 return "--"
             }
@@ -377,9 +385,9 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
 
         switch state {
         case .loading:
-            return "等待数据"
+            return String(localized: "等待数据")
         case .failed:
-            return "需要重试"
+            return String(localized: "需要重试")
         case .ready, .stale:
             return nil
         }
@@ -402,9 +410,9 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
         guard let snapshot else {
             switch state {
             case .loading:
-                return ["等待首次拉取"]
+                return [String(localized: "等待首次拉取")]
             case .failed:
-                return ["上一轮刷新未拿到该货币对"]
+                return [String(localized: "上一轮刷新未拿到该货币对")]
             case .ready, .stale:
                 return []
             }
@@ -416,7 +424,7 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
         }
         segments.append(ExchangeFormatter.time.string(from: snapshot.updatedAt))
         if snapshot.isCached {
-            segments.append("缓存")
+            segments.append(String(localized: "缓存"))
         }
         return segments
     }
@@ -437,7 +445,7 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
         let currentRate = snapshot?.rate ?? 0
         let delta = currentRate - previousValue
         guard abs(delta) >= 0.000_1 else {
-            return "持平"
+            return String(localized: "持平")
         }
 
         let prefix = delta > 0 ? "+" : ""

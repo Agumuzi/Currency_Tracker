@@ -8,14 +8,57 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-enum SettingsSection: String, Hashable, Sendable {
-    case baseCurrency
-    case refreshBehavior
-    case textConversionShortcut
-    case selectedPairs
-    case addPair
-    case apiConfiguration
-    case launch
+enum SettingsSection: String, CaseIterable, Hashable, Sendable {
+    case general
+    case rates
+    case refresh
+    case dataSources
+    case system
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .general:
+            "通用"
+        case .rates:
+            "汇率"
+        case .refresh:
+            "刷新"
+        case .dataSources:
+            "数据源"
+        case .system:
+            "系统"
+        }
+    }
+
+    var subtitle: LocalizedStringKey {
+        switch self {
+        case .general:
+            "基准货币与文本换算"
+        case .rates:
+            "展示列表与新增汇率"
+        case .refresh:
+            "自动更新行为"
+        case .dataSources:
+            "API key 与增强来源"
+        case .system:
+            "开机启动"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .general:
+            "gearshape"
+        case .rates:
+            "list.bullet.rectangle"
+        case .refresh:
+            "arrow.clockwise"
+        case .dataSources:
+            "key"
+        case .system:
+            "power"
+        }
+    }
 }
 
 struct SettingsView: View {
@@ -30,47 +73,130 @@ struct SettingsView: View {
     @State private var draftQuoteCode = "RUB"
     @State private var currencySearch = ""
     @State private var draggedPairID: String?
+    @State private var selectedSection: SettingsSection = .rates
+    @State private var isShowingAPIPrivacyDetails = false
 
     var body: some View {
-        ScrollViewReader { proxy in
+        HStack(spacing: 0) {
+            sidebar
+
+            Divider()
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    header
-                    baseCurrencySection
-                    textConversionShortcutSection
-                    refreshBehaviorSection
-                    selectedPairsSection
-                    addPairSection
-                    apiConfigurationSection
-                    launchSection
+                    pageHeader
+                    selectedPageContent
                 }
-                .padding(28)
+                .padding(24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(width: 760, height: 560, alignment: .topLeading)
-            .background(windowBackground)
-            .onAppear {
-                syncDraftSelectionToSearchResults()
-                apiConfigurationViewModel.reloadFromStore()
-                scrollToFocusedSection(using: proxy)
-            }
-            .onChange(of: currencySearch) { _, _ in
-                syncDraftSelectionToSearchResults()
-            }
-            .onChange(of: focusSection) { _, _ in
-                scrollToFocusedSection(using: proxy)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .frame(width: 880, height: 600, alignment: .topLeading)
+        .background(windowBackground)
+        .onAppear {
+            syncDraftSelectionToSearchResults()
+            apiConfigurationViewModel.reloadFromStore()
+            applyFocusedSection()
+        }
+        .onChange(of: currencySearch) { _, _ in
+            syncDraftSelectionToSearchResults()
+        }
+        .onChange(of: focusSection) { _, _ in
+            applyFocusedSection()
         }
     }
 
-    private var header: some View {
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            appHeader
+
+            VStack(spacing: 4) {
+                ForEach(SettingsSection.allCases, id: \.self) { section in
+                    sidebarButton(for: section)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 18)
+        .frame(width: 252)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .background(Color(nsColor: .underPageBackgroundColor).opacity(0.72))
+    }
+
+    private var appHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Currency Tracker")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .font(.system(size: 20, weight: .bold, design: .rounded))
             Text("管理汇率展示、刷新行为和系统级文本换算入口")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var pageHeader: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(selectedSection.title)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+            Text(selectedSection.subtitle)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundStyle(.secondary)
         }
+    }
+
+    @ViewBuilder
+    private var selectedPageContent: some View {
+        switch selectedSection {
+        case .general:
+            baseCurrencySection
+            textConversionShortcutSection
+        case .rates:
+            selectedPairsSection
+            addPairSection
+        case .refresh:
+            refreshBehaviorSection
+        case .dataSources:
+            apiConfigurationSection
+        case .system:
+            launchSection
+        }
+    }
+
+    private func sidebarButton(for section: SettingsSection) -> some View {
+        Button {
+            selectedSection = section
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: section.symbolName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(width: 20)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(section.title)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    Text(section.subtitle)
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(selectedSection == section ? Color.accentColor.opacity(0.14) : Color.clear)
+            )
+            .foregroundStyle(selectedSection == section ? Color.accentColor : Color.primary)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("settings.sidebar.\(section.rawValue)")
     }
 
     private var baseCurrencySection: some View {
@@ -93,7 +219,7 @@ struct SettingsView: View {
                     set: { preferences.setBaseCurrencyCode($0) }
                 )) {
                     ForEach(preferences.availableBaseCurrencyOptions) { currency in
-                        Text("\(currency.name) · \(currency.code)")
+                        Text("\(CurrencyCatalog.name(for: currency.code)) · \(currency.code)")
                             .tag(currency.code)
                     }
                 }
@@ -105,7 +231,6 @@ struct SettingsView: View {
             .padding(16)
             .background(sectionCardBackground)
         }
-        .id(SettingsSection.baseCurrency)
     }
 
     private var refreshBehaviorSection: some View {
@@ -169,7 +294,6 @@ struct SettingsView: View {
             .padding(16)
             .background(sectionCardBackground)
         }
-        .id(SettingsSection.refreshBehavior)
     }
 
     private var textConversionShortcutSection: some View {
@@ -194,7 +318,6 @@ struct SettingsView: View {
             .padding(16)
             .background(sectionCardBackground)
         }
-        .id(SettingsSection.textConversionShortcut)
     }
 
     private var selectedPairsSection: some View {
@@ -229,6 +352,8 @@ struct SettingsView: View {
 
                             Spacer()
 
+                            pairOrderControls(for: pair)
+
                             Button("移除") {
                                 preferences.removePair(id: pair.id)
                                 Task {
@@ -260,7 +385,6 @@ struct SettingsView: View {
                 }
             }
         }
-        .id(SettingsSection.selectedPairs)
     }
 
     private var addPairSection: some View {
@@ -273,31 +397,42 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.currency-search")
 
                 if canShowDraftPickers {
-                    HStack(spacing: 12) {
-                        Picker("基础货币", selection: $draftBaseCode) {
-                            ForEach(filteredBaseCurrencies) { currency in
-                                Text("\(currency.name) · \(currency.code)")
-                                    .tag(currency.code)
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .bottom, spacing: 10) {
+                            currencyPickerColumn(
+                                title: "基础货币",
+                                selection: $draftBaseCode,
+                                currencies: filteredBaseCurrencies
+                            )
+                            .onChange(of: draftBaseCode) { _, newValue in
+                                let quotes = preferences.availableQuoteCurrencies(for: newValue)
+                                if quotes.contains(where: { $0.code == draftQuoteCode }) == false {
+                                    draftQuoteCode = quotes.first?.code ?? "RUB"
+                                }
+                                syncDraftSelectionToSearchResults()
                             }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .onChange(of: draftBaseCode) { _, newValue in
-                            let quotes = preferences.availableQuoteCurrencies(for: newValue)
-                            if quotes.contains(where: { $0.code == draftQuoteCode }) == false {
-                                draftQuoteCode = quotes.first?.code ?? "RUB"
-                            }
-                            syncDraftSelectionToSearchResults()
-                        }
 
-                        Picker("目标货币", selection: $draftQuoteCode) {
-                            ForEach(filteredQuoteCurrencies) { currency in
-                                Text("\(currency.name) · \(currency.code)")
-                                    .tag(currency.code)
+                            Button {
+                                swapDraftCurrencies()
+                            } label: {
+                                Image(systemName: "arrow.left.arrow.right")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .frame(width: 30, height: 30)
                             }
+                            .buttonStyle(.plain)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(Color(nsColor: .windowBackgroundColor))
+                            )
+                            .disabled(canSwapDraftCurrencies == false)
+                            .help("调换货币")
+
+                            currencyPickerColumn(
+                                title: "目标货币",
+                                selection: $draftQuoteCode,
+                                currencies: filteredQuoteCurrencies
+                            )
                         }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
 
                         Button("加入展示") {
                             preferences.addPair(baseCode: draftBaseCode, quoteCode: draftQuoteCode)
@@ -323,7 +458,6 @@ struct SettingsView: View {
             .padding(16)
             .background(sectionCardBackground)
         }
-        .id(SettingsSection.addPair)
     }
 
     private var apiConfigurationSection: some View {
@@ -331,17 +465,22 @@ struct SettingsView: View {
             sectionTitle("数据增强")
 
             VStack(alignment: .leading, spacing: 16) {
-                Text("留空则继续使用默认公共数据源；填写后只会增强最新快照刷新，不会改变主界面的结构。")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("留空则继续使用默认公共数据源；API key 只用于增强最新快照。")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
 
-                Text("只有在你点击“保存”后，API 信息才会写入本地凭证文件（Application Support/CurrencyTracker）。")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                Text("外部数据源只能看到本次汇率请求本身及常规网络元数据；应用不会上传本地文件、剪贴板或其他设备内容，并且请求会强制走 HTTPS。")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
+                    DisclosureGroup("详细说明", isExpanded: $isShowingAPIPrivacyDetails) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("只有在你点击“保存”后，API 信息才会写入本地凭证文件（Application Support/CurrencyTracker）。")
+                            Text("外部数据源只能看到本次汇率请求本身及常规网络元数据；应用不会上传本地文件、剪贴板或其他设备内容，并且请求会强制走 HTTPS。")
+                        }
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                    }
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                }
 
                 APIConfigurationRow(
                     field: apiConfigurationViewModel.field(for: .twelveData),
@@ -365,7 +504,6 @@ struct SettingsView: View {
             .padding(16)
             .background(sectionCardBackground)
         }
-        .id(SettingsSection.apiConfiguration)
     }
 
     private var launchSection: some View {
@@ -405,7 +543,6 @@ struct SettingsView: View {
                 .font(.system(size: 12, weight: .medium, design: .rounded))
             }
         }
-        .id(SettingsSection.launch)
     }
 
     private var currentDraftPair: CurrencyPair? {
@@ -440,7 +577,7 @@ struct SettingsView: View {
         currencySearch.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func sectionTitle(_ title: String) -> some View {
+    private func sectionTitle(_ title: LocalizedStringKey) -> some View {
         Text(title)
             .font(.system(size: 14, weight: .semibold, design: .rounded))
     }
@@ -469,6 +606,62 @@ struct SettingsView: View {
             .help("拖动调整展示顺序")
     }
 
+    private func pairOrderControls(for pair: CurrencyPair) -> some View {
+        HStack(spacing: 2) {
+            Button {
+                preferences.movePairUp(id: pair.id)
+                viewModel.presentationDidChange()
+            } label: {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .disabled(preferences.selectedPairIDs.first == pair.id)
+            .help("上移")
+
+            Button {
+                preferences.movePairDown(id: pair.id)
+                viewModel.presentationDidChange()
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .disabled(preferences.selectedPairIDs.last == pair.id)
+            .help("下移")
+        }
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+    }
+
+    private func currencyPickerColumn(
+        title: LocalizedStringKey,
+        selection: Binding<String>,
+        currencies: [CurrencyInfo]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            Picker(title, selection: selection) {
+                ForEach(currencies) { currency in
+                    Text("\(CurrencyCatalog.name(for: currency.code)) · \(currency.code)")
+                        .tag(currency.code)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var dropToBottomStrip: some View {
         HStack(spacing: 8) {
             Image(systemName: "arrow.down.to.line")
@@ -495,23 +688,16 @@ struct SettingsView: View {
     }
 
     private var sectionCardBackground: some View {
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
             .fill(Color(nsColor: .controlBackgroundColor))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(Color.black.opacity(0.05), lineWidth: 1)
             )
     }
 
     private var windowBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(nsColor: .windowBackgroundColor),
-                Color(nsColor: .underPageBackgroundColor)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        Color(nsColor: .windowBackgroundColor)
     }
 
     private func filter(currencies: [CurrencyInfo]) -> [CurrencyInfo] {
@@ -536,6 +722,21 @@ struct SettingsView: View {
         }
     }
 
+    private var canSwapDraftCurrencies: Bool {
+        CurrencyCatalog.supportedPair(baseCode: draftQuoteCode, quoteCode: draftBaseCode) != nil
+    }
+
+    private func swapDraftCurrencies() {
+        guard canSwapDraftCurrencies else {
+            return
+        }
+
+        let previousBase = draftBaseCode
+        draftBaseCode = draftQuoteCode
+        draftQuoteCode = previousBase
+        syncDraftSelectionToSearchResults()
+    }
+
     private var searchEmptyState: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "magnifyingglass")
@@ -555,30 +756,26 @@ struct SettingsView: View {
     private func refreshIntervalTitle(for value: Int) -> String {
         switch value {
         case 0:
-            "关闭"
+            String(localized: "关闭")
         case 5:
-            "5 分钟"
+            String(localized: "5 分钟")
         case 10:
-            "10 分钟"
+            String(localized: "10 分钟")
         case 30:
-            "30 分钟"
+            String(localized: "30 分钟")
         case 60:
-            "1 小时"
+            String(localized: "1 小时")
         default:
-            "\(value) 分钟"
+            String(format: String(localized: "%d 分钟"), value)
         }
     }
 
-    private func scrollToFocusedSection(using proxy: ScrollViewProxy) {
+    private func applyFocusedSection() {
         guard let focusSection else {
             return
         }
 
-        DispatchQueue.main.async {
-            withAnimation(.easeInOut(duration: 0.18)) {
-                proxy.scrollTo(focusSection, anchor: .top)
-            }
-        }
+        selectedSection = focusSection
     }
 }
 
@@ -596,7 +793,7 @@ private struct APIConfigurationRow: View {
 
                 Spacer()
 
-                Text(field.phase.statusText)
+                Text(LocalizedStringKey(field.phase.statusText))
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(field.phase.tintColor)
                     .accessibilityLabel(field.phase.statusText)
@@ -606,12 +803,12 @@ private struct APIConfigurationRow: View {
             HStack(spacing: 8) {
                 Group {
                     if field.isRevealed {
-                        TextField(field.kind.placeholder, text: Binding(
+                        TextField(LocalizedStringKey(field.kind.placeholder), text: Binding(
                             get: { field.draftValue },
                             set: onValueChange
                         ))
                     } else {
-                        SecureField(field.kind.placeholder, text: Binding(
+                        SecureField(LocalizedStringKey(field.kind.placeholder), text: Binding(
                             get: { field.draftValue },
                             set: onValueChange
                         ))
@@ -635,14 +832,14 @@ private struct APIConfigurationRow: View {
 
                 Group {
                     if field.isEditing {
-                        Button(field.buttonTitle) {
+                        Button(LocalizedStringKey(field.buttonTitle)) {
                             Task {
                                 await onPrimaryAction()
                             }
                         }
                         .buttonStyle(.borderedProminent)
                     } else {
-                        Button(field.buttonTitle) {
+                        Button(LocalizedStringKey(field.buttonTitle)) {
                             Task {
                                 await onPrimaryAction()
                             }

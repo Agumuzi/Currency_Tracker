@@ -534,6 +534,19 @@ struct Currency_TrackerTests {
     }
 
     @Test
+    func twelveDataValidationUsesLatestAPIVersionAndReadsErrorBody() async {
+        TwelveDataStatusCodeURLProtocol.lastAPIVersionHeader = nil
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [TwelveDataStatusCodeURLProtocol.self]
+        let service = ExchangeRateService(urlSession: URLSession(configuration: configuration))
+
+        let validationMessage = await service.validateTwelveDataAPIKey("test-key")
+
+        #expect(TwelveDataStatusCodeURLProtocol.lastAPIVersionHeader == "last")
+        #expect(validationMessage == "验证失败，请稍后重试")
+    }
+
+    @Test
     func openExchangeRatesParserExtractsLatestRates() throws {
         let payload = """
         {
@@ -1280,6 +1293,46 @@ private final class MockURLProtocol: URLProtocol {
 
         throw URLError(.resourceUnavailable)
     }
+}
+
+private final class TwelveDataStatusCodeURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var lastAPIVersionHeader: String?
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let url = request.url else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+
+        Self.lastAPIVersionHeader = request.value(forHTTPHeaderField: "X-API-Version")
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: 401,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        let payload = """
+        {
+          "code": 401,
+          "status": "error",
+          "message": "Invalid symbol"
+        }
+        """.data(using: .utf8)!
+
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: payload)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
 
 private extension URLSessionConfiguration {

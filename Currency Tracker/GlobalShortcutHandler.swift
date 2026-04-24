@@ -405,8 +405,13 @@ struct GlobalShortcutRecorderView: View {
                         toggleRecording()
                     }
                     .buttonStyle(.borderedProminent)
+                } else if let shortcut {
+                    Button(shortcut.displayText) {
+                        toggleRecording()
+                    }
+                    .buttonStyle(.bordered)
                 } else {
-                    Button(shortcut?.displayText ?? "录制快捷键") {
+                    Button("录制快捷键") {
                         toggleRecording()
                     }
                     .buttonStyle(.bordered)
@@ -441,7 +446,7 @@ struct GlobalShortcutRecorderView: View {
             return
         }
 
-        helperText = "按下包含修饰键的组合；按 Esc 取消。"
+        helperText = String(localized: "按下包含修饰键的组合；按 Esc 取消。")
         isRecording = true
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard isRecording else {
@@ -455,7 +460,7 @@ struct GlobalShortcutRecorderView: View {
             }
 
             guard let shortcut = GlobalShortcutDescriptor(event: event) else {
-                helperText = "快捷键至少要包含一个修饰键。"
+                helperText = String(localized: "快捷键至少要包含一个修饰键。")
                 return nil
             }
 

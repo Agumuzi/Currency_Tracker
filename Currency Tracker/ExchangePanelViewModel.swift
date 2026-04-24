@@ -50,7 +50,7 @@ final class ExchangePanelViewModel {
         if let previewState {
             lastRefreshAttempt = previewState.lastRefreshAttempt
             refreshLog = previewState.refreshLog
-            statusMessage = "预览数据"
+            statusMessage = String(localized: "预览数据")
             statusSymbolName = "eye.fill"
             statusColor = .secondary
             statusBackgroundColor = Color.gray.opacity(0.08)
@@ -65,14 +65,20 @@ final class ExchangePanelViewModel {
 
     var footerTimestampText: String {
         if let latestUpdate = cards.compactMap(\.snapshot?.updatedAt).max() {
-            return "上次更新 \(ExchangeFormatter.time.string(from: latestUpdate))"
+            return String(
+                format: String(localized: "上次更新 %@"),
+                ExchangeFormatter.time.string(from: latestUpdate)
+            )
         }
 
         if let lastRefreshAttempt {
-            return "上次检查 \(ExchangeFormatter.time.string(from: lastRefreshAttempt))"
+            return String(
+                format: String(localized: "上次检查 %@"),
+                ExchangeFormatter.time.string(from: lastRefreshAttempt)
+            )
         }
 
-        return "尚未更新"
+        return String(localized: "尚未更新")
     }
 
     var featuredPairID: String {
@@ -81,22 +87,22 @@ final class ExchangePanelViewModel {
 
     var menuBarHelpText: String {
         guard !preferences.selectedPairs.isEmpty else {
-            return "请先在设置中选择至少一个货币对"
+            return String(localized: "请先在设置中选择至少一个货币对")
         }
 
         guard let featuredCard else {
-            return statusMessage ?? "准备刷新"
+            return statusMessage ?? String(localized: "准备刷新")
         }
 
         var segments = [featuredCard.pair.subtitle]
 
         switch featuredCard.state {
         case .loading:
-            segments.append("等待首次拉取")
+            segments.append(String(localized: "等待首次拉取"))
         case .failed:
-            segments.append("当前重点货币对暂不可用")
+            segments.append(String(localized: "当前重点货币对暂不可用"))
         case .ready, .stale:
-            segments.append("当前 \(featuredCard.valueText)")
+            segments.append(String(format: String(localized: "当前 %@"), featuredCard.valueText))
             if !featuredCard.detailSegments.isEmpty {
                 segments.append(featuredCard.detailSegments.joined(separator: " · "))
             }
@@ -132,7 +138,7 @@ final class ExchangePanelViewModel {
 
             updateCards()
             configureStatus(
-                message: cards.isEmpty ? "请先在设置里添加要展示的货币对" : "已加载上次成功结果",
+                message: cards.isEmpty ? String(localized: "请先在设置里添加要展示的货币对") : String(localized: "已加载上次成功结果"),
                 symbolName: cards.isEmpty ? "slider.horizontal.3" : "clock.arrow.circlepath",
                 tint: .secondary,
                 background: Color.gray.opacity(0.08)
@@ -143,7 +149,7 @@ final class ExchangePanelViewModel {
             updateCards()
 
             configureStatus(
-                message: "暂无缓存，准备首次拉取汇率数据",
+                message: String(localized: "暂无缓存，准备首次拉取汇率数据"),
                 symbolName: "tray.fill",
                 tint: .secondary,
                 background: Color.gray.opacity(0.08)
@@ -195,7 +201,7 @@ final class ExchangePanelViewModel {
             updateCards()
             appendLog(level: .warning, message: "刷新跳过，当前没有已选货币对")
             configureStatus(
-                message: "请先在设置中选择至少一个货币对",
+                message: String(localized: "请先在设置中选择至少一个货币对"),
                 symbolName: "slider.horizontal.3",
                 tint: .secondary,
                 background: Color.gray.opacity(0.08)
@@ -284,7 +290,7 @@ final class ExchangePanelViewModel {
             updateCards()
             appendLog(level: .error, message: result.errors.joined(separator: "；").isEmpty ? "刷新失败" : result.errors.joined(separator: "；"))
             configureStatus(
-                message: unavailablePairIDs.isEmpty ? "刷新失败，继续显示上次成功结果" : "刷新失败，部分货币对暂不可用",
+                message: unavailablePairIDs.isEmpty ? String(localized: "刷新失败，继续显示上次成功结果") : String(localized: "刷新失败，部分货币对暂不可用"),
                 symbolName: "exclamationmark.triangle.fill",
                 tint: Color(red: 0.72, green: 0.43, blue: 0.08),
                 background: Color(red: 0.98, green: 0.93, blue: 0.82)
@@ -296,7 +302,7 @@ final class ExchangePanelViewModel {
         if result.errors.isEmpty && unavailablePairIDs.isEmpty {
             appendLog(level: .info, message: "刷新成功，\(result.snapshots.count) 个货币对已更新")
             configureStatus(
-                message: "数据已更新",
+                message: String(localized: "数据已更新"),
                 symbolName: "checkmark.circle.fill",
                 tint: Color(red: 0.09, green: 0.53, blue: 0.32),
                 background: Color(red: 0.87, green: 0.95, blue: 0.90)
@@ -306,7 +312,7 @@ final class ExchangePanelViewModel {
             let errorSegments = (result.errors + [unresolvedText].compactMap { $0 })
             appendLog(level: .warning, message: errorSegments.joined(separator: "；"))
             configureStatus(
-                message: unavailablePairIDs.isEmpty ? "部分来源刷新失败，已保留可用结果" : "部分货币对未更新，已保留可用结果",
+                message: unavailablePairIDs.isEmpty ? String(localized: "部分来源刷新失败，已保留可用结果") : String(localized: "部分货币对未更新，已保留可用结果"),
                 symbolName: "exclamationmark.circle.fill",
                 tint: Color(red: 0.70, green: 0.35, blue: 0.05),
                 background: Color(red: 0.98, green: 0.93, blue: 0.84)
@@ -329,7 +335,7 @@ final class ExchangePanelViewModel {
             pendingPairIDs = []
             unavailablePairIDs = []
             configureStatus(
-                message: "请先在设置中选择至少一个货币对",
+                message: String(localized: "请先在设置中选择至少一个货币对"),
                 symbolName: "slider.horizontal.3",
                 tint: .secondary,
                 background: Color.gray.opacity(0.08)

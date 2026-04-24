@@ -34,10 +34,13 @@ final class Currency_TrackerUITests: XCTestCase {
         app.launchEnvironment["CURRENCY_TRACKER_USE_IN_MEMORY_SECRETS"] = "1"
         app.launch()
 
+        XCTAssertTrue(app.buttons["settings.sidebar.rates"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["settings.empty-pairs"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.textFields["settings.currency-search"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.buttons["settings.api.twelveData.primary"].label, "编辑")
-        XCTAssertEqual(app.buttons["settings.api.openExchangeRates.primary"].label, "编辑")
+
+        app.buttons["settings.sidebar.dataSources"].click()
+        XCTAssertTrue(app.buttons["settings.api.twelveData.primary"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["settings.api.openExchangeRates.primary"].waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -58,4 +61,5 @@ final class Currency_TrackerUITests: XCTestCase {
             }
         }
     }
+
 }
