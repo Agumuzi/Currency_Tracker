@@ -27,8 +27,9 @@ struct Currency_TrackerApp: App {
     init() {
         let isRunningUITests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         let userDefaults = Self.makeUserDefaults()
-        let preferences = PreferencesStore(userDefaults: userDefaults)
-        let credentialStore = Self.makeCredentialStore(userDefaults: userDefaults)
+        let secretStore = Self.makeSecretStore()
+        let preferences = PreferencesStore(userDefaults: userDefaults, secretStore: secretStore)
+        let credentialStore = EnhancedSourceCredentialStore(secretStore: secretStore, userDefaults: userDefaults)
         let launchController = LaunchAtLoginController()
         let service = ExchangeRateService()
         let store = ExchangeRateStore()
@@ -183,17 +184,14 @@ struct Currency_TrackerApp: App {
         return defaults
     }
 
-    private static func makeCredentialStore(userDefaults: UserDefaults) -> EnhancedSourceCredentialStore {
+    private static func makeSecretStore() -> any SecretStoring {
         let environment = ProcessInfo.processInfo.environment
 
         if environment["CURRENCY_TRACKER_USE_IN_MEMORY_SECRETS"] == "1" {
-            return EnhancedSourceCredentialStore(
-                secretStore: EphemeralSecretStore(),
-                userDefaults: userDefaults
-            )
+            return EphemeralSecretStore()
         }
 
-        return EnhancedSourceCredentialStore(userDefaults: userDefaults)
+        return LocalSecretStore(service: "com.thomas.currency-tracker")
     }
 }
 

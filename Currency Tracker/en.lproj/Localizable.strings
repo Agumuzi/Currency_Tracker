@@ -297,3 +297,17 @@
 "已导出到 %@" = "Exported to %@";
 "导出失败：%@" = "Export failed: %@";
 "上次触发 %@" = "Last triggered %@";
+"已停用" = "Disabled";
+"测试中" = "Testing";
+"测试连接" = "Test Connection";
+"URL 模板无法生成有效请求" = "The URL template could not create a valid request.";
+"测试请求失败，HTTP 状态码 %d" = "Test request failed with HTTP status %d.";
+"测试返回中没有解析出有效汇率" = "No valid rate could be parsed from the test response.";
+"测试请求失败，请检查网络和 API Key" = "Test request failed. Check the network and API key.";
+"更新包缺少校验文件" = "The update package is missing its checksum file.";
+"更新校验文件无法读取，请稍后重试" = "The update checksum file could not be read. Please try again later.";
+"更新包校验失败，请稍后重试" = "Update package verification failed. Please try again later.";
+"正在下载更新包…" = "Downloading update package…";
+"正在校验更新包…" = "Verifying update package…";
+"正在解压更新包…" = "Extracting update package…";
+"正在验证应用版本…" = "Validating app version…";

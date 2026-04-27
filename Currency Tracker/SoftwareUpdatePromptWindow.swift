@@ -28,8 +28,11 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
             onRemindLater: { [weak self] in
                 self?.close()
             },
-            onPrepareUpdate: { [weak self] in
-                await self?.prepareUpdate(for: updateInfo) ?? .failed(String(localized: "下载失败，请稍后重试"))
+            onPrepareUpdate: { [weak self] progressHandler in
+                await self?.prepareUpdate(
+                    for: updateInfo,
+                    progressHandler: progressHandler
+                ) ?? .failed(String(localized: "下载失败，请稍后重试"))
             },
             onInstallAndRelaunch: { preparedUpdate in
                 Self.installAndRelaunch(preparedUpdate)
@@ -75,9 +78,15 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
         windowController?.window?.contentViewController = nil
     }
 
-    private func prepareUpdate(for updateInfo: SoftwareUpdateInfo) async -> SoftwareUpdatePreparationResult {
+    private func prepareUpdate(
+        for updateInfo: SoftwareUpdateInfo,
+        progressHandler: @escaping @MainActor (SoftwareUpdatePreparationStep) -> Void
+    ) async -> SoftwareUpdatePreparationResult {
         do {
-            let preparedUpdate = try await SoftwareUpdateInstaller.prepareUpdate(for: updateInfo)
+            let preparedUpdate = try await SoftwareUpdateInstaller.prepareUpdate(
+                for: updateInfo,
+                progressHandler: progressHandler
+            )
             return .prepared(
                 preparedUpdate,
                 String(localized: "更新已准备就绪。点击“更新并重启应用”完成安装。")
@@ -114,6 +123,12 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
             return String(localized: "更新包版本不高于当前版本")
         case .installerLaunchFailed:
             return String(localized: "无法启动安装器，请稍后重试")
+        case .missingChecksum:
+            return String(localized: "更新包缺少校验文件")
+        case .checksumDownloadFailed:
+            return String(localized: "更新校验文件无法读取，请稍后重试")
+        case .checksumMismatch:
+            return String(localized: "更新包校验失败，请稍后重试")
         case nil:
             return String(localized: "下载失败，请稍后重试")
         }
@@ -189,12 +204,13 @@ private struct SoftwareUpdatePromptView: View {
     let preferences: PreferencesStore
     let onSkip: () -> Void
     let onRemindLater: () -> Void
-    let onPrepareUpdate: () async -> SoftwareUpdatePreparationResult
+    let onPrepareUpdate: (@escaping @MainActor (SoftwareUpdatePreparationStep) -> Void) async -> SoftwareUpdatePreparationResult
     let onInstallAndRelaunch: (PreparedSoftwareUpdate) async -> String?
     let onCleanup: (PreparedSoftwareUpdate?) -> Void
     @State private var isPreparingUpdate = false
     @State private var isInstallingUpdate = false
     @State private var preparedUpdate: PreparedSoftwareUpdate?
+    @State private var preparationStep: SoftwareUpdatePreparationStep?
     @State private var updateMessage: String?
 
     var body: some View {
@@ -288,9 +304,12 @@ private struct SoftwareUpdatePromptView: View {
                 .foregroundStyle(.secondary)
 
             if isPreparingUpdate || isInstallingUpdate {
-                ProgressView()
-                    .progressViewStyle(.linear)
-                    .controlSize(.small)
+                ProgressView(
+                    value: isInstallingUpdate ? 1 : (preparationStep?.progress ?? 0.08),
+                    total: 1
+                )
+                .progressViewStyle(.linear)
+                .controlSize(.small)
             }
 
             if let updateMessage {
@@ -362,8 +381,12 @@ private struct SoftwareUpdatePromptView: View {
 
         isPreparingUpdate = true
         updateMessage = nil
+        preparationStep = .downloading
 
-        switch await onPrepareUpdate() {
+        switch await onPrepareUpdate({ step in
+            preparationStep = step
+            updateMessage = step.message
+        }) {
         case .prepared(let update, let message):
             preparedUpdate = update
             updateMessage = message
@@ -372,6 +395,7 @@ private struct SoftwareUpdatePromptView: View {
         }
 
         isPreparingUpdate = false
+        preparationStep = nil
     }
 
     private var releaseTitle: String {

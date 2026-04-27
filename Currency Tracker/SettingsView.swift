@@ -1729,13 +1729,78 @@ private struct RateAlertRow: View {
     }
 }
 
+private enum CustomAPIProviderRowPhase: Equatable {
+    case incomplete
+    case disabled
+    case enabled
+    case editing
+    case testing
+    case failure(String)
+
+    var statusText: String {
+        switch self {
+        case .incomplete:
+            String(localized: "请填写 URL 模板和 JSON path")
+        case .disabled:
+            String(localized: "已停用")
+        case .enabled:
+            String(localized: "已启用")
+        case .editing:
+            String(localized: "编辑中")
+        case .testing:
+            String(localized: "测试中")
+        case .failure(let message):
+            message
+        }
+    }
+
+    var tintColor: Color {
+        switch self {
+        case .enabled:
+            Color(red: 0.09, green: 0.53, blue: 0.32)
+        case .testing:
+            Color(red: 0.08, green: 0.43, blue: 0.74)
+        case .failure:
+            Color(red: 0.74, green: 0.20, blue: 0.18)
+        case .incomplete:
+            Color(red: 0.78, green: 0.50, blue: 0.11)
+        case .disabled, .editing:
+            .secondary
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .enabled:
+            "checkmark.circle.fill"
+        case .testing:
+            "circle.dotted"
+        case .failure, .incomplete:
+            "exclamationmark.triangle.fill"
+        case .editing:
+            "pencil.circle"
+        case .disabled:
+            "pause.circle"
+        }
+    }
+}
+
 private struct CustomAPIProviderRow: View {
+    let provider: CustomAPIProvider
     @State private var draftProvider: CustomAPIProvider
+    @State private var isEditing: Bool
+    @State private var isRevealed = false
+    @State private var isTesting = false
+    @State private var phase: CustomAPIProviderRowPhase
     let onChange: (CustomAPIProvider) -> Void
     let onDelete: () -> Void
 
     init(provider: CustomAPIProvider, onChange: @escaping (CustomAPIProvider) -> Void, onDelete: @escaping () -> Void) {
+        self.provider = provider
         _draftProvider = State(initialValue: provider)
+        let startsEditing = provider.isUsable == false
+        _isEditing = State(initialValue: startsEditing)
+        _phase = State(initialValue: startsEditing ? .editing : Self.statusPhase(for: provider))
         self.onChange = onChange
         self.onDelete = onDelete
     }
@@ -1743,12 +1808,33 @@ private struct CustomAPIProviderRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Toggle("", isOn: binding(\.isEnabled))
+                Toggle("", isOn: Binding(
+                    get: { draftProvider.isEnabled },
+                    set: { newValue in
+                        draftProvider.isEnabled = newValue
+                        if isEditing {
+                            phase = .editing
+                        } else {
+                            persistDraft()
+                        }
+                    }
+                ))
                     .toggleStyle(.switch)
                     .labelsHidden()
 
                 TextField("名称", text: binding(\.name))
                     .textFieldStyle(.roundedBorder)
+                    .disabled(isEditing == false)
+
+                HStack(spacing: 5) {
+                    Image(systemName: phase.symbolName)
+                        .font(.system(size: 10, weight: .bold))
+                    Text(phase.statusText)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(phase.tintColor)
+                .frame(minWidth: 82, alignment: .leading)
 
                 Button("删除") {
                     onDelete()
@@ -1759,28 +1845,73 @@ private struct CustomAPIProviderRow: View {
 
             TextField("URL 模板，例如 https://api.example.com/rate?base={base}&quote={quote}&key={key}", text: binding(\.urlTemplate))
                 .textFieldStyle(.roundedBorder)
+                .disabled(isEditing == false)
 
             HStack(spacing: 10) {
-                TextField("API Key（可选）", text: binding(\.apiKey))
-                    .textFieldStyle(.roundedBorder)
+                Group {
+                    if isRevealed {
+                        TextField("API Key（可选）", text: binding(\.apiKey))
+                    } else {
+                        SecureField("API Key（可选）", text: binding(\.apiKey))
+                    }
+                }
+                .textFieldStyle(.roundedBorder)
+                .disabled(isEditing == false)
+
+                Button {
+                    isRevealed.toggle()
+                } label: {
+                    Image(systemName: isRevealed ? "eye.slash" : "eye")
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(draftProvider.apiKey.isEmpty ? .tertiary : .secondary)
+                .disabled(draftProvider.apiKey.isEmpty)
+
                 TextField("JSON path，例如 rate 或 data.rate", text: binding(\.ratePath))
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 220)
+                    .disabled(isEditing == false)
             }
 
-            HStack(spacing: 6) {
-                Image(systemName: draftProvider.isUsable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.system(size: 10, weight: .bold))
-                Text(draftProvider.isUsable ? "模板可用于刷新" : "请填写 URL 模板和 JSON path")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+            HStack(spacing: 10) {
+                Button("测试连接") {
+                    Task {
+                        await testConnection()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isTesting || draftProvider.isUsable == false)
+
+                Spacer()
+
+                Group {
+                    if isEditing {
+                        Button("保存") {
+                            persistDraft()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    } else {
+                        Button("编辑") {
+                            isEditing = true
+                            phase = .editing
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .controlSize(.small)
             }
-            .foregroundStyle(draftProvider.isUsable ? Color(red: 0.09, green: 0.53, blue: 0.32) : Color(red: 0.78, green: 0.50, blue: 0.11))
         }
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(nsColor: .windowBackgroundColor))
         )
+        .onChange(of: provider) { _, newProvider in
+            refreshFromProviderIfNeeded(newProvider)
+        }
     }
 
     private func binding<Value>(_ keyPath: WritableKeyPath<CustomAPIProvider, Value>) -> Binding<Value> {
@@ -1788,9 +1919,78 @@ private struct CustomAPIProviderRow: View {
             get: { draftProvider[keyPath: keyPath] },
             set: { newValue in
                 draftProvider[keyPath: keyPath] = newValue
-                onChange(draftProvider)
+                if isEditing {
+                    phase = .editing
+                }
             }
         )
+    }
+
+    private func persistDraft(phaseOverride: CustomAPIProviderRowPhase? = nil) {
+        var normalizedProvider = draftProvider
+        normalizedProvider.name = normalizedProvider.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalizedProvider.urlTemplate = normalizedProvider.urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalizedProvider.apiKey = normalizedProvider.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        normalizedProvider.ratePath = normalizedProvider.ratePath.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard normalizedProvider.isUsable || normalizedProvider.isEnabled == false else {
+            isEditing = true
+            phase = .failure(String(localized: "请填写 URL 模板和 JSON path"))
+            return
+        }
+
+        draftProvider = normalizedProvider
+        isEditing = false
+        isRevealed = false
+        onChange(normalizedProvider)
+        phase = phaseOverride ?? Self.statusPhase(for: normalizedProvider)
+    }
+
+    @MainActor
+    private func testConnection() async {
+        var providerToTest = draftProvider
+        providerToTest.name = providerToTest.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        providerToTest.urlTemplate = providerToTest.urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
+        providerToTest.apiKey = providerToTest.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        providerToTest.ratePath = providerToTest.ratePath.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard providerToTest.isUsable else {
+            phase = .failure(String(localized: "请填写 URL 模板和 JSON path"))
+            isEditing = true
+            return
+        }
+
+        isTesting = true
+        phase = .testing
+        let result = await CustomAPIProviderValidator.validate(provider: providerToTest)
+        isTesting = false
+
+        switch result {
+        case .success:
+            providerToTest.isEnabled = true
+            draftProvider = providerToTest
+            persistDraft(phaseOverride: .enabled)
+        case .failure(let error):
+            isEditing = true
+            phase = .failure(error.message)
+        }
+    }
+
+    private func refreshFromProviderIfNeeded(_ provider: CustomAPIProvider) {
+        guard isEditing == false else {
+            return
+        }
+
+        draftProvider = provider
+        phase = Self.statusPhase(for: provider)
+    }
+
+    private static func statusPhase(for provider: CustomAPIProvider) -> CustomAPIProviderRowPhase {
+        guard provider.isUsable else {
+            return .incomplete
+        }
+
+        return provider.isEnabled ? .enabled : .disabled
     }
 }
 

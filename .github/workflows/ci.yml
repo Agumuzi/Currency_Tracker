@@ -21,3 +21,6 @@ jobs:
 
       - name: Run unit tests
         run: xcodebuild test -scheme "Currency Tracker" -destination "platform=macOS" -only-testing:"Currency TrackerTests"
+
+      - name: Run UI smoke test
+        run: xcodebuild test -scheme "Currency Tracker" -destination "platform=macOS" -only-testing:"Currency TrackerUITests/Currency_TrackerUITests/testSettingsWindowStartsBlankWithEmptyAPIState"

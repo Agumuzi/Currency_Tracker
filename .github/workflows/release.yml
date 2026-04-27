@@ -23,6 +23,9 @@ jobs:
             -scheme "Currency Tracker" \
             -destination "generic/platform=macOS" \
             -archivePath "$PWD/build/Currency Tracker.xcarchive" \
+            SKIP_INSTALL=NO \
+            SWIFT_OPTIMIZATION_LEVEL=-Onone \
+            SWIFT_COMPILATION_MODE=singlefile \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
@@ -32,9 +35,10 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p build/release
           ditto -c -k --keepParent "build/Currency Tracker.xcarchive/Products/Applications/Currency Tracker.app" "build/release/Currency-Tracker-${VERSION}.zip"
+          shasum -a 256 "build/release/Currency-Tracker-${VERSION}.zip" > "build/release/Currency-Tracker-${VERSION}.zip.sha256"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: Currency-Tracker
-          path: build/release/*.zip
+          path: build/release/*

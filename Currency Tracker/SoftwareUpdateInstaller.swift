@@ -5,6 +5,7 @@
 //  Created by Codex on 4/27/26.
 //
 
+import CryptoKit
 import Foundation
 
 nonisolated struct PreparedSoftwareUpdate: Equatable, Sendable {
@@ -12,6 +13,39 @@ nonisolated struct PreparedSoftwareUpdate: Equatable, Sendable {
     let downloadedArchiveURL: URL
     let extractedApplicationURL: URL
     let workingDirectoryURL: URL
+}
+
+nonisolated enum SoftwareUpdatePreparationStep: Equatable, Sendable {
+    case downloading
+    case verifyingChecksum
+    case extracting
+    case validatingApplication
+
+    var progress: Double {
+        switch self {
+        case .downloading:
+            0.22
+        case .verifyingChecksum:
+            0.52
+        case .extracting:
+            0.74
+        case .validatingApplication:
+            0.92
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .downloading:
+            String(localized: "正在下载更新包…")
+        case .verifyingChecksum:
+            String(localized: "正在校验更新包…")
+        case .extracting:
+            String(localized: "正在解压更新包…")
+        case .validatingApplication:
+            String(localized: "正在验证应用版本…")
+        }
+    }
 }
 
 nonisolated enum SoftwareUpdateInstallationError: Error, Equatable {
@@ -22,6 +56,9 @@ nonisolated enum SoftwareUpdateInstallationError: Error, Equatable {
     case bundleIdentifierMismatch
     case versionNotNewer
     case installerLaunchFailed
+    case missingChecksum
+    case checksumDownloadFailed
+    case checksumMismatch
 }
 
 nonisolated enum SoftwareUpdateInstaller {
@@ -30,10 +67,15 @@ nonisolated enum SoftwareUpdateInstaller {
         session: URLSession = .shared,
         fileManager: FileManager = .default,
         currentBundleIdentifier: String? = Bundle.main.bundleIdentifier,
-        currentVersion: String = SoftwareUpdateChecker.currentVersion()
+        currentVersion: String = SoftwareUpdateChecker.currentVersion(),
+        progressHandler: (@MainActor (SoftwareUpdatePreparationStep) -> Void)? = nil
     ) async throws -> PreparedSoftwareUpdate {
         guard let downloadURL = updateInfo.downloadURL else {
             throw SoftwareUpdateInstallationError.missingDownloadURL
+        }
+
+        guard let checksumURL = updateInfo.checksumURL else {
+            throw SoftwareUpdateInstallationError.missingChecksum
         }
 
         let workingDirectoryURL = try createWorkingDirectory(for: updateInfo.version, fileManager: fileManager)
@@ -41,7 +83,12 @@ nonisolated enum SoftwareUpdateInstaller {
         let extractionURL = workingDirectoryURL.appendingPathComponent("extracted", isDirectory: true)
 
         do {
-            let (temporaryURL, _) = try await session.download(from: downloadURL)
+            await report(.downloading, to: progressHandler)
+            let (temporaryURL, response) = try await session.download(from: downloadURL)
+            if let httpResponse = response as? HTTPURLResponse,
+               (200..<300).contains(httpResponse.statusCode) == false {
+                throw SoftwareUpdateInstallationError.downloadFailed
+            }
             if fileManager.fileExists(atPath: archiveURL.path) {
                 try fileManager.removeItem(at: archiveURL)
             }
@@ -52,6 +99,22 @@ nonisolated enum SoftwareUpdateInstaller {
         }
 
         do {
+            await report(.verifyingChecksum, to: progressHandler)
+            try await validateArchiveChecksum(
+                archiveURL: archiveURL,
+                checksumURL: checksumURL,
+                session: session
+            )
+        } catch let error as SoftwareUpdateInstallationError {
+            try? fileManager.removeItem(at: workingDirectoryURL)
+            throw error
+        } catch {
+            try? fileManager.removeItem(at: workingDirectoryURL)
+            throw SoftwareUpdateInstallationError.checksumDownloadFailed
+        }
+
+        do {
+            await report(.extracting, to: progressHandler)
             try fileManager.createDirectory(at: extractionURL, withIntermediateDirectories: true)
             try await runProcess(
                 executableURL: URL(fileURLWithPath: "/usr/bin/ditto"),
@@ -67,6 +130,7 @@ nonisolated enum SoftwareUpdateInstaller {
             throw SoftwareUpdateInstallationError.applicationNotFound
         }
 
+        await report(.validatingApplication, to: progressHandler)
         try validateExtractedApplication(
             at: appURL,
             updateInfo: updateInfo,
@@ -168,6 +232,53 @@ nonisolated enum SoftwareUpdateInstaller {
         }
     }
 
+    static func validateArchiveChecksum(
+        archiveURL: URL,
+        checksumURL: URL,
+        session: URLSession = .shared
+    ) async throws {
+        let (checksumData, response): (Data, URLResponse)
+        do {
+            (checksumData, response) = try await session.data(from: checksumURL)
+        } catch {
+            throw SoftwareUpdateInstallationError.checksumDownloadFailed
+        }
+
+        if let httpResponse = response as? HTTPURLResponse,
+           (200..<300).contains(httpResponse.statusCode) == false {
+            throw SoftwareUpdateInstallationError.checksumDownloadFailed
+        }
+
+        guard let expectedChecksum = expectedSHA256Checksum(from: checksumData) else {
+            throw SoftwareUpdateInstallationError.checksumDownloadFailed
+        }
+
+        let archiveData = try Data(contentsOf: archiveURL)
+        guard sha256HexDigest(for: archiveData) == expectedChecksum else {
+            throw SoftwareUpdateInstallationError.checksumMismatch
+        }
+    }
+
+    static func expectedSHA256Checksum(from data: Data) -> String? {
+        guard let text = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+
+        return text
+            .split { $0.isWhitespace }
+            .map(String.init)
+            .first { token in
+                token.count == 64 && token.allSatisfy { $0.isHexDigit }
+            }?
+            .lowercased()
+    }
+
+    static func sha256HexDigest(for data: Data) -> String {
+        SHA256.hash(data: data)
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+
     private static func createWorkingDirectory(for version: String, fileManager: FileManager) throws -> URL {
         let cachesURL = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
@@ -178,6 +289,15 @@ nonisolated enum SoftwareUpdateInstaller {
 
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
         return directoryURL
+    }
+
+    private static func report(
+        _ step: SoftwareUpdatePreparationStep,
+        to progressHandler: (@MainActor (SoftwareUpdatePreparationStep) -> Void)?
+    ) async {
+        await MainActor.run {
+            progressHandler?(step)
+        }
     }
 
     private static func runProcess(executableURL: URL, arguments: [String]) async throws {

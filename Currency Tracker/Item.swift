@@ -386,6 +386,69 @@ nonisolated struct CustomAPIProvider: Identifiable, Codable, Hashable, Sendable 
         !urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !ratePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+
+    var localSecretAccount: String {
+        "custom-api-provider.\(id.uuidString.lowercased()).api-key"
+    }
+
+    var sanitizedForPreferences: CustomAPIProvider {
+        var provider = self
+        provider.apiKey = ""
+        return provider
+    }
+
+    func resolvedURL(baseCode: String, quoteCode: String) -> URL? {
+        let encodedBase = baseCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? baseCode
+        let encodedQuote = quoteCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? quoteCode
+        let encodedKey = apiKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? apiKey
+        let resolvedTemplate = urlTemplate
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "{base}", with: encodedBase)
+            .replacingOccurrences(of: "{quote}", with: encodedQuote)
+            .replacingOccurrences(of: "{key}", with: encodedKey)
+        return URL(string: resolvedTemplate)
+    }
+
+    static func rateValue(from data: Data, path: String) throws -> Double? {
+        let object = try JSONSerialization.jsonObject(with: data)
+        let segments = path
+            .split(separator: ".")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !segments.isEmpty else {
+            return nil
+        }
+
+        let value = segments.reduce(object as Any?) { current, segment in
+            guard let current else {
+                return nil
+            }
+
+            if let dictionary = current as? [String: Any] {
+                return dictionary[segment]
+            }
+
+            if let array = current as? [Any], let index = Int(segment), array.indices.contains(index) {
+                return array[index]
+            }
+
+            return nil
+        }
+
+        if let number = value as? NSNumber {
+            return number.doubleValue
+        }
+
+        if let string = value as? String {
+            return Double(
+                string
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .replacingOccurrences(of: ",", with: ".")
+            )
+        }
+
+        return nil
+    }
 }
 
 nonisolated enum TrendRange: String, Codable, CaseIterable, Identifiable, Sendable {
@@ -948,6 +1011,7 @@ final class PreferencesStore {
     var customAPIProviders: [CustomAPIProvider]
 
     private let userDefaults: UserDefaults
+    private let secretStore: any SecretStoring
     private let selectedPairsKey = "selectedPairIDs"
     private let autoRefreshKey = "autoRefreshMinutes"
     private let menuBarOpenRefreshKey = "menuBarOpenRefreshEnabled"
@@ -965,8 +1029,10 @@ final class PreferencesStore {
     private let activeProfileIDKey = "activeProfileID"
     private let customAPIProvidersKey = "customAPIProviders"
 
-    init(userDefaults: UserDefaults = .standard) {
+    init(userDefaults: UserDefaults = .standard, secretStore: (any SecretStoring)? = nil) {
         self.userDefaults = userDefaults
+        let resolvedSecretStore = secretStore ?? LocalSecretStore(service: "com.thomas.currency-tracker")
+        self.secretStore = resolvedSecretStore
 
         let storedPairIDs = userDefaults.stringArray(forKey: selectedPairsKey) ?? []
         let initialSelectedPairIDs = storedPairIDs.filter { Self.pair(for: $0) != nil }
@@ -1019,7 +1085,15 @@ final class PreferencesStore {
         settingsProfiles = Self.decodeArray(SettingsProfile.self, from: userDefaults.data(forKey: settingsProfilesKey))
             .filter { !$0.selectedPairIDs.isEmpty }
         activeProfileID = Self.decodeUUID(from: userDefaults.string(forKey: activeProfileIDKey))
-        customAPIProviders = Self.decodeArray(CustomAPIProvider.self, from: userDefaults.data(forKey: customAPIProvidersKey))
+        let customProviderLoad = Self.loadCustomAPIProviders(
+            from: userDefaults.data(forKey: customAPIProvidersKey),
+            secretStore: resolvedSecretStore
+        )
+        customAPIProviders = customProviderLoad.providers
+
+        if customProviderLoad.shouldRewritePreferences {
+            persist()
+        }
     }
 
     var selectedPairs: [CurrencyPair] {
@@ -1276,8 +1350,9 @@ final class PreferencesStore {
         customAPIProviders.append(
             CustomAPIProvider(
                 name: String(format: String(localized: "自定义 API %d"), customAPIProviders.count + 1),
-                urlTemplate: "https://example.com/latest?base={base}&quote={quote}&apikey={key}",
-                ratePath: "rate"
+                urlTemplate: "",
+                ratePath: "rate",
+                isEnabled: false
             )
         )
         persist()
@@ -1293,6 +1368,9 @@ final class PreferencesStore {
     }
 
     func removeCustomAPIProvider(id: UUID) {
+        if let provider = customAPIProviders.first(where: { $0.id == id }) {
+            try? secretStore.delete(account: provider.localSecretAccount)
+        }
         customAPIProviders.removeAll { $0.id == id }
         persist()
     }
@@ -1310,7 +1388,7 @@ final class PreferencesStore {
         userDefaults.set(menuBarDisplayMode.rawValue, forKey: menuBarDisplayModeKey)
         userDefaults.set(Self.encodeArray(rateAlerts), forKey: rateAlertsKey)
         userDefaults.set(Self.encodeArray(settingsProfiles), forKey: settingsProfilesKey)
-        userDefaults.set(Self.encodeArray(customAPIProviders), forKey: customAPIProvidersKey)
+        userDefaults.set(Self.encodeArray(customAPIProvidersForPreferences()), forKey: customAPIProvidersKey)
 
         if let activeProfileID {
             userDefaults.set(activeProfileID.uuidString, forKey: activeProfileIDKey)
@@ -1355,6 +1433,54 @@ final class PreferencesStore {
         }
 
         return "USD"
+    }
+
+    private static func loadCustomAPIProviders(
+        from data: Data?,
+        secretStore: any SecretStoring
+    ) -> (providers: [CustomAPIProvider], shouldRewritePreferences: Bool) {
+        let decodedProviders = Self.decodeArray(CustomAPIProvider.self, from: data)
+        var shouldRewritePreferences = false
+
+        let providers = decodedProviders.map { provider in
+            var hydratedProvider = provider
+            let legacyAPIKey = provider.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if !legacyAPIKey.isEmpty {
+                if (try? secretStore.write(legacyAPIKey, account: provider.localSecretAccount)) != nil {
+                    shouldRewritePreferences = true
+                }
+            }
+
+            if let storedAPIKey = try? secretStore.read(account: provider.localSecretAccount)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+               !storedAPIKey.isEmpty {
+                hydratedProvider.apiKey = storedAPIKey
+            } else {
+                hydratedProvider.apiKey = legacyAPIKey
+            }
+
+            return hydratedProvider
+        }
+
+        return (providers, shouldRewritePreferences)
+    }
+
+    private func customAPIProvidersForPreferences() -> [CustomAPIProvider] {
+        customAPIProviders = customAPIProviders.map { provider in
+            var normalizedProvider = provider
+            normalizedProvider.apiKey = provider.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if normalizedProvider.apiKey.isEmpty {
+                try? secretStore.delete(account: normalizedProvider.localSecretAccount)
+            } else {
+                try? secretStore.write(normalizedProvider.apiKey, account: normalizedProvider.localSecretAccount)
+            }
+
+            return normalizedProvider
+        }
+
+        return customAPIProviders.map(\.sanitizedForPreferences)
     }
 
     private static func encodeShortcut(_ shortcut: GlobalShortcutDescriptor?) -> Data? {

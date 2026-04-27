@@ -626,60 +626,11 @@ actor ExchangeRateService: APIValidationServicing {
     }
 
     private func customProviderURL(provider: CustomAPIProvider, pair: CurrencyPair) -> URL? {
-        let encodedBase = pair.baseCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pair.baseCode
-        let encodedQuote = pair.quoteCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pair.quoteCode
-        let encodedKey = provider.apiKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? provider.apiKey
-        let resolvedTemplate = provider.urlTemplate
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "{base}", with: encodedBase)
-            .replacingOccurrences(of: "{quote}", with: encodedQuote)
-            .replacingOccurrences(of: "{key}", with: encodedKey)
-        return URL(string: resolvedTemplate)
+        provider.resolvedURL(baseCode: pair.baseCode, quoteCode: pair.quoteCode)
     }
 
     private func customProviderRate(from data: Data, path: String) throws -> Double? {
-        let object = try JSONSerialization.jsonObject(with: data)
-        let segments = path
-            .split(separator: ".")
-            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        guard !segments.isEmpty else {
-            return nil
-        }
-
-        let value = segments.reduce(object as Any?) { current, segment in
-            guard let current else {
-                return nil
-            }
-
-            if let dictionary = current as? [String: Any] {
-                return dictionary[segment]
-            }
-
-            if let array = current as? [Any], let index = Int(segment), array.indices.contains(index) {
-                return array[index]
-            }
-
-            return nil
-        }
-
-        if let doubleValue = value as? Double {
-            return doubleValue
-        }
-
-        if let intValue = value as? Int {
-            return Double(intValue)
-        }
-
-        if let numberValue = value as? NSNumber {
-            return numberValue.doubleValue
-        }
-
-        if let stringValue = value as? String {
-            return Double(stringValue.replacingOccurrences(of: ",", with: "."))
-        }
-
-        return nil
+        try CustomAPIProvider.rateValue(from: data, path: path)
     }
 
     private func syncEnhancedStateIfNeeded(for configuration: EnhancedSourceConfiguration) {

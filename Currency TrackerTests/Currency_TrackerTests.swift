@@ -78,8 +78,9 @@ struct Currency_TrackerTests {
     func preferencesStoreMovesPairOrder() {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
+        let secretStore = InMemorySecretStore()
 
-        let store = PreferencesStore(userDefaults: defaults)
+        let store = PreferencesStore(userDefaults: defaults, secretStore: secretStore)
         store.addPair(baseCode: "USD", quoteCode: "RUB")
         store.addPair(baseCode: "EUR", quoteCode: "RUB")
         let originalFirst = store.selectedPairIDs.first
@@ -98,8 +99,9 @@ struct Currency_TrackerTests {
     func preferencesStoreMovesPairToDestinationIndex() {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
+        let secretStore = InMemorySecretStore()
 
-        let store = PreferencesStore(userDefaults: defaults)
+        let store = PreferencesStore(userDefaults: defaults, secretStore: secretStore)
         store.addPair(baseCode: "USD", quoteCode: "RUB")
         store.addPair(baseCode: "EUR", quoteCode: "RUB")
         let targetID = store.selectedPairIDs.first!
@@ -176,8 +178,9 @@ struct Currency_TrackerTests {
     func preferencesStorePersistsProfilesAlertsMenuModeAndCustomProviders() {
         let defaults = UserDefaults(suiteName: #function)!
         defaults.removePersistentDomain(forName: #function)
+        let secretStore = InMemorySecretStore()
 
-        let store = PreferencesStore(userDefaults: defaults)
+        let store = PreferencesStore(userDefaults: defaults, secretStore: secretStore)
         store.addPair(baseCode: "USD", quoteCode: "RUB")
         let pairID = store.selectedPairIDs.first!
         store.setBaseCurrencyCode("EUR")
@@ -195,7 +198,11 @@ struct Currency_TrackerTests {
         provider.isEnabled = true
         store.updateCustomAPIProvider(provider)
 
-        let reloaded = PreferencesStore(userDefaults: defaults)
+        let persistedProvidersData = defaults.data(forKey: "customAPIProviders")
+        let persistedProviders = try? JSONDecoder().decode([CustomAPIProvider].self, from: persistedProvidersData ?? Data())
+        #expect(persistedProviders?.first?.apiKey == "")
+
+        let reloaded = PreferencesStore(userDefaults: defaults, secretStore: secretStore)
 
         #expect(reloaded.menuBarDisplayMode == .compactPair)
         #expect(reloaded.rateAlerts.count == 1)
@@ -205,6 +212,7 @@ struct Currency_TrackerTests {
         #expect(reloaded.settingsProfiles.first?.baseCurrencyCode == "EUR")
         #expect(reloaded.activeProfileID == reloaded.settingsProfiles.first?.id)
         #expect(reloaded.enabledCustomAPIProviders.first?.name == "Workspace FX")
+        #expect(reloaded.enabledCustomAPIProviders.first?.apiKey == "demo-key")
         #expect(reloaded.enabledCustomAPIProviders.first?.ratePath == "data.rate")
     }
 
@@ -380,6 +388,10 @@ struct Currency_TrackerTests {
                 {
                   "name": "Currency-Tracker-1.2.zip",
                   "browser_download_url": "https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.2/Currency-Tracker-1.2.zip"
+                },
+                {
+                  "name": "Currency-Tracker-1.2.zip.sha256",
+                  "browser_download_url": "https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.2/Currency-Tracker-1.2.zip.sha256"
                 }
               ]
             }
@@ -391,8 +403,19 @@ struct Currency_TrackerTests {
         #expect(info.version == "1.2")
         #expect(info.isNewer(than: "1.1"))
         #expect(info.downloadURL?.absoluteString.hasSuffix("Currency-Tracker-1.2.zip") == true)
+        #expect(info.checksumURL?.absoluteString.hasSuffix("Currency-Tracker-1.2.zip.sha256") == true)
         #expect(info.title == "Currency Tracker 1.2")
         #expect(info.releaseNotes == "Improved update window.")
+    }
+
+    @Test
+    func softwareUpdateInstallerParsesAndComparesSHA256Checksums() {
+        let data = Data("abc".utf8)
+        let digest = SoftwareUpdateInstaller.sha256HexDigest(for: data)
+        let checksumFile = Data("\(digest)  Currency-Tracker-1.4.0.zip\n".utf8)
+
+        #expect(SoftwareUpdateInstaller.expectedSHA256Checksum(from: checksumFile) == digest)
+        #expect(digest == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
     }
 
     @Test
@@ -429,6 +452,7 @@ struct Currency_TrackerTests {
             version: "9.9",
             releaseURL: URL(string: "https://example.com/releases/v9.9")!,
             downloadURL: URL(string: "https://example.com/Currency-Tracker-9.9.zip")!,
+            checksumURL: URL(string: "https://example.com/Currency-Tracker-9.9.zip.sha256")!,
             title: nil,
             releaseNotes: nil
         )
@@ -1047,6 +1071,27 @@ struct Currency_TrackerTests {
         #expect(result.sourceStatuses.first?.source == .custom)
         #expect(result.sourceStatuses.first?.state == .success)
         #expect(result.errors.isEmpty)
+    }
+
+    @Test
+    func customAPIProviderValidatorParsesSuccessfulTestResponse() async {
+        CustomProviderURLProtocol.lastURL = nil
+        let session = URLSession(configuration: .customProviderSessionConfiguration)
+        let provider = CustomAPIProvider(
+            name: "Workspace FX",
+            urlTemplate: "https://custom.example/latest?base={base}&quote={quote}&key={key}",
+            apiKey: "demo key",
+            ratePath: "data.0.rate"
+        )
+
+        let result = await CustomAPIProviderValidator.validate(provider: provider, session: session)
+
+        #expect(CustomProviderURLProtocol.lastURL?.absoluteString.contains("key=demo%20key") == true)
+        if case .success(let validationResult) = result {
+            #expect(validationResult.rate == 6.91)
+        } else {
+            #expect(Bool(false))
+        }
     }
 
     @Test

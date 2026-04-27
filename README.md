@@ -22,7 +22,7 @@ Currency Tracker is a macOS menu bar app for exchange rates, quick conversion, a
 - Lets you add, remove, reorder, and search currency pairs from the ISO currency catalog supported by your configured data sources.
 - Converts selected text from other apps through macOS Services or a global shortcut.
 - Supports English, Russian, and Simplified Chinese.
-- Stores preferences and API credentials locally on your Mac.
+- Stores preferences and API credentials locally on your Mac without using the system Keychain.
 
 ## Screenshots
 
@@ -65,7 +65,7 @@ Currency Tracker works with public fallback sources by default. You can add cred
 - Open Exchange Rates
 - Fixer
 - Currencylayer
-- Custom JSON API templates with `{base}`, `{quote}`, and `{key}` placeholders
+- Custom JSON API templates with `{base}`, `{quote}`, and `{key}` placeholders, secure entry, enable/edit states, and a built-in connection test
 
 ### Profiles And Alerts
 
@@ -73,21 +73,22 @@ Save different pair lists and refresh settings as profiles, then switch between 
 
 ### Updates
 
-The app can check GitHub Releases from Settings. Starting with version 1.3.1, update packages can be downloaded, prepared, installed, relaunched, and cleaned up inside the app after user confirmation.
+The app can check GitHub Releases from Settings. Update packages are downloaded, verified with SHA256 checksums, prepared, installed, relaunched, and cleaned up inside the app after user confirmation.
 
 ## Current Release
 
-Version `1.3.1` includes:
+Version `1.4.0` includes:
 
-- In-app update download, install, relaunch, and cleanup.
-- Automatic macOS authorization prompt when replacing the installed app requires approval.
-- Cleaner menu bar panel hosting without the old rectangular edge.
-- Broader currency search from the system ISO currency catalog.
-- Updated update messaging and release metadata.
+- Custom API templates now use a clearer save/edit flow, hidden API key fields, enable/disable status, and a connection test.
+- Custom API keys are kept in the app's local credential file rather than in UserDefaults.
+- In-app updates now require and verify release SHA256 checksum files before extraction.
+- Update preparation shows staged progress for download, verification, extraction, and app validation.
+- The global shortcut copy fallback restores the previous clipboard after reading selected text.
+- Release automation now builds reproducible unsigned archives, generates checksum assets, and runs a UI smoke test in CI.
 
 ## Installation
 
-Download `Currency-Tracker-1.3.1.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
+Download `Currency-Tracker-1.4.0.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
 The app is distributed through GitHub Releases and is not notarized through Apple. On first launch, macOS may block it. Open:
 
@@ -102,7 +103,7 @@ After you approve it once, future launches should work normally. Because the app
 
 ## Privacy
 
-Currency Tracker is local-first. Preferences, selected pairs, refresh behavior, profiles, alerts, and API credentials are stored on your Mac. The app does not upload local files, clipboard contents, or device data to any backend service owned by this project.
+Currency Tracker is local-first. Preferences, selected pairs, refresh behavior, profiles, alerts, and API credentials are stored on your Mac. Provider keys are kept in the app's local Application Support data, not in the macOS Keychain. The app does not upload local files, clipboard contents, or device data to any backend service owned by this project.
 
 External exchange-rate providers only receive the exchange-rate requests needed for the data sources you enable.
 

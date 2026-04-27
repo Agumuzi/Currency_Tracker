@@ -11,6 +11,7 @@ nonisolated struct SoftwareUpdateInfo: Equatable, Sendable {
     let version: String
     let releaseURL: URL
     let downloadURL: URL?
+    let checksumURL: URL?
     let title: String?
     let releaseNotes: String?
 
@@ -54,14 +55,34 @@ nonisolated enum SoftwareUpdateChecker {
             asset.name.hasSuffix(".zip") && asset.name.contains("Currency-Tracker")
         }
         let downloadURL = zipAsset.flatMap { URL(string: $0.browserDownloadURL) }
+        let checksumURL = zipAsset
+            .flatMap { checksumAsset(for: $0, assets: release.assets) }
+            .flatMap { URL(string: $0.browserDownloadURL) }
 
         return SoftwareUpdateInfo(
             version: SoftwareVersionComparator.normalized(release.tagName),
             releaseURL: releaseURL,
             downloadURL: downloadURL,
+            checksumURL: checksumURL,
             title: trimmedNonEmpty(release.name),
             releaseNotes: trimmedNonEmpty(release.body)
         )
+    }
+
+    private static func checksumAsset(
+        for zipAsset: GitHubReleaseAsset,
+        assets: [GitHubReleaseAsset]
+    ) -> GitHubReleaseAsset? {
+        let expectedNames = [
+            "\(zipAsset.name).sha256",
+            zipAsset.name.replacingOccurrences(of: ".zip", with: ".sha256")
+        ]
+
+        return assets.first { asset in
+            expectedNames.contains(asset.name)
+        } ?? assets.first { asset in
+            asset.name.hasSuffix(".sha256") && asset.name.contains("Currency-Tracker")
+        }
     }
 
     private static func trimmedNonEmpty(_ value: String?) -> String? {

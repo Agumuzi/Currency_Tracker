@@ -293,6 +293,10 @@ private final class FocusedSelectionReader {
             return nil
         }
 
+        guard CFGetTypeID(focusedElementRef) == AXUIElementGetTypeID() else {
+            return nil
+        }
+
         let focusedElement = focusedElementRef as! AXUIElement
         var selectedTextRef: CFTypeRef?
         let selectionStatus = AXUIElementCopyAttributeValue(
@@ -331,6 +335,7 @@ private final class FocusedSelectionReader {
         }
 
         log(.info, "全局快捷键通过复制动作读取了选中文本")
+        previousSnapshot?.restore(to: pasteboard)
         return copiedText
     }
 

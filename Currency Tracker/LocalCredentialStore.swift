@@ -1,5 +1,5 @@
 //
-//  KeychainStore.swift
+//  LocalCredentialStore.swift
 //  Currency Tracker
 //
 //  Created by Codex on 4/12/26.
