@@ -43,6 +43,7 @@ struct ContentView: View {
             WindowEventObserver(
                 onResolveWindow: {
                     currentWindow = $0
+                    configureMenuBarWindow($0)
                     panelWindowController.registerMenuBarWindow($0)
                     resizePinnedWindowIfNeeded()
                 },
@@ -209,6 +210,20 @@ struct ContentView: View {
             preferences.baseCurrencyCode,
             preferences.selectedPairs.count
         )
+    }
+
+    private func configureMenuBarWindow(_ window: NSWindow?) {
+        guard presentationMode == .menuBar, let window else {
+            return
+        }
+
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.contentView?.wantsLayer = true
+        window.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
+        window.contentView?.superview?.wantsLayer = true
+        window.contentView?.superview?.layer?.backgroundColor = NSColor.clear.cgColor
     }
 
     @ViewBuilder

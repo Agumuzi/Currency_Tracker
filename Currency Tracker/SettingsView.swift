@@ -1090,7 +1090,7 @@ struct SettingsView: View {
                     .labelsHidden()
                 }
 
-                Text("安装包会从 GitHub Releases 下载。")
+                Text("应用会从 GitHub Releases 下载更新，并在确认后安装和重启。")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
             }
@@ -1213,17 +1213,13 @@ struct SettingsView: View {
 
     private var updateReleaseURL: URL? {
         if case .available(let info) = updateCheckState {
-            return info.downloadURL ?? info.releaseURL
+            return info.releaseURL
         }
 
         return SoftwareUpdateChecker.releasesURL
     }
 
     private var updateDownloadButtonTitle: LocalizedStringKey {
-        if case .available = updateCheckState {
-            return "打开下载页面"
-        }
-
         return "打开发布页面"
     }
 

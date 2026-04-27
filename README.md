@@ -48,9 +48,19 @@ Currency Tracker works without user-provided API keys by falling back to public 
 
 Credentials are stored locally on your Mac under Application Support. External providers only receive the exchange-rate requests needed for refreshes.
 
+## Version 1.3.1
+
+Version 1.3.1 is a focused maintenance update for smoother updates and broader currency coverage:
+
+- Added an in-app update flow that downloads, prepares, installs, relaunches, and cleans up update packages without sending users through Finder.
+- Shows the macOS authorization prompt automatically when replacing the app needs administrator approval.
+- Removes the rectangular host-window edge around the menu bar panel.
+- Expands currency selection to the system ISO currency catalog so provider-backed currencies such as MXN, PLN, and ZAR can be searched and added.
+- Improves update messaging in Settings and the update prompt.
+
 ## Version 1.3
 
-Version 1.3 focuses on maturity, workflow depth, and distribution readiness:
+Version 1.3 focused on maturity, workflow depth, and distribution readiness:
 
 - Added a provider picker for custom API data sources.
 - Added support for ExchangeRate-API, Fixer, and Currencylayer alongside the existing enhanced sources.
@@ -63,13 +73,15 @@ Version 1.3 focuses on maturity, workflow depth, and distribution readiness:
 
 ## Installation
 
-Download `Currency-Tracker-1.3.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
+Download `Currency-Tracker-1.3.1.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
 The app is distributed through GitHub Releases and is not notarized through Apple. On first launch, macOS may block it. Open:
 
 `System Settings` -> `Privacy & Security` -> `Open Anyway`
 
 After you approve it once, future launches should work normally.
+
+Starting with version 1.3.1, future updates can be downloaded and installed from inside the app. Because the app is still unsigned and not notarized, macOS may still ask for approval when replacing the application.
 
 ## Requirements
 

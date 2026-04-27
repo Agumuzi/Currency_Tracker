@@ -65,6 +65,14 @@ struct Currency_TrackerTests {
         #expect(CurrencyCatalog.supportedPair(baseCode: "USD", quoteCode: "RUB") != nil)
     }
 
+    @Test
+    func currencyCatalogIncludesProviderBackedISOCurrencies() {
+        #expect(CurrencyCatalog.info(for: "MXN") != nil)
+        #expect(CurrencyCatalog.supportedPair(baseCode: "USD", quoteCode: "MXN") != nil)
+        #expect(CurrencyCatalog.supportedQuotes(for: "USD").contains { $0.code == "MXN" })
+        #expect(CurrencyCatalog.matchesSearch(CurrencyCatalog.info(for: "MXN")!, query: "mexican"))
+    }
+
     @MainActor
     @Test
     func preferencesStoreMovesPairOrder() {
@@ -385,6 +393,61 @@ struct Currency_TrackerTests {
         #expect(info.downloadURL?.absoluteString.hasSuffix("Currency-Tracker-1.2.zip") == true)
         #expect(info.title == "Currency Tracker 1.2")
         #expect(info.releaseNotes == "Improved update window.")
+    }
+
+    @Test
+    func softwareUpdateInstallerFindsAndValidatesExtractedApp() throws {
+        let fileManager = FileManager.default
+        let rootURL = fileManager.temporaryDirectory
+            .appendingPathComponent("CurrencyTrackerUpdateTest-\(UUID().uuidString)", isDirectory: true)
+        let contentsURL = rootURL
+            .appendingPathComponent("nested", isDirectory: true)
+            .appendingPathComponent("Currency Tracker.app", isDirectory: true)
+            .appendingPathComponent("Contents", isDirectory: true)
+        let macOSURL = contentsURL.appendingPathComponent("MacOS", isDirectory: true)
+        let executableURL = macOSURL.appendingPathComponent("Currency Tracker")
+        defer {
+            try? fileManager.removeItem(at: rootURL)
+        }
+
+        try fileManager.createDirectory(at: macOSURL, withIntermediateDirectories: true)
+        try Data().write(to: executableURL)
+        try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executableURL.path)
+
+        let plist: [String: Any] = [
+            "CFBundleExecutable": "Currency Tracker",
+            "CFBundleIdentifier": "com.thomas.Currency-Tracker",
+            "CFBundleName": "Currency Tracker",
+            "CFBundlePackageType": "APPL",
+            "CFBundleShortVersionString": "9.9"
+        ]
+        let plistData = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        try plistData.write(to: contentsURL.appendingPathComponent("Info.plist"))
+
+        let appURL = contentsURL.deletingLastPathComponent()
+        let updateInfo = SoftwareUpdateInfo(
+            version: "9.9",
+            releaseURL: URL(string: "https://example.com/releases/v9.9")!,
+            downloadURL: URL(string: "https://example.com/Currency-Tracker-9.9.zip")!,
+            title: nil,
+            releaseNotes: nil
+        )
+
+        #expect(SoftwareUpdateInstaller.findExtractedApplication(in: rootURL)?.lastPathComponent == "Currency Tracker.app")
+        try SoftwareUpdateInstaller.validateExtractedApplication(
+            at: appURL,
+            updateInfo: updateInfo,
+            currentBundleIdentifier: "com.thomas.Currency-Tracker",
+            currentVersion: "1.0"
+        )
+        #expect(throws: SoftwareUpdateInstallationError.bundleIdentifierMismatch) {
+            try SoftwareUpdateInstaller.validateExtractedApplication(
+                at: appURL,
+                updateInfo: updateInfo,
+                currentBundleIdentifier: "com.example.OtherApp",
+                currentVersion: "1.0"
+            )
+        }
     }
 
     @MainActor

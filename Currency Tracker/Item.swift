@@ -56,7 +56,7 @@ nonisolated struct CurrencyPair: Identifiable, Codable, Hashable, Sendable {
 }
 
 nonisolated enum CurrencyCatalog {
-    static let all: [CurrencyInfo] = [
+    private static let knownCurrencies: [CurrencyInfo] = [
         CurrencyInfo(code: "USD", name: "美元", englishName: "US Dollar", aliases: ["美金", "dollar", "dollars", "us dollar", "united states", "usa", "america"]),
         CurrencyInfo(code: "CNY", name: "人民币", englishName: "Chinese Yuan", aliases: ["rmb", "renminbi", "yuan", "china", "chinese yuan", "元"]),
         CurrencyInfo(code: "EUR", name: "欧元", englishName: "Euro", aliases: ["euro", "euros", "europe"]),
@@ -79,16 +79,53 @@ nonisolated enum CurrencyCatalog {
         CurrencyInfo(code: "AED", name: "阿联酋迪拉姆", englishName: "UAE Dirham", aliases: ["dirham", "uae", "united arab emirates", "dubai"])
     ]
 
+    private static let generatedCodeExclusions: Set<String> = [
+        "XXX",
+        "XTS"
+    ]
+
+    private static let englishLocale = Locale(identifier: "en_US_POSIX")
+
+    static let all: [CurrencyInfo] = {
+        let knownCodes = Set(knownCurrencies.map(\.code))
+        let generatedCurrencies = Locale.commonISOCurrencyCodes
+            .map { $0.uppercased() }
+            .filter { code in
+                code.count == 3
+                    && knownCodes.contains(code) == false
+                    && generatedCodeExclusions.contains(code) == false
+            }
+            .sorted()
+            .map { code in
+                let englishName = englishLocale.localizedString(forCurrencyCode: code) ?? code
+                return CurrencyInfo(
+                    code: code,
+                    name: englishName,
+                    englishName: englishName,
+                    aliases: [englishName]
+                )
+            }
+
+        return knownCurrencies + generatedCurrencies
+    }()
+
     static func name(for code: String) -> String {
-        guard let name = info(for: code)?.name else {
-            return code
+        let normalizedCode = code.uppercased()
+        guard let currency = info(for: normalizedCode) else {
+            return normalizedCode
         }
 
-        return String(localized: String.LocalizationValue(name))
+        if knownCurrencies.contains(where: { $0.code == currency.code }) {
+            return String(localized: String.LocalizationValue(currency.name))
+        }
+
+        return Locale.autoupdatingCurrent.localizedString(forCurrencyCode: currency.code)
+            ?? currency.englishName
     }
 
     static func englishName(for code: String) -> String {
-        info(for: code)?.englishName ?? code
+        let normalizedCode = code.uppercased()
+        return info(for: normalizedCode)?.englishName ?? normalizedCode
     }
 
     static func flag(for code: String) -> String {
@@ -118,7 +155,8 @@ nonisolated enum CurrencyCatalog {
     }
 
     static func info(for code: String) -> CurrencyInfo? {
-        all.first { $0.code == code }
+        let normalizedCode = code.uppercased()
+        return all.first { $0.code == normalizedCode }
     }
 
     static func matchesSearch(_ currency: CurrencyInfo, query: String) -> Bool {
@@ -133,7 +171,11 @@ nonisolated enum CurrencyCatalog {
     }
 
     static func searchableTokens(for currency: CurrencyInfo) -> [String] {
-        [currency.code, currency.name, currency.englishName] + currency.aliases
+        var tokens = [currency.code, currency.name, currency.englishName]
+        if let localizedName = Locale.autoupdatingCurrent.localizedString(forCurrencyCode: currency.code) {
+            tokens.append(localizedName)
+        }
+        return tokens + currency.aliases
     }
 
     static func supportedPair(baseCode: String, quoteCode: String, baseAmount: Int = 1) -> CurrencyPair? {

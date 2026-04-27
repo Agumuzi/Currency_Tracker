@@ -28,8 +28,14 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
             onRemindLater: { [weak self] in
                 self?.close()
             },
-            onDownload: { [weak self] in
-                await self?.downloadUpdate(for: updateInfo) ?? String(localized: "下载失败，请稍后重试")
+            onPrepareUpdate: { [weak self] in
+                await self?.prepareUpdate(for: updateInfo) ?? .failed(String(localized: "下载失败，请稍后重试"))
+            },
+            onInstallAndRelaunch: { preparedUpdate in
+                Self.installAndRelaunch(preparedUpdate)
+            },
+            onCleanup: { preparedUpdate in
+                SoftwareUpdateInstaller.cleanup(preparedUpdate)
             }
         )
 
@@ -69,26 +75,47 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
         windowController?.window?.contentViewController = nil
     }
 
-    private func downloadUpdate(for updateInfo: SoftwareUpdateInfo) async -> String {
-        guard let downloadURL = updateInfo.downloadURL else {
-            NSWorkspace.shared.open(updateInfo.releaseURL)
-            return String(localized: "已打开发布页面")
-        }
-
+    private func prepareUpdate(for updateInfo: SoftwareUpdateInfo) async -> SoftwareUpdatePreparationResult {
         do {
-            let (temporaryURL, _) = try await URLSession.shared.download(from: downloadURL)
-            let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
-                ?? FileManager.default.temporaryDirectory
-            let fileURL = downloadsURL.appendingPathComponent("Currency-Tracker-\(updateInfo.version).zip")
-            if FileManager.default.fileExists(atPath: fileURL.path) {
-                try FileManager.default.removeItem(at: fileURL)
-            }
-            try FileManager.default.moveItem(at: temporaryURL, to: fileURL)
-            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
-            return String(format: String(localized: "已下载到 %@"), fileURL.lastPathComponent)
+            let preparedUpdate = try await SoftwareUpdateInstaller.prepareUpdate(for: updateInfo)
+            return .prepared(
+                preparedUpdate,
+                String(localized: "更新已准备就绪。点击“更新并重启应用”完成安装。")
+            )
         } catch {
-            NSWorkspace.shared.open(updateInfo.downloadURL ?? updateInfo.releaseURL)
-            return String(localized: "下载失败，已打开发布页面")
+            return .failed(Self.updatePreparationMessage(for: error))
+        }
+    }
+
+    @MainActor
+    private static func installAndRelaunch(_ preparedUpdate: PreparedSoftwareUpdate) -> String? {
+        do {
+            try SoftwareUpdateInstaller.installAndRelaunch(preparedUpdate: preparedUpdate)
+            NSApplication.shared.terminate(nil)
+            return nil
+        } catch {
+            return String(localized: "无法启动安装器，请稍后重试")
+        }
+    }
+
+    private static func updatePreparationMessage(for error: Error) -> String {
+        switch error as? SoftwareUpdateInstallationError {
+        case .missingDownloadURL:
+            return String(localized: "没有找到可下载的更新包")
+        case .downloadFailed:
+            return String(localized: "下载失败，请稍后重试")
+        case .extractionFailed:
+            return String(localized: "更新包无法解压，请稍后重试")
+        case .applicationNotFound:
+            return String(localized: "更新包中没有找到 Currency Tracker.app")
+        case .bundleIdentifierMismatch:
+            return String(localized: "更新包与当前应用不匹配")
+        case .versionNotNewer:
+            return String(localized: "更新包版本不高于当前版本")
+        case .installerLaunchFailed:
+            return String(localized: "无法启动安装器，请稍后重试")
+        case nil:
+            return String(localized: "下载失败，请稍后重试")
         }
     }
 }
@@ -151,15 +178,24 @@ final class AutomaticSoftwareUpdateCoordinator {
     }
 }
 
+private enum SoftwareUpdatePreparationResult {
+    case prepared(PreparedSoftwareUpdate, String)
+    case failed(String)
+}
+
 private struct SoftwareUpdatePromptView: View {
     let updateInfo: SoftwareUpdateInfo
     let currentVersion: String
     let preferences: PreferencesStore
     let onSkip: () -> Void
     let onRemindLater: () -> Void
-    let onDownload: () async -> String
-    @State private var isDownloading = false
-    @State private var downloadMessage: String?
+    let onPrepareUpdate: () async -> SoftwareUpdatePreparationResult
+    let onInstallAndRelaunch: (PreparedSoftwareUpdate) async -> String?
+    let onCleanup: (PreparedSoftwareUpdate?) -> Void
+    @State private var isPreparingUpdate = false
+    @State private var isInstallingUpdate = false
+    @State private var preparedUpdate: PreparedSoftwareUpdate?
+    @State private var updateMessage: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 26) {
@@ -172,6 +208,13 @@ private struct SoftwareUpdatePromptView: View {
         .padding(.bottom, 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onDisappear {
+            guard isInstallingUpdate == false else {
+                return
+            }
+
+            onCleanup(preparedUpdate)
+        }
     }
 
     private var header: some View {
@@ -240,20 +283,25 @@ private struct SoftwareUpdatePromptView: View {
             .toggleStyle(.checkbox)
             .font(.system(size: 13, weight: .semibold, design: .rounded))
 
-            if isDownloading {
+            Text("安装需要 macOS 权限确认时，系统会自动弹出授权窗口。")
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            if isPreparingUpdate || isInstallingUpdate {
                 ProgressView()
                     .progressViewStyle(.linear)
                     .controlSize(.small)
             }
 
-            if let downloadMessage {
-                Text(downloadMessage)
+            if let updateMessage {
+                Text(updateMessage)
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 14) {
                 Button("跳过这个版本") {
+                    onCleanup(preparedUpdate)
                     onSkip()
                 }
                 .buttonStyle(.bordered)
@@ -263,27 +311,67 @@ private struct SoftwareUpdatePromptView: View {
                 Spacer()
 
                 Button("稍后提醒我") {
+                    onCleanup(preparedUpdate)
                     onRemindLater()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .frame(minWidth: 140)
 
-                Button("下载更新") {
+                Button(primaryActionTitle) {
                     Task {
-                        isDownloading = true
-                        downloadMessage = nil
-                        downloadMessage = await onDownload()
-                        isDownloading = false
+                        await runPrimaryUpdateAction()
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(isDownloading)
+                .disabled(isPreparingUpdate || isInstallingUpdate)
                 .keyboardShortcut(.defaultAction)
                 .frame(minWidth: 150)
             }
         }
+    }
+
+    private var primaryActionTitle: LocalizedStringKey {
+        if isInstallingUpdate {
+            return "正在启动安装…"
+        }
+
+        if isPreparingUpdate {
+            return "正在准备更新…"
+        }
+
+        if preparedUpdate != nil {
+            return "更新并重启应用"
+        }
+
+        return "下载更新"
+    }
+
+    @MainActor
+    private func runPrimaryUpdateAction() async {
+        if let preparedUpdate {
+            isInstallingUpdate = true
+            updateMessage = String(localized: "正在启动安装器…")
+            if let failureMessage = await onInstallAndRelaunch(preparedUpdate) {
+                updateMessage = failureMessage
+                isInstallingUpdate = false
+            }
+            return
+        }
+
+        isPreparingUpdate = true
+        updateMessage = nil
+
+        switch await onPrepareUpdate() {
+        case .prepared(let update, let message):
+            preparedUpdate = update
+            updateMessage = message
+        case .failed(let message):
+            updateMessage = message
+        }
+
+        isPreparingUpdate = false
     }
 
     private var releaseTitle: String {
