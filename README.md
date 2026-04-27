@@ -1,75 +1,89 @@
 # Currency Tracker
 
-Currency Tracker is a lightweight macOS menu bar app for checking the exchange rates you use every day. It keeps frequently viewed currency pairs one click away, supports quick conversion, and lets you bring your own API keys when you want enhanced rate sources.
+Currency Tracker is a macOS menu bar app for exchange rates, quick conversion, and system-wide selected-text currency conversion. It is built for people who check a small set of rates repeatedly and want the workflow to stay close to the menu bar.
 
 <p>
-  <a href="https://github.com/Agumuzi/Currency_Tracker/releases/latest"><strong>Download the latest release</strong></a>
+  <a href="https://github.com/Agumuzi/Currency_Tracker/releases/latest"><strong>Download latest release</strong></a>
   ·
   <a href="https://agumuzi.github.io/Currency_Tracker/">Product page</a>
   ·
   <a href="https://github.com/Agumuzi/Currency_Tracker/releases">Release notes</a>
 </p>
 
+<p>
+  <img src="assets/screenshots/menu-panel-history.png" width="420" alt="Currency Tracker menu bar panel with a selected currency pair, trend chart, and compact rate cards.">
+</p>
+
+## What It Does
+
+- Keeps selected exchange-rate pairs one click away in the macOS menu bar.
+- Shows compact cards with latest rates, source, refresh time, and positive or negative movement badges.
+- Expands any card into a history chart or a two-way converter.
+- Lets you add, remove, reorder, and search currency pairs from the ISO currency catalog supported by your configured data sources.
+- Converts selected text from other apps through macOS Services or a global shortcut.
+- Supports English, Russian, and Simplified Chinese.
+- Stores preferences and API credentials locally on your Mac.
+
 ## Screenshots
 
-### Menu bar panel
+### Menu Bar Workflow
 
-<img src="assets/screenshots/menu-panel.png" width="420" alt="Currency Tracker menu bar panel showing currency pair cards, latest rates, trend badges, pinning, refresh, and quick actions.">
+| Rate list | History chart | Inline conversion |
+| --- | --- | --- |
+| <img src="assets/screenshots/menu-panel.png" alt="Currency Tracker menu bar panel showing multiple exchange-rate cards."> | <img src="assets/screenshots/menu-panel-history.png" alt="Expanded rate card with a one-month history chart."> | <img src="assets/screenshots/menu-panel-conversion.png" alt="Expanded rate card with two-way currency conversion."> |
 
-### Settings
+### Settings And Configuration
 
-| Rates and pair management | API data sources |
-| --- | --- |
-| <img src="assets/screenshots/settings-window.png" alt="Currency Tracker settings window with sidebar navigation and currency pair management."> | <img src="assets/screenshots/data-sources-window.png" alt="Currency Tracker data source settings with an API provider menu and credential rows."> |
+| Welcome | Rates | Data sources |
+| --- | --- | --- |
+| <img src="assets/screenshots/settings-window.png" alt="Currency Tracker settings welcome screen with setup steps."> | <img src="assets/screenshots/settings-rates.png" alt="Settings screen for managing shown exchange-rate pairs."> | <img src="assets/screenshots/data-sources-window.png" alt="Settings screen for API provider credentials and custom API templates."> |
 
-## Highlights
+| Profiles | Alerts | Updates |
+| --- | --- | --- |
+| <img src="assets/screenshots/settings-profiles.png" alt="Settings screen for saving and switching profiles."> | <img src="assets/screenshots/settings-alerts.png" alt="Settings screen for exchange-rate threshold alerts."> | <img src="assets/screenshots/settings-updates.png" alt="Settings screen for checking updates and enabling automatic checks."> |
 
-- View selected currency pairs directly from the macOS menu bar.
-- Choose how much information appears in the menu bar: icon only, a featured rate, or a compact pair label.
-- Switch between rate history and conversion from the same compact panel.
-- Add, remove, reorder, and manage the pairs shown in the panel.
-- Save settings profiles for different work contexts and switch between them quickly.
-- Create threshold alerts for important exchange rates.
-- Convert selected text through macOS Services or a global shortcut.
-- Use public fallback sources by default, enable mainstream provider credentials, or add a custom JSON API template.
-- Check for updates from Settings, with optional automatic update checks.
-- Export a diagnostics report for troubleshooting without including API keys.
-- Run the interface in English, Russian, or Simplified Chinese.
+## Main Features
 
-## Data Sources
+### Menu Bar Rates
 
-Currency Tracker works without user-provided API keys by falling back to public exchange-rate sources. For better coverage and reliability, you can add credentials for these providers from Settings:
+Choose the pairs you care about and keep them in a compact menu bar panel. The panel supports scrolling when the list grows, a pinned always-on-top mode, manual refresh, and display modes for the menu bar item itself.
+
+### History And Conversion
+
+Each card can expand into a recent trend chart or a converter without leaving the panel. Chart ranges include 7 days, 1 month, 3 months, 6 months, and 1 year when historical data is available.
+
+### Pair Management
+
+The settings window includes a sidebar and dedicated pages for general behavior, rate pairs, profiles, alerts, refresh policy, data sources, permissions, updates, diagnostics, and system launch behavior.
+
+### Data Sources
+
+Currency Tracker works with public fallback sources by default. You can add credentials for mainstream providers when you need better coverage or reliability:
 
 - Twelve Data
 - ExchangeRate-API
 - Open Exchange Rates
 - Fixer
 - Currencylayer
+- Custom JSON API templates with `{base}`, `{quote}`, and `{key}` placeholders
 
-Credentials are stored locally on your Mac under Application Support. External providers only receive the exchange-rate requests needed for refreshes.
+### Profiles And Alerts
 
-## Version 1.3.1
+Save different pair lists and refresh settings as profiles, then switch between them for different workflows. Rate alerts can watch selected pairs and request notification permission when a threshold is triggered.
 
-Version 1.3.1 is a focused maintenance update for smoother updates and broader currency coverage:
+### Updates
 
-- Added an in-app update flow that downloads, prepares, installs, relaunches, and cleans up update packages without sending users through Finder.
-- Shows the macOS authorization prompt automatically when replacing the app needs administrator approval.
-- Removes the rectangular host-window edge around the menu bar panel.
-- Expands currency selection to the system ISO currency catalog so provider-backed currencies such as MXN, PLN, and ZAR can be searched and added.
-- Improves update messaging in Settings and the update prompt.
+The app can check GitHub Releases from Settings. Starting with version 1.3.1, update packages can be downloaded, prepared, installed, relaunched, and cleaned up inside the app after user confirmation.
 
-## Version 1.3
+## Current Release
 
-Version 1.3 focused on maturity, workflow depth, and distribution readiness:
+Version `1.3.1` includes:
 
-- Added a provider picker for custom API data sources.
-- Added support for ExchangeRate-API, Fixer, and Currencylayer alongside the existing enhanced sources.
-- Updated API credential rows with clear enabled states and edit actions.
-- Added settings profiles, threshold alerts, menu bar display modes, permissions status, and diagnostics export.
-- Refined the menu bar cards, scrolling behavior, panel pinning, chart styling, and settings layout.
-- Added software update checks and automatic update preferences.
-- Added CI checks, a release packaging workflow, and localization consistency validation.
-- Reworked the README with English copy and screenshots of the main app surfaces.
+- In-app update download, install, relaunch, and cleanup.
+- Automatic macOS authorization prompt when replacing the installed app requires approval.
+- Cleaner menu bar panel hosting without the old rectangular edge.
+- Broader currency search from the system ISO currency catalog.
+- Updated update messaging and release metadata.
 
 ## Installation
 
@@ -79,9 +93,7 @@ The app is distributed through GitHub Releases and is not notarized through Appl
 
 `System Settings` -> `Privacy & Security` -> `Open Anyway`
 
-After you approve it once, future launches should work normally.
-
-Starting with version 1.3.1, future updates can be downloaded and installed from inside the app. Because the app is still unsigned and not notarized, macOS may still ask for approval when replacing the application.
+After you approve it once, future launches should work normally. Because the app is still unsigned and not notarized, macOS may still ask for approval when replacing the application during an in-app update.
 
 ## Requirements
 
@@ -90,11 +102,12 @@ Starting with version 1.3.1, future updates can be downloaded and installed from
 
 ## Privacy
 
-Currency Tracker is designed as a local-first utility. Preferences, selected pairs, refresh behavior, and API credentials are stored on your Mac. The app does not upload local files, clipboard contents, or device data to any backend service owned by this project.
+Currency Tracker is local-first. Preferences, selected pairs, refresh behavior, profiles, alerts, and API credentials are stored on your Mac. The app does not upload local files, clipboard contents, or device data to any backend service owned by this project.
 
-## Distribution
+External exchange-rate providers only receive the exchange-rate requests needed for the data sources you enable.
 
-Source code and packaged builds are available on GitHub:
+## Links
 
+- [Product page](https://agumuzi.github.io/Currency_Tracker/)
 - [Repository](https://github.com/Agumuzi/Currency_Tracker)
 - [Releases](https://github.com/Agumuzi/Currency_Tracker/releases)

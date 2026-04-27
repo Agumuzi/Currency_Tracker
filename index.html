@@ -4,30 +4,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Currency Tracker for macOS</title>
-  <meta name="description" content="Currency Tracker is a lightweight macOS menu bar app for exchange rates, quick conversions, and system-wide selected-text currency conversion.">
+  <meta name="description" content="Currency Tracker is a macOS menu bar app for exchange rates, trend charts, quick conversion, provider API keys, alerts, profiles, and in-app updates.">
+  <meta property="og:title" content="Currency Tracker for macOS">
+  <meta property="og:description" content="Exchange rates, charts, conversion, alerts, and data-source management from the macOS menu bar.">
+  <meta property="og:image" content="assets/screenshots/menu-panel-history.png">
+  <meta name="theme-color" content="#f5f7fb">
   <style>
     :root {
-      color-scheme: light dark;
-      --bg: #f7f8fa;
-      --panel: #ffffff;
-      --text: #111318;
-      --muted: #5f6673;
-      --border: #d9dde5;
-      --accent: #1f6feb;
-      --accent-strong: #1756bd;
-      --shadow: 0 16px 45px rgba(17, 19, 24, 0.08);
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #eef3f8;
+      --text: #14171f;
+      --muted: #606775;
+      --quiet: #838b99;
+      --border: #dde3ec;
+      --accent: #1479ff;
+      --accent-strong: #075ed3;
+      --green: #128a54;
+      --red: #c03a34;
+      --gold: #d99b19;
+      --shadow: 0 18px 48px rgba(20, 23, 31, 0.12);
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #101216;
-        --panel: #171a20;
-        --text: #f3f5f7;
-        --muted: #a7aeb9;
-        --border: #2c313a;
-        --accent: #6ea8fe;
-        --accent-strong: #9bc2ff;
-        --shadow: 0 16px 45px rgba(0, 0, 0, 0.28);
+        color-scheme: dark;
+        --bg: #101114;
+        --surface: #191b20;
+        --surface-soft: #20242b;
+        --text: #f4f6f8;
+        --muted: #b0b6c0;
+        --quiet: #8d95a3;
+        --border: #303640;
+        --accent: #4d9bff;
+        --accent-strong: #86bbff;
+        --green: #31b978;
+        --red: #ff6b64;
+        --gold: #f0bd52;
+        --shadow: 0 18px 52px rgba(0, 0, 0, 0.38);
       }
     }
 
@@ -35,87 +50,71 @@
       box-sizing: border-box;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.5;
+      line-height: 1.55;
     }
 
     a {
       color: inherit;
     }
 
-    .page {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 28px;
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      backdrop-filter: blur(18px);
     }
 
     .nav {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 18px;
-      padding: 12px 0 28px;
+      width: min(1160px, calc(100% - 40px));
+      min-height: 68px;
+      margin: 0 auto;
+      gap: 20px;
     }
 
     .brand {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 10px;
-      font-weight: 700;
+      font-weight: 800;
+      text-decoration: none;
     }
 
-    .brand-mark {
-      display: grid;
+    .brand img {
       width: 34px;
       height: 34px;
-      place-items: center;
-      border: 1px solid var(--border);
       border-radius: 8px;
-      background: var(--panel);
-      box-shadow: var(--shadow);
     }
 
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 18px;
       color: var(--muted);
       font-size: 14px;
+      font-weight: 650;
     }
 
-    .hero {
-      display: grid;
-      grid-template-columns: minmax(0, 0.96fr) minmax(360px, 1.04fr);
-      gap: 36px;
-      align-items: center;
-      min-height: 620px;
-      padding: 30px 0 52px;
-    }
-
-    h1 {
-      margin: 0;
-      max-width: 760px;
-      font-size: clamp(42px, 7vw, 78px);
-      line-height: 0.95;
-      letter-spacing: 0;
-    }
-
-    .lede {
-      max-width: 650px;
-      margin: 22px 0 0;
-      color: var(--muted);
-      font-size: 20px;
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 30px;
+    .nav-links a {
+      text-decoration: none;
     }
 
     .button {
@@ -126,212 +125,543 @@
       padding: 0 18px;
       border: 1px solid var(--border);
       border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 760;
       text-decoration: none;
-      font-weight: 700;
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
     }
 
     .button.primary {
       border-color: var(--accent);
       background: var(--accent);
       color: white;
+      box-shadow: none;
     }
 
     .button.primary:hover {
       background: var(--accent-strong);
     }
 
-    .meta {
-      margin-top: 18px;
-      color: var(--muted);
-      font-size: 14px;
+    .hero {
+      position: relative;
+      min-height: min(700px, calc(100vh - 88px));
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-soft);
     }
 
-    .hero-media {
-      display: grid;
-      gap: 16px;
-    }
-
-    .screenshot {
-      display: block;
+    .hero-bg {
+      position: absolute;
+      inset: 0;
       width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--panel);
-      box-shadow: var(--shadow);
+      height: 100%;
+      object-fit: cover;
+      object-position: 76% 10%;
+      opacity: 0.46;
+      filter: saturate(0.96);
     }
 
-    .screenshot.small {
-      width: min(72%, 420px);
-      justify-self: end;
+    .hero::after {
+      position: absolute;
+      inset: 0;
+      content: "";
+      background:
+        linear-gradient(90deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 86%, transparent) 44%, transparent 100%),
+        linear-gradient(0deg, var(--bg) 0%, transparent 28%);
     }
 
-    .section {
-      padding: 54px 0;
-      border-top: 1px solid var(--border);
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      width: min(1160px, calc(100% - 40px));
+      min-height: inherit;
+      margin: 0 auto;
+      padding: 76px 0 84px;
     }
 
-    .section h2 {
+    .hero-copy {
+      max-width: 670px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
       margin: 0 0 18px;
-      font-size: 32px;
-      line-height: 1.15;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 780;
+    }
+
+    .eyebrow::before {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--green);
+      content: "";
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 22px;
+      font-size: 64px;
+      line-height: 1;
       letter-spacing: 0;
     }
 
-    .grid {
+    .lede {
+      max-width: 610px;
+      margin-bottom: 28px;
+      color: var(--muted);
+      font-size: 20px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .meta {
+      color: var(--quiet);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .section {
+      width: min(1160px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 78px 0;
+    }
+
+    .section-header {
+      display: grid;
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+      gap: 34px;
+      align-items: end;
+      margin-bottom: 30px;
+    }
+
+    .section-kicker {
+      margin-bottom: 8px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin-bottom: 0;
+      font-size: 38px;
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .section-header p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .feature-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
+      gap: 14px;
     }
 
-    .card {
-      min-height: 170px;
-      padding: 20px;
+    .feature {
+      min-height: 182px;
+      padding: 22px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: var(--panel);
+      background: var(--surface);
+      box-shadow: 0 10px 24px rgba(20, 23, 31, 0.04);
     }
 
-    .card h3 {
-      margin: 0 0 10px;
-      font-size: 18px;
+    .feature .icon {
+      display: inline-grid;
+      width: 34px;
+      height: 34px;
+      margin-bottom: 18px;
+      place-items: center;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--accent) 13%, transparent);
+      color: var(--accent);
+      font-weight: 860;
     }
 
-    .card p,
-    .section p,
-    li {
+    h3 {
+      margin-bottom: 9px;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .feature p,
+    .text-block p,
+    .shot p,
+    .release-list li {
       color: var(--muted);
     }
 
-    .split {
+    .gallery {
       display: grid;
-      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-      gap: 28px;
+      grid-template-columns: 0.86fr 1.14fr;
+      gap: 18px;
       align-items: start;
     }
 
-    .bullets {
+    .phone-stack {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .shot {
       margin: 0;
+    }
+
+    .shot img {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .shot figcaption {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .band {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--surface-soft) 76%, transparent);
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 46px;
+      align-items: start;
+    }
+
+    .data-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .data-list li {
+      display: flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 0 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .data-list li::before {
+      width: 8px;
+      height: 8px;
+      margin-right: 10px;
+      border-radius: 999px;
+      background: var(--gold);
+      content: "";
+    }
+
+    .release-list {
+      margin: 18px 0 0;
       padding-left: 20px;
     }
 
-    .bullets li + li {
+    .release-list li + li {
       margin-top: 10px;
     }
 
-    footer {
-      padding: 36px 0 18px;
+    .footer {
+      width: min(1160px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 36px 0 44px;
+      border-top: 1px solid var(--border);
       color: var(--muted);
       font-size: 14px;
     }
 
-    @media (max-width: 860px) {
-      .page {
-        padding: 20px;
+    @media (max-width: 920px) {
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 14px 0;
       }
 
-      .hero,
-      .split,
-      .grid {
-        grid-template-columns: 1fr;
+      .nav-links {
+        flex-wrap: wrap;
       }
 
       .hero {
         min-height: auto;
-        padding-top: 12px;
       }
 
-      .screenshot.small {
+      .hero-bg {
+        opacity: 0.28;
+        object-position: 62% 0;
+      }
+
+      .hero-inner {
+        padding: 62px 0 58px;
+      }
+
+      h1 {
+        font-size: 44px;
+      }
+
+      .section {
+        padding: 58px 0;
+      }
+
+      .section-header,
+      .gallery,
+      .settings-grid,
+      .two-column,
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .phone-stack {
+        grid-template-columns: 1fr;
+      }
+
+      .phone-stack .shot img {
+        width: min(420px, 100%);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .nav,
+      .section,
+      .footer,
+      .hero-inner {
+        width: min(100% - 28px, 1160px);
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .button {
         width: 100%;
       }
 
-      .nav {
-        align-items: flex-start;
-        flex-direction: column;
+      .data-list {
+        grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
 <body>
-  <main class="page">
+  <header class="site-header">
     <nav class="nav" aria-label="Primary">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">$</span>
+      <a class="brand" href="#">
+        <img src="assets/app-icon.png" alt="" aria-hidden="true">
         <span>Currency Tracker</span>
-      </div>
+      </a>
       <div class="nav-links">
         <a href="#features">Features</a>
         <a href="#screenshots">Screenshots</a>
+        <a href="#sources">Data sources</a>
         <a href="https://github.com/Agumuzi/Currency_Tracker">GitHub</a>
       </div>
     </nav>
+  </header>
 
+  <main>
     <section class="hero">
-      <div>
-        <h1>Exchange rates from the macOS menu bar.</h1>
-        <p class="lede">Currency Tracker keeps the rates you care about one click away, with quick pair management, compact trend charts, and selected-text conversion across macOS.</p>
-        <div class="actions">
-          <a class="button primary" href="https://github.com/Agumuzi/Currency_Tracker/releases/latest/download/Currency-Tracker-1.3.zip">Download v1.3</a>
-          <a class="button" href="https://github.com/Agumuzi/Currency_Tracker/releases">View releases</a>
+      <img class="hero-bg" src="assets/screenshots/settings-rates.png" alt="">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow">Current release v1.3.1</p>
+          <h1>Currency Tracker</h1>
+          <p class="lede">Exchange rates, trend charts, conversion, alerts, profiles, and provider API management from the macOS menu bar.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.3.1/Currency-Tracker-1.3.1.zip">Download v1.3.1</a>
+            <a class="button" href="https://github.com/Agumuzi/Currency_Tracker/releases">View releases</a>
+          </div>
+          <p class="meta">Requires macOS 14.0 or later. Distributed through GitHub Releases.</p>
         </div>
-        <p class="meta">Requires macOS 14.0 or later. The app runs from the menu bar and can optionally use your own API keys for enhanced rate sources.</p>
-      </div>
-      <div class="hero-media" id="screenshots">
-        <img class="screenshot small" src="assets/screenshots/menu-panel.png" alt="Currency Tracker menu bar panel with exchange-rate cards and quick actions.">
-        <img class="screenshot" src="assets/screenshots/settings-window.png" alt="Currency Tracker settings window with sections for rates, refresh behavior, data sources, and system settings.">
-        <img class="screenshot small" src="assets/screenshots/data-sources-window.png" alt="Currency Tracker data source settings with optional API key fields.">
       </div>
     </section>
 
     <section class="section" id="features">
-      <h2>Built for everyday currency checks.</h2>
-      <div class="grid">
-        <article class="card">
+      <div class="section-header">
+        <div>
+          <p class="section-kicker">Workflow</p>
+          <h2>Built around the rates you check every day.</h2>
+        </div>
+        <p>Currency Tracker keeps a focused exchange-rate workspace close to the menu bar, then gives you deeper controls only when you need them.</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature">
+          <span class="icon">01</span>
           <h3>Menu bar rates</h3>
-          <p>Pin the pairs you use most and open the compact panel whenever you need current rates.</p>
+          <p>Pin selected pairs, refresh manually or automatically, and switch the menu bar item between icon, compact pair, and featured-rate modes.</p>
         </article>
-        <article class="card">
+        <article class="feature">
+          <span class="icon">02</span>
           <h3>Charts and conversion</h3>
-          <p>Expand a pair to inspect recent trends or switch to the converter without leaving the panel.</p>
+          <p>Expand any pair into a history chart or a two-way converter without leaving the menu bar panel.</p>
         </article>
-        <article class="card">
+        <article class="feature">
+          <span class="icon">03</span>
           <h3>System text conversion</h3>
-          <p>Select an amount in another app and convert it to your base currency using Services or a global shortcut.</p>
+          <p>Convert selected amounts from other macOS apps through Services or a global shortcut.</p>
         </article>
-        <article class="card">
-          <h3>Multiple data sources</h3>
-          <p>Use built-in public sources by default, or add credentials for Twelve Data, ExchangeRate-API, Open Exchange Rates, Fixer, and Currencylayer.</p>
+        <article class="feature">
+          <span class="icon">04</span>
+          <h3>Profiles and alerts</h3>
+          <p>Save different pair lists and refresh behavior as profiles, then add threshold alerts for important rates.</p>
         </article>
-        <article class="card">
-          <h3>Localized interface</h3>
-          <p>The app supports English, Russian, and Simplified Chinese across the main panel and settings window.</p>
+        <article class="feature">
+          <span class="icon">05</span>
+          <h3>Provider control</h3>
+          <p>Use public fallback data sources, add mainstream API credentials, or define a custom JSON endpoint template.</p>
         </article>
-        <article class="card">
-          <h3>Local-first settings</h3>
-          <p>Preferences and credentials stay on your Mac. External providers only receive the exchange-rate requests needed for refreshes.</p>
+        <article class="feature">
+          <span class="icon">06</span>
+          <h3>In-app updates</h3>
+          <p>Check GitHub Releases from Settings and install prepared updates inside the app after confirmation.</p>
         </article>
       </div>
     </section>
 
-    <section class="section">
-      <div class="split">
+    <section class="section" id="screenshots">
+      <div class="section-header">
         <div>
-          <h2>What is new in 1.3</h2>
-          <p>Version 1.3 adds settings profiles, threshold alerts, custom API templates, diagnostics, and another round of macOS UI polish.</p>
+          <p class="section-kicker">Screenshots</p>
+          <h2>The main surfaces are small, dense, and practical.</h2>
         </div>
-        <ul class="bullets">
-          <li>Added settings profiles and rate threshold alerts.</li>
-          <li>Added a provider picker and custom JSON API templates.</li>
-          <li>Added ExchangeRate-API, Fixer, and Currencylayer support.</li>
-          <li>Updated credential rows with enabled states, edit actions, and clearer API status feedback.</li>
-          <li>Added software update checks, automatic update preferences, permissions status, and diagnostics export.</li>
-          <li>Refined the menu panel cards, scrolling behavior, pin control, and settings layout.</li>
+        <p>The menu panel is designed for quick scanning. Settings split advanced behavior into dedicated sidebar sections so the app can grow without one crowded page.</p>
+      </div>
+
+      <div class="gallery">
+        <div class="phone-stack">
+          <figure class="shot">
+            <img src="assets/screenshots/menu-panel.png" alt="Currency Tracker menu bar panel with multiple exchange-rate cards.">
+            <figcaption>Scrollable menu bar rate list</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/screenshots/menu-panel-history.png" alt="Expanded currency card with history chart.">
+            <figcaption>History chart inside a card</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/screenshots/menu-panel-conversion.png" alt="Expanded currency card with conversion fields.">
+            <figcaption>Two-way conversion</figcaption>
+          </figure>
+        </div>
+
+        <figure class="shot">
+          <img src="assets/screenshots/settings-rates.png" alt="Settings window showing selected pair management.">
+          <figcaption>Pair management with reorder controls and full currency search</figcaption>
+        </figure>
+      </div>
+
+      <div class="settings-grid">
+        <figure class="shot">
+          <img src="assets/screenshots/data-sources-window.png" alt="Settings window showing API sources and custom API templates.">
+          <figcaption>API source management</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/screenshots/settings-updates.png" alt="Settings window showing software update controls.">
+          <figcaption>Software update controls</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/screenshots/settings-profiles.png" alt="Settings window showing profiles.">
+          <figcaption>Profiles for different workflows</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/screenshots/settings-alerts.png" alt="Settings window showing rate alerts.">
+          <figcaption>Rate threshold alerts</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="band" id="sources">
+      <div class="section two-column">
+        <div class="text-block">
+          <p class="section-kicker">Data sources</p>
+          <h2>Works out of the box, improves with your own keys.</h2>
+          <p>Currency Tracker uses public fallback sources by default. For broader coverage or better reliability, add credentials for supported providers or define a custom JSON API template.</p>
+        </div>
+        <ul class="data-list" aria-label="Supported data providers">
+          <li>Twelve Data</li>
+          <li>ExchangeRate-API</li>
+          <li>Open Exchange Rates</li>
+          <li>Fixer</li>
+          <li>Currencylayer</li>
+          <li>Custom JSON APIs</li>
         </ul>
       </div>
     </section>
 
-    <footer>
-      <p>Currency Tracker is maintained by Agumuzi. Source code and releases are available on GitHub.</p>
-    </footer>
+    <section class="section two-column">
+      <div class="text-block">
+        <p class="section-kicker">Release</p>
+        <h2>What is new in 1.3.1</h2>
+        <p>This maintenance release focuses on update flow, polish, and broader currency search coverage.</p>
+      </div>
+      <ul class="release-list">
+        <li>Downloads, prepares, installs, relaunches, and cleans up update packages inside the app after user confirmation.</li>
+        <li>Shows the macOS authorization prompt automatically when the app replacement needs administrator approval.</li>
+        <li>Removes the old rectangular host-window edge around the menu bar panel.</li>
+        <li>Expands currency selection to the system ISO currency catalog for provider-backed currencies.</li>
+        <li>Refreshes the README and product page with current screenshots and current feature copy.</li>
+      </ul>
+    </section>
+
+    <section class="band">
+      <div class="section two-column">
+        <div class="text-block">
+          <p class="section-kicker">Privacy</p>
+          <h2>Local-first by default.</h2>
+          <p>Preferences, selected pairs, profiles, alerts, and API credentials stay on your Mac. The project does not operate a backend service for collecting local files, clipboard contents, or device data.</p>
+        </div>
+        <div class="text-block">
+          <p>External providers only receive exchange-rate requests for the data sources you enable. The app is distributed through GitHub Releases and is not currently Apple-notarized, so macOS may ask for first-launch approval.</p>
+          <p><a class="button" href="https://github.com/Agumuzi/Currency_Tracker">View source on GitHub</a></p>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <footer class="footer">
+    Currency Tracker is maintained by Agumuzi. Source code and packaged builds are available on GitHub.
+  </footer>
 </body>
 </html>
