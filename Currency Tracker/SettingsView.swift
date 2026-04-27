@@ -6,29 +6,46 @@
 //
 
 import AppKit
+import ApplicationServices
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
 enum SettingsSection: String, CaseIterable, Hashable, Sendable {
+    case welcome
     case general
     case rates
+    case profiles
+    case alerts
     case refresh
     case dataSources
+    case permissions
     case updates
+    case diagnostics
     case system
 
     var title: LocalizedStringKey {
         switch self {
+        case .welcome:
+            "欢迎"
         case .general:
             "通用"
         case .rates:
             "汇率"
+        case .profiles:
+            "配置"
+        case .alerts:
+            "提醒"
         case .refresh:
             "刷新"
         case .dataSources:
             "数据源"
+        case .permissions:
+            "权限"
         case .updates:
             "更新"
+        case .diagnostics:
+            "诊断"
         case .system:
             "系统"
         }
@@ -36,16 +53,26 @@ enum SettingsSection: String, CaseIterable, Hashable, Sendable {
 
     var subtitle: LocalizedStringKey {
         switch self {
+        case .welcome:
+            "首次设置与使用建议"
         case .general:
             "基准货币与文本换算"
         case .rates:
             "展示列表与新增汇率"
+        case .profiles:
+            "保存和切换工作流"
+        case .alerts:
+            "价格阈值通知"
         case .refresh:
             "自动更新行为"
         case .dataSources:
             "API key 与增强来源"
+        case .permissions:
+            "系统能力状态"
         case .updates:
             "版本与下载"
+        case .diagnostics:
+            "导出排障信息"
         case .system:
             "开机启动"
         }
@@ -53,16 +80,26 @@ enum SettingsSection: String, CaseIterable, Hashable, Sendable {
 
     var symbolName: String {
         switch self {
+        case .welcome:
+            "sparkles"
         case .general:
             "gearshape"
         case .rates:
             "list.bullet.rectangle"
+        case .profiles:
+            "square.stack.3d.up"
+        case .alerts:
+            "bell"
         case .refresh:
             "arrow.clockwise"
         case .dataSources:
             "key"
+        case .permissions:
+            "checkmark.shield"
         case .updates:
             "arrow.down.circle"
+        case .diagnostics:
+            "stethoscope"
         case .system:
             "power"
         }
@@ -90,10 +127,15 @@ struct SettingsView: View {
     @State private var draftQuoteCode = "RUB"
     @State private var currencySearch = ""
     @State private var draggedPairID: String?
-    @State private var selectedSection: SettingsSection = .rates
+    @State private var selectedSection: SettingsSection = .welcome
     @State private var isShowingAPIPrivacyDetails = false
     @State private var updateCheckState: SoftwareUpdateCheckState = .idle
     @State private var lastUpdateCheckDate: Date?
+    @State private var profileNameDraft = ""
+    @State private var alertPairID = ""
+    @State private var alertDirection: RateAlertDirection = .above
+    @State private var alertThresholdText = ""
+    @State private var diagnosticExportMessage: String?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -130,9 +172,11 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             appHeader
 
-            VStack(spacing: 4) {
-                ForEach(SettingsSection.allCases, id: \.self) { section in
-                    sidebarButton(for: section)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 4) {
+                    ForEach(SettingsSection.allCases, id: \.self) { section in
+                        sidebarButton(for: section)
+                    }
                 }
             }
         }
@@ -168,21 +212,109 @@ struct SettingsView: View {
     @ViewBuilder
     private var selectedPageContent: some View {
         switch selectedSection {
+        case .welcome:
+            welcomeSection
         case .general:
             baseCurrencySection
+            menuBarDisplaySection
             textConversionShortcutSection
         case .rates:
             selectedPairsSection
             addPairSection
+        case .profiles:
+            profilesSection
+        case .alerts:
+            rateAlertsSection
         case .refresh:
             refreshBehaviorSection
         case .dataSources:
             apiConfigurationSection
+        case .permissions:
+            permissionsSection
         case .updates:
             softwareUpdateSection
+        case .diagnostics:
+            diagnosticsSection
         case .system:
             launchSection
         }
+    }
+
+    private var welcomeSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("用三步完成初始化")
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+
+            VStack(spacing: 10) {
+                onboardingStep(
+                    symbolName: "list.bullet.rectangle",
+                    title: "添加常用货币对",
+                    detail: preferences.selectedPairs.isEmpty
+                        ? String(localized: "还没有添加汇率，先选择你每天要看的货币对。")
+                        : String(format: String(localized: "已经添加 %d 个货币对。"), preferences.selectedPairs.count),
+                    actionTitle: "管理汇率",
+                    target: .rates
+                )
+                onboardingStep(
+                    symbolName: "checkmark.shield",
+                    title: "确认系统权限",
+                    detail: String(localized: "全局快捷键和文本换算在部分应用中需要辅助功能权限。"),
+                    actionTitle: "查看权限",
+                    target: .permissions
+                )
+                onboardingStep(
+                    symbolName: "key",
+                    title: "按需启用增强数据源",
+                    detail: String(localized: "没有 API key 也能使用公共来源；需要更高覆盖率时再添加自己的 key。"),
+                    actionTitle: "数据源",
+                    target: .dataSources
+                )
+            }
+        }
+        .padding(18)
+        .background(sectionCardBackground)
+    }
+
+    private func onboardingStep(
+        symbolName: String,
+        title: LocalizedStringKey,
+        detail: String,
+        actionTitle: LocalizedStringKey,
+        target: SettingsSection
+    ) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: symbolName)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 34, height: 34)
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.12))
+                )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                Text(detail)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+
+            Button(actionTitle) {
+                selectedSection = target
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
     }
 
     private func sidebarButton(for section: SettingsSection) -> some View {
@@ -249,6 +381,183 @@ struct SettingsView: View {
                 .frame(width: 220)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(sectionCardBackground)
+        }
+    }
+
+    private var menuBarDisplaySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("菜单栏显示")
+
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("选择菜单栏中显示的信息密度")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    Text("重点汇率来自面板中的第一张卡片。空间紧张时建议保持只显示图标。")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Picker("菜单栏显示", selection: Binding(
+                    get: { preferences.menuBarDisplayMode },
+                    set: { preferences.setMenuBarDisplayMode($0) }
+                )) {
+                    ForEach(MenuBarDisplayMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(width: 360)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(sectionCardBackground)
+        }
+    }
+
+    private var profilesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("配置 Profile")
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 10) {
+                    TextField("Profile 名称", text: $profileNameDraft)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button("保存当前配置") {
+                        preferences.saveCurrentProfile(named: profileNameDraft)
+                        profileNameDraft = ""
+                        viewModel.refreshPolicyDidChange()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(preferences.selectedPairIDs.isEmpty)
+                }
+
+                if preferences.settingsProfiles.isEmpty {
+                    Text("还没有保存 Profile。保存后可以在不同货币对列表、基准货币和刷新策略之间快速切换。")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color(nsColor: .windowBackgroundColor))
+                        )
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(preferences.settingsProfiles) { profile in
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(profile.name)
+                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    Text(profileSummaryText(for: profile))
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                if preferences.activeProfileID == profile.id {
+                                    Label("当前", systemImage: "checkmark.circle.fill")
+                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(Color(red: 0.09, green: 0.53, blue: 0.32))
+                                }
+
+                                Button("应用") {
+                                    preferences.applyProfile(id: profile.id)
+                                    Task {
+                                        await viewModel.selectedPairsDidChange()
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+
+                                Button("删除") {
+                                    preferences.deleteProfile(id: profile.id)
+                                }
+                                .buttonStyle(.borderless)
+                                .controlSize(.small)
+                            }
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color(nsColor: .windowBackgroundColor))
+                            )
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .background(sectionCardBackground)
+        }
+    }
+
+    private var rateAlertsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("汇率提醒")
+
+            VStack(alignment: .leading, spacing: 14) {
+                if preferences.selectedPairs.isEmpty {
+                    Text("先添加货币对后才能创建提醒。")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 10) {
+                        Picker("货币对", selection: Binding(
+                            get: { resolvedAlertPairID },
+                            set: { alertPairID = $0 }
+                        )) {
+                            ForEach(preferences.selectedPairs) { pair in
+                                Text(pair.compactLabel).tag(pair.id)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 150)
+
+                        Picker("方向", selection: $alertDirection) {
+                            ForEach(RateAlertDirection.allCases) { direction in
+                                Text(direction.title).tag(direction)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 100)
+
+                        TextField("阈值", text: $alertThresholdText)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 160)
+
+                        Button("添加提醒") {
+                            if let threshold = Double(alertThresholdText.replacingOccurrences(of: ",", with: ".")) {
+                                preferences.addRateAlert(pairID: resolvedAlertPairID, direction: alertDirection, threshold: threshold)
+                                alertThresholdText = ""
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(Double(alertThresholdText.replacingOccurrences(of: ",", with: ".")) == nil)
+                    }
+                }
+
+                if preferences.rateAlerts.isEmpty {
+                    Text("没有启用的汇率提醒。提醒触发后会请求系统通知权限，并在 12 小时内避免重复打扰。")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                } else {
+                    VStack(spacing: 10) {
+                        ForEach(preferences.rateAlerts) { alert in
+                            RateAlertRow(
+                                alert: alert,
+                                pair: PreferencesStore.pairForDisplay(id: alert.pairID),
+                                onChange: { preferences.updateRateAlert($0) },
+                                onDelete: { preferences.removeRateAlert(id: alert.id) }
+                            )
+                        }
+                    }
+                }
+            }
             .padding(16)
             .background(sectionCardBackground)
         }
@@ -536,8 +845,167 @@ struct SettingsView: View {
                         )
                     }
                 }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("自定义 API 模板")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            Text("模板支持 {base}、{quote}、{key} 占位符，JSON path 用来读取返回值中的汇率。")
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Button {
+                            preferences.addCustomAPIProvider()
+                        } label: {
+                            Label("添加自定义 API", systemImage: "plus")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+
+                    if preferences.customAPIProviders.isEmpty {
+                        Text("还没有自定义 API。内置来源无法覆盖某些币种时，可以添加兼容 JSON 的汇率接口。")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color(nsColor: .windowBackgroundColor))
+                            )
+                    } else {
+                        VStack(spacing: 10) {
+                            ForEach(preferences.customAPIProviders) { provider in
+                                CustomAPIProviderRow(
+                                    provider: provider,
+                                    onChange: { preferences.updateCustomAPIProvider($0) },
+                                    onDelete: { preferences.removeCustomAPIProvider(id: provider.id) }
+                                )
+                            }
+                        }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(sectionCardBackground)
+        }
+    }
+
+    private var permissionsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("权限状态")
+
+            VStack(spacing: 10) {
+                permissionRow(
+                    symbolName: "checkmark.shield",
+                    title: String(localized: "辅助功能"),
+                    detail: String(localized: "全局快捷键读取选中文本和复制回退需要此权限。"),
+                    isReady: AXIsProcessTrusted(),
+                    actionTitle: "打开隐私设置",
+                    action: openAccessibilitySettings
+                )
+                permissionRow(
+                    symbolName: "keyboard",
+                    title: String(localized: "全局快捷键"),
+                    detail: shortcutPermissionDetail,
+                    isReady: preferences.textConversionShortcut != nil,
+                    actionTitle: "设置快捷键",
+                    action: { selectedSection = .general }
+                )
+                permissionRow(
+                    symbolName: "bell",
+                    title: String(localized: "通知"),
+                    detail: String(localized: "汇率提醒触发时会使用系统通知；首次触发会请求授权。"),
+                    isReady: true,
+                    actionTitle: "管理提醒",
+                    action: { selectedSection = .alerts }
+                )
+                permissionRow(
+                    symbolName: "power",
+                    title: String(localized: "开机启动"),
+                    detail: launchPermissionDetail,
+                    isReady: launchController.isEnabled && !launchController.requiresApproval,
+                    actionTitle: "启动设置",
+                    action: { selectedSection = .system }
+                )
+            }
+            .padding(16)
+            .background(sectionCardBackground)
+        }
+    }
+
+    private func permissionRow(
+        symbolName: String,
+        title: String,
+        detail: String,
+        isReady: Bool,
+        actionTitle: LocalizedStringKey,
+        action: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbolName)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(isReady ? Color(red: 0.09, green: 0.53, blue: 0.32) : Color(red: 0.78, green: 0.50, blue: 0.11))
+                .frame(width: 30, height: 30)
+                .background(
+                    Circle()
+                        .fill((isReady ? Color.green : Color.orange).opacity(0.12))
+                )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                Text(detail)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button(actionTitle) {
+                action()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+    }
+
+    private var diagnosticsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("诊断导出")
+
+            VStack(alignment: .leading, spacing: 14) {
+                Text("导出的诊断报告只包含版本、系统、偏好摘要、数据源状态和最近日志，不包含 API key。")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Button {
+                        exportDiagnostics()
+                    } label: {
+                        Label("导出诊断报告", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    if let diagnosticExportMessage {
+                        Text(diagnosticExportMessage)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             .padding(16)
             .background(sectionCardBackground)
         }
@@ -710,6 +1178,24 @@ struct SettingsView: View {
         }
     }
 
+    private var shortcutPermissionDetail: String {
+        guard let shortcut = preferences.textConversionShortcut else {
+            return String(localized: "尚未设置文本换算快捷键。")
+        }
+
+        return String(format: String(localized: "已设置 %@。"), shortcut.displayText)
+    }
+
+    private var launchPermissionDetail: String {
+        if launchController.requiresApproval {
+            return String(localized: "需要在系统设置中批准登录项。")
+        }
+
+        return launchController.isEnabled
+            ? String(localized: "已启用开机启动。")
+            : String(localized: "未启用开机启动。")
+    }
+
     private var updateStatusText: String {
         switch updateCheckState {
         case .idle:
@@ -790,6 +1276,14 @@ struct SettingsView: View {
         }
 
         return preferences.contains(currentDraftPair)
+    }
+
+    private var resolvedAlertPairID: String {
+        if preferences.selectedPairIDs.contains(alertPairID) {
+            return alertPairID
+        }
+
+        return preferences.selectedPairIDs.first ?? ""
     }
 
     private var canShowDraftPickers: Bool {
@@ -923,6 +1417,74 @@ struct SettingsView: View {
         Color(nsColor: .windowBackgroundColor)
     }
 
+    private func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func exportDiagnostics() {
+        let report = diagnosticsReportText()
+        let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        let directoryURL = baseURL.appendingPathComponent("CurrencyTracker", isDirectory: true)
+
+        do {
+            try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+            let timestamp = Self.diagnosticFileFormatter.string(from: .now)
+            let fileURL = directoryURL.appendingPathComponent("diagnostics-\(timestamp).txt")
+            try report.write(to: fileURL, atomically: true, encoding: .utf8)
+            diagnosticExportMessage = String(format: String(localized: "已导出到 %@"), fileURL.lastPathComponent)
+            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+        } catch {
+            diagnosticExportMessage = String(format: String(localized: "导出失败：%@"), error.localizedDescription)
+        }
+    }
+
+    private func diagnosticsReportText() -> String {
+        let bundle = Bundle.main
+        let version = SoftwareUpdateChecker.currentVersion(bundle: bundle)
+        let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        let selectedPairs = preferences.selectedPairs.map(\.compactLabel).joined(separator: ", ")
+        let sourceStatuses = viewModel.sourceStatuses.map {
+            "- \($0.source.displayName): \($0.state.rawValue) · \($0.message) · \(ExchangeFormatter.time.string(from: $0.timestamp))"
+        }.joined(separator: "\n")
+        let logs = viewModel.refreshLog.prefix(20).map {
+            "- \(ExchangeFormatter.time.string(from: $0.timestamp)) [\($0.level.rawValue)] \($0.message)"
+        }.joined(separator: "\n")
+
+        return """
+        Currency Tracker Diagnostics
+        Generated: \(Date())
+
+        App
+        - Version: \(version)
+        - Build: \(build)
+        - macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)
+
+        Preferences
+        - Base currency: \(preferences.baseCurrencyCode)
+        - Selected pairs: \(selectedPairs.isEmpty ? "none" : selectedPairs)
+        - Auto refresh: \(refreshIntervalTitle(for: preferences.autoRefreshMinutes))
+        - Refresh on menu open: \(preferences.menuBarOpenRefreshEnabled)
+        - Menu bar display: \(preferences.menuBarDisplayMode.rawValue)
+        - Profiles: \(preferences.settingsProfiles.count)
+        - Rate alerts: \(preferences.rateAlerts.count)
+        - Custom API providers: \(preferences.customAPIProviders.count)
+
+        Permissions
+        - Accessibility trusted: \(AXIsProcessTrusted())
+        - Launch at login: \(launchController.isEnabled)
+        - Launch approval required: \(launchController.requiresApproval)
+
+        Source Statuses
+        \(sourceStatuses.isEmpty ? "none" : sourceStatuses)
+
+        Recent Logs
+        \(logs.isEmpty ? "none" : logs)
+        """
+    }
+
     private func filter(currencies: [CurrencyInfo]) -> [CurrencyInfo] {
         guard hasSearchKeyword else {
             return currencies
@@ -976,6 +1538,15 @@ struct SettingsView: View {
         )
     }
 
+    private func profileSummaryText(for profile: SettingsProfile) -> String {
+        String(
+            format: String(localized: "%d 个汇率 · 基准 %@ · %@"),
+            profile.selectedPairIDs.count,
+            profile.baseCurrencyCode,
+            refreshIntervalTitle(for: profile.autoRefreshMinutes)
+        )
+    }
+
     private func refreshIntervalTitle(for value: Int) -> String {
         switch value {
         case 0:
@@ -1000,6 +1571,13 @@ struct SettingsView: View {
 
         selectedSection = focusSection
     }
+
+    private static let diagnosticFileFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter
+    }()
 }
 
 private struct APIConfigurationRow: View {
@@ -1103,6 +1681,120 @@ private struct APIConfigurationRow: View {
         case .empty:
             "circle"
         }
+    }
+}
+
+private struct RateAlertRow: View {
+    let alert: RateAlert
+    let pair: CurrencyPair?
+    let onChange: (RateAlert) -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Toggle("", isOn: Binding(
+                get: { alert.isEnabled },
+                set: {
+                    var updatedAlert = alert
+                    updatedAlert.isEnabled = $0
+                    onChange(updatedAlert)
+                }
+            ))
+            .toggleStyle(.switch)
+            .labelsHidden()
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(pair?.compactLabel ?? alert.pairID)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                Text("\(alert.direction.title) \(ExchangeFormatter.decimal.string(from: alert.threshold as NSNumber) ?? "\(alert.threshold)")")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if let lastTriggeredAt = alert.lastTriggeredAt {
+                Text(String(format: String(localized: "上次触发 %@"), ExchangeFormatter.time.string(from: lastTriggeredAt)))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.tertiary)
+            }
+
+            Button("删除") {
+                onDelete()
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+    }
+}
+
+private struct CustomAPIProviderRow: View {
+    @State private var draftProvider: CustomAPIProvider
+    let onChange: (CustomAPIProvider) -> Void
+    let onDelete: () -> Void
+
+    init(provider: CustomAPIProvider, onChange: @escaping (CustomAPIProvider) -> Void, onDelete: @escaping () -> Void) {
+        _draftProvider = State(initialValue: provider)
+        self.onChange = onChange
+        self.onDelete = onDelete
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Toggle("", isOn: binding(\.isEnabled))
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+
+                TextField("名称", text: binding(\.name))
+                    .textFieldStyle(.roundedBorder)
+
+                Button("删除") {
+                    onDelete()
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+            }
+
+            TextField("URL 模板，例如 https://api.example.com/rate?base={base}&quote={quote}&key={key}", text: binding(\.urlTemplate))
+                .textFieldStyle(.roundedBorder)
+
+            HStack(spacing: 10) {
+                TextField("API Key（可选）", text: binding(\.apiKey))
+                    .textFieldStyle(.roundedBorder)
+                TextField("JSON path，例如 rate 或 data.rate", text: binding(\.ratePath))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 220)
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: draftProvider.isUsable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 10, weight: .bold))
+                Text(draftProvider.isUsable ? "模板可用于刷新" : "请填写 URL 模板和 JSON path")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+            }
+            .foregroundStyle(draftProvider.isUsable ? Color(red: 0.09, green: 0.53, blue: 0.32) : Color(red: 0.78, green: 0.50, blue: 0.11))
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+    }
+
+    private func binding<Value>(_ keyPath: WritableKeyPath<CustomAPIProvider, Value>) -> Binding<Value> {
+        Binding(
+            get: { draftProvider[keyPath: keyPath] },
+            set: { newValue in
+                draftProvider[keyPath: keyPath] = newValue
+                onChange(draftProvider)
+            }
+        )
     }
 }
 

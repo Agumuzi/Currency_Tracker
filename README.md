@@ -25,11 +25,15 @@ Currency Tracker is a lightweight macOS menu bar app for checking the exchange r
 ## Highlights
 
 - View selected currency pairs directly from the macOS menu bar.
+- Choose how much information appears in the menu bar: icon only, a featured rate, or a compact pair label.
 - Switch between rate history and conversion from the same compact panel.
 - Add, remove, reorder, and manage the pairs shown in the panel.
+- Save settings profiles for different work contexts and switch between them quickly.
+- Create threshold alerts for important exchange rates.
 - Convert selected text through macOS Services or a global shortcut.
-- Use public fallback sources by default, or enable your own provider credentials.
+- Use public fallback sources by default, enable mainstream provider credentials, or add a custom JSON API template.
 - Check for updates from Settings, with optional automatic update checks.
+- Export a diagnostics report for troubleshooting without including API keys.
 - Run the interface in English, Russian, or Simplified Chinese.
 
 ## Data Sources
@@ -44,20 +48,22 @@ Currency Tracker works without user-provided API keys by falling back to public 
 
 Credentials are stored locally on your Mac under Application Support. External providers only receive the exchange-rate requests needed for refreshes.
 
-## Version 1.2
+## Version 1.3
 
-Version 1.2 focuses on data source customization and interface polish:
+Version 1.3 focuses on maturity, workflow depth, and distribution readiness:
 
 - Added a provider picker for custom API data sources.
 - Added support for ExchangeRate-API, Fixer, and Currencylayer alongside the existing enhanced sources.
 - Updated API credential rows with clear enabled states and edit actions.
-- Refined the menu bar cards, scrolling behavior, panel pinning, and settings layout.
+- Added settings profiles, threshold alerts, menu bar display modes, permissions status, and diagnostics export.
+- Refined the menu bar cards, scrolling behavior, panel pinning, chart styling, and settings layout.
 - Added software update checks and automatic update preferences.
+- Added CI checks, a release packaging workflow, and localization consistency validation.
 - Reworked the README with English copy and screenshots of the main app surfaces.
 
 ## Installation
 
-Download `Currency-Tracker-1.2.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
+Download `Currency-Tracker-1.3.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
 The app is distributed through GitHub Releases and is not notarized through Apple. On first launch, macOS may block it. Open:
 
@@ -67,7 +73,7 @@ After you approve it once, future launches should work normally.
 
 ## Requirements
 
-- macOS 26.4 or later
+- macOS 14.0 or later
 - Internet access for live exchange-rate refreshes
 
 ## Privacy

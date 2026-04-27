@@ -19,6 +19,7 @@ struct ContentView: View {
     @State private var expandedCardID: String?
     @State private var currentWindow: NSWindow?
     @State private var isShowingQuickAddPanel = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 12) {
@@ -256,7 +257,11 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .fill(cardSurfaceColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(subtleBorderColor, lineWidth: 1)
+                    )
             )
             .frame(maxWidth: .infinity, minHeight: cardAreaHeight, maxHeight: cardAreaHeight, alignment: .topLeading)
         } else if shouldScrollCards {
@@ -280,7 +285,12 @@ struct ContentView: View {
                     isFeatured: card.id == viewModel.featuredPairID,
                     showsFlags: preferences.showsFlags,
                     isExpanded: expandedCardID == card.id,
-                    expandedCardID: $expandedCardID
+                    expandedCardID: $expandedCardID,
+                    onRefresh: {
+                        Task {
+                            await viewModel.refresh(trigger: .manual)
+                        }
+                    }
                 )
             }
         }
@@ -301,19 +311,23 @@ struct ContentView: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.92))
+                .fill(footerSurfaceColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(subtleBorderColor.opacity(0.8), lineWidth: 1)
+                )
         )
         .padding(.top, 8)
     }
 
     private var panelBackground: some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .fill(Color(nsColor: .windowBackgroundColor))
+            .fill(panelSurfaceColor)
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
+                    .strokeBorder(panelBorderColor, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.045), radius: 8, y: 4)
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.34 : 0.12), radius: 18, y: 8)
     }
 
     private var shouldShowStatusBanner: Bool {
@@ -378,12 +392,44 @@ struct ContentView: View {
             .frame(width: 28, height: 28)
             .background(
                 Circle()
-                    .fill(isActive ? Color.accentColor.opacity(0.14) : Color(nsColor: .controlBackgroundColor))
+                    .fill(isActive ? Color.accentColor.opacity(0.15) : toolbarButtonSurfaceColor)
             )
             .overlay(
                 Circle()
-                    .strokeBorder(isActive ? Color.accentColor.opacity(0.24) : Color.black.opacity(0.05), lineWidth: 1)
+                    .strokeBorder(isActive ? Color.accentColor.opacity(0.32) : subtleBorderColor, lineWidth: 1)
             )
+    }
+
+    private var panelSurfaceColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.095, green: 0.105, blue: 0.125)
+            : Color(red: 0.948, green: 0.956, blue: 0.968)
+    }
+
+    private var cardSurfaceColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.145, green: 0.155, blue: 0.180)
+            : Color.white
+    }
+
+    private var footerSurfaceColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.130, green: 0.140, blue: 0.162)
+            : Color(red: 0.985, green: 0.988, blue: 0.992)
+    }
+
+    private var toolbarButtonSurfaceColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.155, green: 0.165, blue: 0.190)
+            : Color.white
+    }
+
+    private var panelBorderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.09)
+    }
+
+    private var subtleBorderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.075)
     }
 
     private func refreshIntervalTitle(for value: Int) -> String {
@@ -409,7 +455,7 @@ struct ContentView: View {
             return
         }
 
-        let targetSize = NSSize(width: 440, height: panelHeight + 32)
+        let targetSize = NSSize(width: 408, height: panelHeight)
         if currentWindow.contentLayoutRect.size != targetSize {
             currentWindow.setContentSize(targetSize)
         }
@@ -422,6 +468,7 @@ private struct CurrencyCardView: View {
     let showsFlags: Bool
     let isExpanded: Bool
     @Binding var expandedCardID: String?
+    let onRefresh: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var selectedRange: CardTrendRange = .oneMonth
@@ -504,6 +551,23 @@ private struct CurrencyCardView: View {
                 refreshConversionForCurrentFocus()
             }
         }
+        .contextMenu {
+            Button("复制货币对") {
+                copyText(card.compactPairLabel)
+            }
+            if let snapshot = card.snapshot {
+                Button("复制汇率") {
+                    copyText("\(card.compactPairLabel) \(card.valueText)")
+                }
+                Button("复制数据源") {
+                    copyText(snapshot.source.displayName)
+                }
+            }
+            Divider()
+            Button("刷新") {
+                onRefresh()
+            }
+        }
         .animation(.spring(response: 0.28, dampingFraction: 0.9), value: isExpanded)
     }
 
@@ -564,6 +628,17 @@ private struct CurrencyCardView: View {
                     valueChip(text: changeText, color: card.changeColor)
                 } else if let statusChipText = card.statusChipText {
                     valueChip(text: statusChipText, color: card.statusChipColor)
+                }
+
+                if card.state == .failed {
+                    Button {
+                        onRefresh()
+                    } label: {
+                        Label("重试", systemImage: "arrow.clockwise")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
                 }
             }
             .frame(minWidth: 104, alignment: .trailing)
@@ -687,7 +762,10 @@ private struct CurrencyCardView: View {
     }
 
     private var expandedMetaText: String {
-        compactMetadataText
+        let chartSummary = selectedContentMode == .trend ? chartSummaryText : ""
+        return [compactMetadataText, chartSummary]
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
     }
 
     private var compactMetadataText: String {
@@ -699,11 +777,27 @@ private struct CurrencyCardView: View {
         if let effectiveDateText = snapshot.effectiveDateText, !effectiveDateText.isEmpty {
             segments.append(normalizedDateText(from: effectiveDateText))
         }
+        segments.append(snapshot.source.displayName)
         segments.append(ExchangeFormatter.time.string(from: snapshot.updatedAt))
         if snapshot.isCached {
             segments.append(String(localized: "缓存"))
         }
         return segments.joined(separator: " · ")
+    }
+
+    private var chartSummaryText: String {
+        let points = displayedChartPoints
+        guard let first = points.first?.value,
+              let last = points.last?.value,
+              first > 0,
+              points.count >= 2 else {
+            return ""
+        }
+
+        let delta = last - first
+        let percent = delta / first * 100
+        let prefix = percent >= 0 ? "+" : ""
+        return String(format: String(localized: "区间变化 %@%.2f%%"), prefix, percent)
     }
 
     private var pairSecondaryText: String {
@@ -739,48 +833,60 @@ private struct CurrencyCardView: View {
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color(nsColor: .controlBackgroundColor))
+            .fill(cardFillColor)
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(cardHighlightColor)
+                    .fill(cardSheenColor)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(borderColor, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(cardShadowOpacity), radius: isFeatured ? 7 : 3, y: isFeatured ? 3 : 1)
+            .shadow(color: .black.opacity(cardShadowOpacity), radius: isFeatured ? 13 : 8, y: isFeatured ? 7 : 4)
     }
 
-    private var cardHighlightColor: Color {
+    private var cardFillColor: Color {
         if colorScheme == .dark {
-            return Color.white.opacity(isFeatured ? 0.055 : 0.035)
+            return isFeatured
+                ? Color(red: 0.165, green: 0.178, blue: 0.210)
+                : Color(red: 0.138, green: 0.148, blue: 0.172)
         }
 
-        return Color.white.opacity(isFeatured ? 0.36 : 0.22)
+        return isFeatured
+            ? Color(red: 0.988, green: 0.992, blue: 1.0)
+            : Color.white
+    }
+
+    private var cardSheenColor: Color {
+        if colorScheme == .dark {
+            return Color.white.opacity(isFeatured ? 0.055 : 0.025)
+        }
+
+        return Color.white.opacity(isFeatured ? 0.30 : 0.12)
     }
 
     private var cardShadowOpacity: Double {
         if colorScheme == .dark {
-            return isFeatured ? 0.24 : 0.14
+            return isFeatured ? 0.38 : 0.24
         }
 
-        return isFeatured ? 0.08 : 0.045
+        return isFeatured ? 0.14 : 0.09
     }
 
     private var borderColor: Color {
         if isFeatured {
-            return Color.accentColor.opacity(0.28)
+            return Color.accentColor.opacity(colorScheme == .dark ? 0.42 : 0.34)
         }
 
         switch card.state {
         case .loading:
-            return Color.secondary.opacity(0.16)
+            return Color.secondary.opacity(colorScheme == .dark ? 0.22 : 0.18)
         case .failed:
-            return Color(red: 0.74, green: 0.20, blue: 0.18).opacity(0.18)
+            return Color(red: 0.74, green: 0.20, blue: 0.18).opacity(0.24)
         case .stale:
-            return Color(red: 0.78, green: 0.50, blue: 0.11).opacity(0.18)
+            return Color(red: 0.78, green: 0.50, blue: 0.11).opacity(0.24)
         case .ready:
-            return Color.black.opacity(0.06)
+            return colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.085)
         }
     }
 
@@ -822,10 +928,10 @@ private struct CurrencyCardView: View {
         .frame(maxWidth: .infinity, alignment: alignment)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(nsColor: .underPageBackgroundColor).opacity(0.96))
+                .fill(colorScheme == .dark ? Color.black.opacity(0.18) : Color(red: 0.955, green: 0.962, blue: 0.974))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+                        .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 1)
                 )
         )
     }
@@ -850,11 +956,11 @@ private struct CurrencyCardView: View {
                     .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(selectedContentMode == mode ? Color(nsColor: .windowBackgroundColor) : Color.clear)
+                            .fill(selectedContentMode == mode ? segmentedSelectionColor : Color.clear)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(selectedContentMode == mode ? Color.black.opacity(0.06) : Color.clear, lineWidth: 1)
+                            .strokeBorder(selectedContentMode == mode ? segmentedSelectionBorderColor : Color.clear, lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
@@ -864,8 +970,24 @@ private struct CurrencyCardView: View {
         .padding(3)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(nsColor: .underPageBackgroundColor).opacity(0.86))
+                .fill(segmentedControlBackgroundColor)
         )
+    }
+
+    private var segmentedControlBackgroundColor: Color {
+        colorScheme == .dark
+            ? Color.black.opacity(0.24)
+            : Color(red: 0.888, green: 0.902, blue: 0.922)
+    }
+
+    private var segmentedSelectionColor: Color {
+        colorScheme == .dark
+            ? Color(red: 0.205, green: 0.220, blue: 0.260)
+            : Color.white
+    }
+
+    private var segmentedSelectionBorderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08)
     }
 
     private func converterBinding(for field: ConversionField) -> Binding<String> {
@@ -1030,6 +1152,12 @@ private struct CurrencyCardView: View {
         Self.converterFormatter.string(from: value as NSNumber) ?? String(format: "%.4f", value)
     }
 
+    private func copyText(_ text: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+    }
+
     private static let converterFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -1077,30 +1205,22 @@ private struct TrendChartView: View {
     let points: [TrendPoint]
     let lineColor: Color
     let placeholderText: String
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.20, green: 0.22, blue: 0.29),
-                            Color(red: 0.16, green: 0.18, blue: 0.24)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(chartBackground)
 
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+                .strokeBorder(chartBorderColor, lineWidth: 1)
 
             if points.count >= 2 {
                 chartContent
             } else {
                 Text(placeholderText)
                     .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.72))
+                    .foregroundStyle(axisTextColor.opacity(0.82))
             }
         }
     }
@@ -1148,14 +1268,14 @@ private struct TrendChartView: View {
                     HStack {
                         Text(Self.axisFormatter.string(from: maxValue as NSNumber) ?? String(format: "%.3f", maxValue))
                             .font(.system(size: 10, weight: .medium, design: .rounded))
-                            .foregroundStyle(Color.white.opacity(0.78))
+                            .foregroundStyle(axisTextColor)
                         Spacer()
                     }
                     Spacer()
                     HStack {
                         Text(Self.axisFormatter.string(from: minValue as NSNumber) ?? String(format: "%.3f", minValue))
                             .font(.system(size: 10, weight: .medium, design: .rounded))
-                            .foregroundStyle(Color.white.opacity(0.72))
+                            .foregroundStyle(axisTextColor.opacity(0.90))
                         Spacer()
                     }
                 }
@@ -1169,7 +1289,7 @@ private struct TrendChartView: View {
                         Text(Self.dateFormatter.string(from: latestDate))
                     }
                     .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.70))
+                    .foregroundStyle(axisTextColor.opacity(0.88))
                     .padding(.horizontal, 8)
                     .padding(.bottom, 6)
                 }
@@ -1196,8 +1316,42 @@ private struct TrendChartView: View {
                     path.addLine(to: CGPoint(x: x, y: proxy.size.height))
                 }
             }
-            .stroke(Color.white.opacity(0.07), style: StrokeStyle(lineWidth: 0.8))
+            .stroke(gridColor, style: StrokeStyle(lineWidth: 0.8))
         }
+    }
+
+    private var chartBackground: LinearGradient {
+        if colorScheme == .dark {
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.145, green: 0.158, blue: 0.192),
+                    Color(red: 0.110, green: 0.122, blue: 0.150)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+
+        return LinearGradient(
+            colors: [
+                Color(red: 0.965, green: 0.973, blue: 0.988),
+                Color(red: 0.938, green: 0.950, blue: 0.972)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var chartBorderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.07)
+    }
+
+    private var axisTextColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.76) : Color.secondary
+    }
+
+    private var gridColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.075)
     }
 
     private static let axisFormatter: NumberFormatter = {

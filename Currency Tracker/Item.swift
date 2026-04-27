@@ -158,6 +158,7 @@ nonisolated enum CurrencyCatalog {
 }
 
 nonisolated enum ExchangeSource: String, Codable, Sendable, CaseIterable {
+    case custom = "CustomAPI"
     case twelveData = "TwelveData"
     case exchangeRateAPI = "ExchangeRateAPI"
     case openExchangeRates = "OpenExchangeRates"
@@ -171,6 +172,8 @@ nonisolated enum ExchangeSource: String, Codable, Sendable, CaseIterable {
 
     var displayName: String {
         switch self {
+        case .custom:
+            "Custom API"
         case .twelveData:
             "Twelve Data"
         case .exchangeRateAPI:
@@ -192,6 +195,154 @@ nonisolated enum ExchangeSource: String, Codable, Sendable, CaseIterable {
         case .currencyAPI:
             "Currency API"
         }
+    }
+}
+
+nonisolated enum MenuBarDisplayMode: String, Codable, CaseIterable, Identifiable, Sendable {
+    case iconOnly
+    case featuredRate
+    case compactPair
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .iconOnly:
+            String(localized: "只显示图标")
+        case .featuredRate:
+            String(localized: "显示重点汇率")
+        case .compactPair:
+            String(localized: "显示货币对和汇率")
+        }
+    }
+}
+
+nonisolated enum RateAlertDirection: String, Codable, CaseIterable, Identifiable, Sendable {
+    case above
+    case below
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .above:
+            String(localized: "高于")
+        case .below:
+            String(localized: "低于")
+        }
+    }
+}
+
+nonisolated struct RateAlert: Identifiable, Codable, Hashable, Sendable {
+    var id: UUID
+    var pairID: String
+    var direction: RateAlertDirection
+    var threshold: Double
+    var isEnabled: Bool
+    var lastTriggeredAt: Date?
+
+    init(
+        id: UUID = UUID(),
+        pairID: String,
+        direction: RateAlertDirection,
+        threshold: Double,
+        isEnabled: Bool = true,
+        lastTriggeredAt: Date? = nil
+    ) {
+        self.id = id
+        self.pairID = pairID
+        self.direction = direction
+        self.threshold = threshold
+        self.isEnabled = isEnabled
+        self.lastTriggeredAt = lastTriggeredAt
+    }
+
+    func isTriggered(by rate: Double) -> Bool {
+        switch direction {
+        case .above:
+            rate >= threshold
+        case .below:
+            rate <= threshold
+        }
+    }
+}
+
+nonisolated struct SettingsProfile: Identifiable, Codable, Hashable, Sendable {
+    var id: UUID
+    var name: String
+    var selectedPairIDs: [String]
+    var baseCurrencyCode: String
+    var autoRefreshMinutes: Int
+    var menuBarOpenRefreshEnabled: Bool
+    var showsFlags: Bool
+    var trendPointLimit: Int
+    var createdAt: Date
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        selectedPairIDs: [String],
+        baseCurrencyCode: String,
+        autoRefreshMinutes: Int,
+        menuBarOpenRefreshEnabled: Bool,
+        showsFlags: Bool,
+        trendPointLimit: Int,
+        createdAt: Date = .now,
+        updatedAt: Date = .now
+    ) {
+        self.id = id
+        self.name = name
+        self.selectedPairIDs = selectedPairIDs
+        self.baseCurrencyCode = baseCurrencyCode
+        self.autoRefreshMinutes = autoRefreshMinutes
+        self.menuBarOpenRefreshEnabled = menuBarOpenRefreshEnabled
+        self.showsFlags = showsFlags
+        self.trendPointLimit = trendPointLimit
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+nonisolated struct CustomAPIProvider: Identifiable, Codable, Hashable, Sendable {
+    var id: UUID
+    var name: String
+    var urlTemplate: String
+    var apiKey: String
+    var ratePath: String
+    var isEnabled: Bool
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        urlTemplate: String,
+        apiKey: String = "",
+        ratePath: String = "rate",
+        isEnabled: Bool = true
+    ) {
+        self.id = id
+        self.name = name
+        self.urlTemplate = urlTemplate
+        self.apiKey = apiKey
+        self.ratePath = ratePath
+        self.isEnabled = isEnabled
+    }
+
+    var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var resolvedDisplayName: String {
+        trimmedName.isEmpty ? String(localized: "自定义 API") : trimmedName
+    }
+
+    var isUsable: Bool {
+        !urlTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !ratePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
 
@@ -535,19 +686,22 @@ nonisolated struct EnhancedSourceConfiguration: Codable, Hashable, Sendable {
     let openExchangeRatesAppID: String
     let fixerAPIKey: String
     let currencyLayerAPIKey: String
+    let customProviders: [CustomAPIProvider]
 
     init(
         twelveDataAPIKey: String = "",
         exchangeRateAPIKey: String = "",
         openExchangeRatesAppID: String = "",
         fixerAPIKey: String = "",
-        currencyLayerAPIKey: String = ""
+        currencyLayerAPIKey: String = "",
+        customProviders: [CustomAPIProvider] = []
     ) {
         self.twelveDataAPIKey = twelveDataAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         self.exchangeRateAPIKey = exchangeRateAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         self.openExchangeRatesAppID = openExchangeRatesAppID.trimmingCharacters(in: .whitespacesAndNewlines)
         self.fixerAPIKey = fixerAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         self.currencyLayerAPIKey = currencyLayerAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.customProviders = customProviders.filter { $0.isEnabled && $0.isUsable }
     }
 
     var hasTwelveDataKey: Bool {
@@ -583,6 +737,17 @@ nonisolated struct EnhancedSourceConfiguration: Codable, Hashable, Sendable {
         case .currencyLayer:
             currencyLayerAPIKey
         }
+    }
+
+    func withCustomProviders(_ providers: [CustomAPIProvider]) -> EnhancedSourceConfiguration {
+        EnhancedSourceConfiguration(
+            twelveDataAPIKey: twelveDataAPIKey,
+            exchangeRateAPIKey: exchangeRateAPIKey,
+            openExchangeRatesAppID: openExchangeRatesAppID,
+            fixerAPIKey: fixerAPIKey,
+            currencyLayerAPIKey: currencyLayerAPIKey,
+            customProviders: providers
+        )
     }
 
     static let empty = EnhancedSourceConfiguration()
@@ -734,6 +899,11 @@ final class PreferencesStore {
     var automaticUpdateChecksEnabled: Bool
     var skippedUpdateVersion: String?
     var lastAutomaticUpdateCheckAt: Date?
+    var menuBarDisplayMode: MenuBarDisplayMode
+    var rateAlerts: [RateAlert]
+    var settingsProfiles: [SettingsProfile]
+    var activeProfileID: UUID?
+    var customAPIProviders: [CustomAPIProvider]
 
     private let userDefaults: UserDefaults
     private let selectedPairsKey = "selectedPairIDs"
@@ -747,6 +917,11 @@ final class PreferencesStore {
     private let automaticUpdateChecksKey = "automaticUpdateChecksEnabled"
     private let skippedUpdateVersionKey = "skippedUpdateVersion"
     private let lastAutomaticUpdateCheckAtKey = "lastAutomaticUpdateCheckAt"
+    private let menuBarDisplayModeKey = "menuBarDisplayMode"
+    private let rateAlertsKey = "rateAlerts"
+    private let settingsProfilesKey = "settingsProfiles"
+    private let activeProfileIDKey = "activeProfileID"
+    private let customAPIProvidersKey = "customAPIProviders"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -796,10 +971,21 @@ final class PreferencesStore {
         }
         skippedUpdateVersion = userDefaults.string(forKey: skippedUpdateVersionKey)
         lastAutomaticUpdateCheckAt = userDefaults.object(forKey: lastAutomaticUpdateCheckAtKey) as? Date
+        menuBarDisplayMode = Self.decodeRawRepresentable(MenuBarDisplayMode.self, from: userDefaults.string(forKey: menuBarDisplayModeKey)) ?? .iconOnly
+        rateAlerts = Self.decodeArray(RateAlert.self, from: userDefaults.data(forKey: rateAlertsKey))
+            .filter { Self.pair(for: $0.pairID) != nil && $0.threshold > 0 }
+        settingsProfiles = Self.decodeArray(SettingsProfile.self, from: userDefaults.data(forKey: settingsProfilesKey))
+            .filter { !$0.selectedPairIDs.isEmpty }
+        activeProfileID = Self.decodeUUID(from: userDefaults.string(forKey: activeProfileIDKey))
+        customAPIProviders = Self.decodeArray(CustomAPIProvider.self, from: userDefaults.data(forKey: customAPIProvidersKey))
     }
 
     var selectedPairs: [CurrencyPair] {
         selectedPairIDs.compactMap(Self.pair(for:))
+    }
+
+    static func pairForDisplay(id: String) -> CurrencyPair? {
+        pair(for: id)
     }
 
     var availableBaseCurrencies: [CurrencyInfo] {
@@ -812,6 +998,10 @@ final class PreferencesStore {
 
     var autoRefreshIntervalOptions: [Int] {
         [0, 5, 10, 30, 60]
+    }
+
+    var enabledCustomAPIProviders: [CustomAPIProvider] {
+        customAPIProviders.filter { $0.isEnabled && $0.isUsable }
     }
 
     func availableQuoteCurrencies(for baseCode: String) -> [CurrencyInfo] {
@@ -930,6 +1120,11 @@ final class PreferencesStore {
         persist()
     }
 
+    func setMenuBarDisplayMode(_ value: MenuBarDisplayMode) {
+        menuBarDisplayMode = value
+        persist()
+    }
+
     func setAutomaticUpdateChecksEnabled(_ value: Bool) {
         automaticUpdateChecksEnabled = value
         persist()
@@ -945,6 +1140,121 @@ final class PreferencesStore {
         persist()
     }
 
+    func addRateAlert(pairID: String, direction: RateAlertDirection, threshold: Double) {
+        guard Self.pair(for: pairID) != nil, threshold > 0 else {
+            return
+        }
+
+        rateAlerts.append(RateAlert(pairID: pairID, direction: direction, threshold: threshold))
+        persist()
+    }
+
+    func updateRateAlert(_ alert: RateAlert) {
+        guard let index = rateAlerts.firstIndex(where: { $0.id == alert.id }) else {
+            return
+        }
+
+        rateAlerts[index] = alert
+        persist()
+    }
+
+    func setRateAlertTriggered(id: UUID, at date: Date) {
+        guard let index = rateAlerts.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        rateAlerts[index].lastTriggeredAt = date
+        persist()
+    }
+
+    func removeRateAlert(id: UUID) {
+        rateAlerts.removeAll { $0.id == id }
+        persist()
+    }
+
+    func saveCurrentProfile(named name: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedName = trimmedName.isEmpty
+            ? String(format: String(localized: "配置 %d"), settingsProfiles.count + 1)
+            : trimmedName
+        let profile = SettingsProfile(
+            name: resolvedName,
+            selectedPairIDs: selectedPairIDs,
+            baseCurrencyCode: baseCurrencyCode,
+            autoRefreshMinutes: autoRefreshMinutes,
+            menuBarOpenRefreshEnabled: menuBarOpenRefreshEnabled,
+            showsFlags: showsFlags,
+            trendPointLimit: trendPointLimit
+        )
+        settingsProfiles.append(profile)
+        activeProfileID = profile.id
+        persist()
+    }
+
+    func applyProfile(id: UUID) {
+        guard let profile = settingsProfiles.first(where: { $0.id == id }) else {
+            return
+        }
+
+        selectedPairIDs = profile.selectedPairIDs.filter { Self.pair(for: $0) != nil }
+        baseCurrencyCode = CurrencyCatalog.info(for: profile.baseCurrencyCode) == nil ? baseCurrencyCode : profile.baseCurrencyCode
+        autoRefreshMinutes = autoRefreshIntervalOptions.contains(profile.autoRefreshMinutes) ? profile.autoRefreshMinutes : autoRefreshMinutes
+        menuBarOpenRefreshEnabled = profile.menuBarOpenRefreshEnabled
+        showsFlags = profile.showsFlags
+        trendPointLimit = [12, 20, 30, 50].contains(profile.trendPointLimit) ? profile.trendPointLimit : trendPointLimit
+        featuredPairID = selectedPairIDs.contains(featuredPairID) ? featuredPairID : (selectedPairIDs.first ?? "")
+        activeProfileID = id
+        persist()
+    }
+
+    func updateProfileName(id: UUID, name: String) {
+        guard let index = settingsProfiles.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            return
+        }
+
+        settingsProfiles[index].name = trimmedName
+        settingsProfiles[index].updatedAt = .now
+        persist()
+    }
+
+    func deleteProfile(id: UUID) {
+        settingsProfiles.removeAll { $0.id == id }
+        if activeProfileID == id {
+            activeProfileID = nil
+        }
+        persist()
+    }
+
+    func addCustomAPIProvider() {
+        customAPIProviders.append(
+            CustomAPIProvider(
+                name: String(format: String(localized: "自定义 API %d"), customAPIProviders.count + 1),
+                urlTemplate: "https://example.com/latest?base={base}&quote={quote}&apikey={key}",
+                ratePath: "rate"
+            )
+        )
+        persist()
+    }
+
+    func updateCustomAPIProvider(_ provider: CustomAPIProvider) {
+        guard let index = customAPIProviders.firstIndex(where: { $0.id == provider.id }) else {
+            return
+        }
+
+        customAPIProviders[index] = provider
+        persist()
+    }
+
+    func removeCustomAPIProvider(id: UUID) {
+        customAPIProviders.removeAll { $0.id == id }
+        persist()
+    }
+
     private func persist() {
         userDefaults.set(selectedPairIDs, forKey: selectedPairsKey)
         userDefaults.set(autoRefreshMinutes, forKey: autoRefreshKey)
@@ -955,6 +1265,16 @@ final class PreferencesStore {
         userDefaults.set(baseCurrencyCode, forKey: baseCurrencyKey)
         userDefaults.set(Self.encodeShortcut(textConversionShortcut), forKey: textConversionShortcutKey)
         userDefaults.set(automaticUpdateChecksEnabled, forKey: automaticUpdateChecksKey)
+        userDefaults.set(menuBarDisplayMode.rawValue, forKey: menuBarDisplayModeKey)
+        userDefaults.set(Self.encodeArray(rateAlerts), forKey: rateAlertsKey)
+        userDefaults.set(Self.encodeArray(settingsProfiles), forKey: settingsProfilesKey)
+        userDefaults.set(Self.encodeArray(customAPIProviders), forKey: customAPIProvidersKey)
+
+        if let activeProfileID {
+            userDefaults.set(activeProfileID.uuidString, forKey: activeProfileIDKey)
+        } else {
+            userDefaults.removeObject(forKey: activeProfileIDKey)
+        }
 
         if let skippedUpdateVersion {
             userDefaults.set(skippedUpdateVersion, forKey: skippedUpdateVersionKey)
@@ -1009,6 +1329,34 @@ final class PreferencesStore {
         }
 
         return try? JSONDecoder().decode(GlobalShortcutDescriptor.self, from: data)
+    }
+
+    private static func encodeArray<T: Encodable>(_ values: [T]) -> Data? {
+        try? JSONEncoder().encode(values)
+    }
+
+    private static func decodeArray<T: Decodable>(_ type: T.Type, from data: Data?) -> [T] {
+        guard let data else {
+            return []
+        }
+
+        return (try? JSONDecoder().decode([T].self, from: data)) ?? []
+    }
+
+    private static func decodeRawRepresentable<T: RawRepresentable>(_ type: T.Type, from value: T.RawValue?) -> T? {
+        guard let value else {
+            return nil
+        }
+
+        return T(rawValue: value)
+    }
+
+    private static func decodeUUID(from value: String?) -> UUID? {
+        guard let value else {
+            return nil
+        }
+
+        return UUID(uuidString: value)
     }
 }
 

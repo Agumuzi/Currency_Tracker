@@ -35,6 +35,7 @@ final class Currency_TrackerUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.buttons["settings.sidebar.rates"].waitForExistence(timeout: 5))
+        app.buttons["settings.sidebar.rates"].click()
         XCTAssertTrue(app.staticTexts["settings.empty-pairs"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.textFields["settings.currency-search"].waitForExistence(timeout: 5))
 

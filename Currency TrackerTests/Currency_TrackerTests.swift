@@ -7,6 +7,7 @@
 
 import AppKit
 import Foundation
+import SwiftUI
 import Testing
 @testable import Currency_Tracker
 
@@ -160,6 +161,43 @@ struct Currency_TrackerTests {
         #expect(reloaded.automaticUpdateChecksEnabled == false)
         #expect(reloaded.skippedUpdateVersion == "1.2")
         #expect(reloaded.lastAutomaticUpdateCheckAt == lastCheck)
+    }
+
+    @MainActor
+    @Test
+    func preferencesStorePersistsProfilesAlertsMenuModeAndCustomProviders() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+
+        let store = PreferencesStore(userDefaults: defaults)
+        store.addPair(baseCode: "USD", quoteCode: "RUB")
+        let pairID = store.selectedPairIDs.first!
+        store.setBaseCurrencyCode("EUR")
+        store.setAutoRefreshMinutes(30)
+        store.setMenuBarDisplayMode(.compactPair)
+        store.addRateAlert(pairID: pairID, direction: .above, threshold: 80)
+        store.saveCurrentProfile(named: "Travel")
+        store.addCustomAPIProvider()
+
+        var provider = store.customAPIProviders.first!
+        provider.name = "Workspace FX"
+        provider.urlTemplate = "https://api.example.com/latest?base={base}&quote={quote}&key={key}"
+        provider.apiKey = "demo-key"
+        provider.ratePath = "data.rate"
+        provider.isEnabled = true
+        store.updateCustomAPIProvider(provider)
+
+        let reloaded = PreferencesStore(userDefaults: defaults)
+
+        #expect(reloaded.menuBarDisplayMode == .compactPair)
+        #expect(reloaded.rateAlerts.count == 1)
+        #expect(reloaded.rateAlerts.first?.pairID == pairID)
+        #expect(reloaded.rateAlerts.first?.isTriggered(by: 80.1) == true)
+        #expect(reloaded.settingsProfiles.first?.name == "Travel")
+        #expect(reloaded.settingsProfiles.first?.baseCurrencyCode == "EUR")
+        #expect(reloaded.activeProfileID == reloaded.settingsProfiles.first?.id)
+        #expect(reloaded.enabledCustomAPIProviders.first?.name == "Workspace FX")
+        #expect(reloaded.enabledCustomAPIProviders.first?.ratePath == "data.rate")
     }
 
     @MainActor
@@ -434,6 +472,59 @@ struct Currency_TrackerTests {
 
     @MainActor
     @Test
+    func panelWindowControllerUsesDedicatedPinnedPanelWhenConfigured() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let preferences = PreferencesStore(userDefaults: defaults)
+        preferences.addPair(baseCode: "USD", quoteCode: "RUB")
+        let viewModel = ExchangePanelViewModel(
+            preferences: preferences,
+            credentialStore: EnhancedSourceCredentialStore(secretStore: InMemorySecretStore(), userDefaults: defaults),
+            previewState: .sample
+        )
+        let controller = PanelWindowController(viewModel: viewModel)
+        controller.configurePinnedContent { _ in
+            AnyView(Text("Pinned exchange panel").frame(width: 320, height: 240))
+        }
+
+        let menuPanel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 240),
+            styleMask: [.titled, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        let transientPanel = NSPanel(
+            contentRect: NSRect(x: 20, y: 20, width: 320, height: 240),
+            styleMask: [.titled, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+
+        controller.registerMenuBarWindow(menuPanel)
+        menuPanel.orderFront(nil)
+        controller.togglePinnedPanel(from: menuPanel)
+
+        #expect(controller.isPinned)
+        #expect(menuPanel.isVisible == false)
+        #expect(viewModel.shouldAutoRefreshOnOpen() == false)
+
+        transientPanel.orderFront(nil)
+        controller.registerMenuBarWindow(transientPanel)
+
+        #expect(controller.isPinned)
+        #expect(transientPanel.isVisible == false)
+
+        controller.togglePinnedPanel(from: menuPanel)
+
+        #expect(controller.isPinned == false)
+        #expect(viewModel.shouldAutoRefreshOnOpen() == true)
+
+        menuPanel.close()
+        transientPanel.close()
+    }
+
+    @MainActor
+    @Test
     func dockVisibilityControllerSwitchesActivationPolicyForSettingsWindow() {
         let applicationController = TestApplicationActivationController(initialPolicy: .accessory)
         var logs: [String] = []
@@ -613,6 +704,7 @@ struct Currency_TrackerTests {
     }
 
     @Test
+    @MainActor
     func twelveDataValidationUsesLatestAPIVersionAndReadsErrorBody() async {
         TwelveDataStatusCodeURLProtocol.lastAPIVersionHeader = nil
         let configuration = URLSessionConfiguration.ephemeral
@@ -816,7 +908,7 @@ struct Currency_TrackerTests {
         )
 
         #expect(viewModel.menuBarHelpText.contains("2026-04-10"))
-        #expect(viewModel.menuBarHelpText.contains("当前 92.37"))
+        #expect(viewModel.menuBarHelpText.contains("92.37"))
     }
 
     @Test
@@ -863,6 +955,34 @@ struct Currency_TrackerTests {
 
         #expect(result.snapshots.count >= 5)
         #expect(hasSuccessfulSource)
+        #expect(result.errors.isEmpty)
+    }
+
+    @Test
+    @MainActor
+    func exchangeRateServiceUsesCustomProviderBeforeFallbackSources() async {
+        CustomProviderURLProtocol.lastURL = nil
+        let session = URLSession(configuration: .customProviderSessionConfiguration)
+        let service = ExchangeRateService(urlSession: session)
+        let pair = CurrencyPair(baseCode: "USD", quoteCode: "CNY", baseAmount: 1)
+        let provider = CustomAPIProvider(
+            name: "Workspace FX",
+            urlTemplate: "https://custom.example/latest?base={base}&quote={quote}&key={key}",
+            apiKey: "demo key",
+            ratePath: "data.0.rate"
+        )
+        let configuration = EnhancedSourceConfiguration.empty.withCustomProviders([provider])
+
+        let result = await service.fetchSnapshots(for: [pair], configuration: configuration)
+
+        #expect(CustomProviderURLProtocol.lastURL?.absoluteString.contains("base=USD") == true)
+        #expect(CustomProviderURLProtocol.lastURL?.absoluteString.contains("quote=CNY") == true)
+        #expect(CustomProviderURLProtocol.lastURL?.absoluteString.contains("key=demo%20key") == true)
+        #expect(result.snapshots.count == 1)
+        #expect(result.snapshots.first?.source == .custom)
+        #expect(result.snapshots.first?.rate == 6.91)
+        #expect(result.sourceStatuses.first?.source == .custom)
+        #expect(result.sourceStatuses.first?.state == .success)
         #expect(result.errors.isEmpty)
     }
 
@@ -1477,10 +1597,61 @@ private final class TwelveDataStatusCodeURLProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
+private final class CustomProviderURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var lastURL: URL?
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let url = request.url else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+
+        Self.lastURL = url
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        let payload = """
+        {
+          "data": [
+            {
+              "rate": "6.91"
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: payload)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 private extension URLSessionConfiguration {
     static var mockedSessionConfiguration: URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockURLProtocol.self]
+        configuration.timeoutIntervalForRequest = 2
+        configuration.timeoutIntervalForResource = 2
+        configuration.waitsForConnectivity = false
+        return configuration
+    }
+
+    static var customProviderSessionConfiguration: URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [CustomProviderURLProtocol.self]
         configuration.timeoutIntervalForRequest = 2
         configuration.timeoutIntervalForResource = 2
         configuration.waitsForConnectivity = false

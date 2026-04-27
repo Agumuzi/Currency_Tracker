@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import SwiftUI
+import UserNotifications
 
 @MainActor
 @Observable
@@ -231,7 +232,7 @@ final class ExchangePanelViewModel {
         )
         var mergedSnapshots = currentSnapshots
         var history = cachedState.history
-        let sourceConfiguration = credentialStore.configuration
+        let sourceConfiguration = credentialStore.configuration.withCustomProviders(preferences.enabledCustomAPIProviders)
 
         let shouldRefreshHistory = RefreshPolicy.shouldRefreshHistory(
             lastHistoricalRefreshAt: cachedState.lastHistoricalRefresh,
@@ -255,6 +256,7 @@ final class ExchangePanelViewModel {
         for snapshot in result.snapshots {
             mergedSnapshots[snapshot.id] = snapshot
         }
+        await processRateAlerts(with: result.snapshots)
 
         for (pairID, points) in historyResult.historyByPairID where !points.isEmpty {
             history[pairID] = points
@@ -477,5 +479,57 @@ final class ExchangePanelViewModel {
         statusSymbolName = symbolName
         statusColor = tint
         statusBackgroundColor = background
+    }
+
+    private func processRateAlerts(with snapshots: [CurrencySnapshot]) async {
+        guard !snapshots.isEmpty else {
+            return
+        }
+
+        let snapshotsByID = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.id, $0) })
+        let now = Date()
+        for alert in preferences.rateAlerts where alert.isEnabled {
+            guard let snapshot = snapshotsByID[alert.pairID],
+                  alert.isTriggered(by: snapshot.rate),
+                  shouldTrigger(alert: alert, now: now) else {
+                continue
+            }
+
+            preferences.setRateAlertTriggered(id: alert.id, at: now)
+            recordInternalEvent("汇率提醒触发：\(snapshot.pair.compactLabel) \(alert.direction.title) \(alert.threshold)")
+            await deliverRateAlertNotification(alert: alert, snapshot: snapshot)
+        }
+    }
+
+    private func shouldTrigger(alert: RateAlert, now: Date) -> Bool {
+        guard let lastTriggeredAt = alert.lastTriggeredAt else {
+            return true
+        }
+
+        return now.timeIntervalSince(lastTriggeredAt) > 12 * 60 * 60
+    }
+
+    private func deliverRateAlertNotification(alert: RateAlert, snapshot: CurrencySnapshot) async {
+        let center = UNUserNotificationCenter.current()
+        do {
+            let granted = try await center.requestAuthorization(options: [.alert, .sound])
+            guard granted else {
+                recordInternalEvent("汇率提醒未弹出：通知权限未授权", level: .warning)
+                return
+            }
+
+            let content = UNMutableNotificationContent()
+            content.title = String(localized: "汇率提醒")
+            content.body = "\(snapshot.pair.compactLabel) \(alert.direction.title) \(ExchangeFormatter.decimal.string(from: alert.threshold as NSNumber) ?? "\(alert.threshold)")，\(String(localized: "当前")) \(snapshot.rate)"
+            content.sound = .default
+            let request = UNNotificationRequest(
+                identifier: "currency-tracker-rate-alert-\(alert.id.uuidString)",
+                content: content,
+                trigger: nil
+            )
+            try await center.add(request)
+        } catch {
+            recordInternalEvent("汇率提醒发送失败：\(error.localizedDescription)", level: .warning)
+        }
     }
 }

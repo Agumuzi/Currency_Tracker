@@ -79,6 +79,18 @@ struct Currency_TrackerApp: App {
             globalShortcutHandler: globalShortcutHandler,
             softwareUpdateWindowController: softwareUpdateWindowController
         )
+        panelWindowController.configurePinnedContent { controller in
+            AnyView(
+                ContentView(
+                    viewModel: viewModel,
+                    preferences: preferences,
+                    settingsWindowController: settingsWindowController,
+                    panelWindowController: controller,
+                    autoBootstrap: false,
+                    presentationMode: .pinned
+                )
+            )
+        }
         let automaticUpdateCoordinator = AutomaticSoftwareUpdateCoordinator(
             preferences: preferences,
             updateWindowController: softwareUpdateWindowController,
@@ -118,12 +130,43 @@ struct Currency_TrackerApp: App {
                 presentationMode: .menuBar
             )
         } label: {
-            Image(systemName: "banknote.fill")
-                .font(.system(size: 15, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
+            menuBarLabel
                 .help(viewModel.menuBarHelpText)
         }
         .menuBarExtraStyle(.window)
+    }
+
+    @ViewBuilder
+    private var menuBarLabel: some View {
+        let featuredCard = viewModel.cards.first { $0.id == viewModel.featuredPairID } ?? viewModel.cards.first
+        switch preferences.menuBarDisplayMode {
+        case .iconOnly:
+            Image(systemName: "banknote.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+        case .featuredRate:
+            if let featuredCard, featuredCard.snapshot != nil {
+                Text(featuredCard.valueText)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+            } else {
+                Image(systemName: "banknote.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+            }
+        case .compactPair:
+            if let featuredCard, featuredCard.snapshot != nil {
+                HStack(spacing: 4) {
+                    Image(systemName: "banknote.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("\(featuredCard.compactPairLabel) \(featuredCard.valueText)")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                }
+            } else {
+                Image(systemName: "banknote.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+            }
+        }
     }
 
     private static func makeUserDefaults() -> UserDefaults {

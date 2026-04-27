@@ -18,11 +18,13 @@ enum PanelPresentationMode: Sendable, Equatable {
 @Observable
 final class PanelWindowController: NSObject, NSWindowDelegate {
     private weak var menuBarWindow: NSWindow?
-    private weak var pinnedWindow: NSWindow?
+    private var pinnedWindow: NSWindow?
     private var originalLevel: NSWindow.Level?
     private var originalCollectionBehavior: NSWindow.CollectionBehavior?
     private var originalMovableByBackground: Bool?
     private var originalHidesOnDeactivate: Bool?
+    private var pinnedContentProvider: ((PanelWindowController) -> AnyView)?
+    private var usesDedicatedPinnedWindow = false
     var isPinned = false
 
     private let viewModel: ExchangePanelViewModel
@@ -31,22 +33,33 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
         self.viewModel = viewModel
     }
 
+    func configurePinnedContent(_ provider: @escaping (PanelWindowController) -> AnyView) {
+        pinnedContentProvider = provider
+    }
+
     func registerMenuBarWindow(_ window: NSWindow?) {
         guard let window else {
             return
         }
 
         if isPinned {
-            if let pinnedWindow, window !== pinnedWindow {
-                window.orderOut(nil)
-                pinnedWindow.makeKeyAndOrderFront(nil)
+            if let pinnedWindow {
+                if window !== pinnedWindow {
+                    window.orderOut(nil)
+                    pinnedWindow.makeKeyAndOrderFront(nil)
+                    pinnedWindow.orderFrontRegardless()
+                }
                 return
             }
 
             if pinnedWindow == nil {
                 pinnedWindow = window
+                usesDedicatedPinnedWindow = false
                 captureOriginalConfigurationIfNeeded(from: window)
                 applyPinnedConfiguration(to: window)
+                window.makeKeyAndOrderFront(nil)
+                window.orderFrontRegardless()
+                return
             }
         }
 
@@ -77,17 +90,32 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
             return
         }
 
+        if let pinnedContentProvider {
+            presentDedicatedPinnedWindow(from: window, content: pinnedContentProvider(self))
+            return
+        }
+
         menuBarWindow = window
         pinnedWindow = window
+        usesDedicatedPinnedWindow = false
         captureOriginalConfigurationIfNeeded(from: window)
         applyPinnedConfiguration(to: window)
         window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
         applyPinnedState(logMessage: "汇率面板已锁定，自动刷新已暂停")
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
 
     private func unpin() {
         guard let window = pinnedWindow ?? menuBarWindow else {
+            applyUnpinnedState(logMessage: "汇率面板已解除锁定，自动刷新已恢复")
+            return
+        }
+
+        if usesDedicatedPinnedWindow {
+            pinnedWindow = nil
+            usesDedicatedPinnedWindow = false
+            window.close()
             applyUnpinnedState(logMessage: "汇率面板已解除锁定，自动刷新已恢复")
             return
         }
@@ -120,6 +148,7 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
         }
 
         pinnedWindow = nil
+        usesDedicatedPinnedWindow = false
         resetOriginalConfiguration()
         applyUnpinnedState(logMessage: "汇率面板已关闭，自动刷新已恢复")
     }
@@ -144,12 +173,79 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
 
     private func applyPinnedConfiguration(to window: NSWindow) {
         window.level = .floating
-        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         window.isMovableByWindowBackground = true
 
         if let panel = window as? NSPanel {
+            panel.isFloatingPanel = true
             panel.hidesOnDeactivate = false
         }
+    }
+
+    private func presentDedicatedPinnedWindow(from sourceWindow: NSWindow, content: AnyView) {
+        menuBarWindow = sourceWindow
+
+        let contentSize = resolvedPinnedContentSize(from: sourceWindow)
+        let frame = resolvedPinnedFrame(contentSize: contentSize, sourceWindow: sourceWindow)
+        let panel = PinnedExchangeRatePanel(
+            contentRect: frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+
+        panel.identifier = NSUserInterfaceItemIdentifier("currency-tracker-pinned-panel")
+        panel.delegate = self
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.isMovableByWindowBackground = true
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = false
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        panel.setContentSize(contentSize)
+        panel.setFrame(frame, display: false)
+
+        pinnedWindow?.close()
+        pinnedWindow = panel
+        usesDedicatedPinnedWindow = true
+        sourceWindow.orderOut(nil)
+        applyPinnedState(logMessage: "汇率面板已锁定，自动刷新已暂停")
+        panel.contentViewController = NSHostingController(rootView: content)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+        panel.orderFrontRegardless()
+    }
+
+    private func resolvedPinnedContentSize(from sourceWindow: NSWindow) -> NSSize {
+        let sourceSize = sourceWindow.contentLayoutRect.size
+        if sourceSize.width > 0, sourceSize.height > 0 {
+            return sourceSize
+        }
+
+        let fallbackSize = sourceWindow.frame.size
+        if fallbackSize.width > 0, fallbackSize.height > 0 {
+            return fallbackSize
+        }
+
+        return NSSize(width: 408, height: 620)
+    }
+
+    private func resolvedPinnedFrame(contentSize: NSSize, sourceWindow: NSWindow) -> NSRect {
+        let sourceFrame = sourceWindow.frame
+        if sourceFrame.width > 0, sourceFrame.height > 0 {
+            return NSRect(origin: sourceFrame.origin, size: contentSize)
+        }
+
+        let visibleFrame = sourceWindow.screen?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
+        let origin = NSPoint(
+            x: visibleFrame.maxX - contentSize.width - 16,
+            y: visibleFrame.maxY - contentSize.height - 16
+        )
+        return NSRect(origin: origin, size: contentSize)
     }
 
     private func applyPinnedState(logMessage: String) {
@@ -177,6 +273,16 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
         originalCollectionBehavior = nil
         originalMovableByBackground = nil
         originalHidesOnDeactivate = nil
+    }
+}
+
+private final class PinnedExchangeRatePanel: NSPanel {
+    override var canBecomeKey: Bool {
+        true
+    }
+
+    override var canBecomeMain: Bool {
+        true
     }
 }
 

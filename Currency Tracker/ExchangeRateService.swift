@@ -14,7 +14,7 @@ protocol APIValidationServicing: Sendable {
 nonisolated private enum ExchangeRateServiceConstants {
     static let historicalLookbackDays = 365
     static let publicNonRubSources: [ExchangeSource] = [.ecb, .frankfurter, .floatRates, .currencyAPI]
-    static let snapshotSourceOrder: [ExchangeSource] = [.twelveData, .exchangeRateAPI, .openExchangeRates, .fixer, .currencyLayer, .cbr, .ecb, .frankfurter, .floatRates, .currencyAPI]
+    static let snapshotSourceOrder: [ExchangeSource] = [.custom, .twelveData, .exchangeRateAPI, .openExchangeRates, .fixer, .currencyLayer, .cbr, .ecb, .frankfurter, .floatRates, .currencyAPI]
     static let twelveDataRequestHeaders = ["X-API-Version": "last"]
     static let rateLimitCooldown: TimeInterval = 15 * 60
     static let authenticationCooldown: TimeInterval = 30 * 60
@@ -85,6 +85,16 @@ actor ExchangeRateService: APIValidationServicing {
         var sourceStatuses: [SourceStatus] = []
         var logs: [DispatchLogEntry] = []
         var remainingPairs = pairs
+
+        let customProviderResult = await fetchCustomProviderSnapshotsIfNeeded(
+            for: remainingPairs,
+            providers: configuration.customProviders
+        )
+        snapshots.append(contentsOf: customProviderResult.snapshots)
+        errors.append(contentsOf: customProviderResult.errors)
+        sourceStatuses.append(customProviderResult.sourceStatus)
+        logs.append(contentsOf: customProviderResult.logs)
+        remainingPairs = unresolvedPairs(from: remainingPairs, resolvedPairIDs: Set(customProviderResult.snapshots.map(\.id)))
 
         let twelveDataResult = await fetchTwelveDataSnapshotsIfNeeded(
             for: remainingPairs,
@@ -496,6 +506,180 @@ actor ExchangeRateService: APIValidationServicing {
         sources.map {
             SourceStatus(source: $0, state: .idle, message: message, timestamp: .now)
         }
+    }
+
+    private func fetchCustomProviderSnapshotsIfNeeded(
+        for pairs: [CurrencyPair],
+        providers: [CustomAPIProvider]
+    ) async -> ProviderFetchResult {
+        guard !providers.isEmpty else {
+            return ProviderFetchResult(
+                snapshots: [],
+                errors: [],
+                sourceStatus: SourceStatus(source: .custom, state: .idle, message: "未启用自定义 API", timestamp: .now),
+                logs: [DispatchLogEntry(level: .info, message: "自定义 API 已跳过：未启用可用模板")]
+            )
+        }
+
+        guard !pairs.isEmpty else {
+            return ProviderFetchResult(
+                snapshots: [],
+                errors: [],
+                sourceStatus: SourceStatus(source: .custom, state: .idle, message: "当前没有待补全的货币对", timestamp: .now),
+                logs: [DispatchLogEntry(level: .info, message: "自定义 API 已跳过：当前没有待补全的货币对")]
+            )
+        }
+
+        let refreshedAt = Date()
+        var snapshots: [CurrencySnapshot] = []
+        var errors: [String] = []
+        var logs: [DispatchLogEntry] = []
+        var remainingPairs = pairs
+
+        for provider in providers where !remainingPairs.isEmpty {
+            let providerSnapshots = await fetchCustomProviderSnapshots(
+                provider: provider,
+                pairs: remainingPairs,
+                refreshedAt: refreshedAt
+            )
+            snapshots.append(contentsOf: providerSnapshots.snapshots)
+            errors.append(contentsOf: providerSnapshots.errors)
+            logs.append(contentsOf: providerSnapshots.logs)
+            remainingPairs = unresolvedPairs(from: remainingPairs, resolvedPairIDs: Set(providerSnapshots.snapshots.map(\.id)))
+        }
+
+        let attemptedCount = pairs.count
+        let resolvedCount = snapshots.count
+        let state = providerState(resolvedCount: resolvedCount, attemptedCount: attemptedCount, hadFailure: !errors.isEmpty)
+        let message: String
+        switch state {
+        case .success:
+            message = "自定义 API 命中 \(resolvedCount) 个货币对"
+        case .partial:
+            message = "自定义 API 部分命中 \(resolvedCount)/\(attemptedCount)"
+        case .failure:
+            message = "自定义 API 未返回可用汇率"
+        case .idle:
+            message = "自定义 API 未使用"
+        }
+
+        if resolvedCount > 0 {
+            logs.append(DispatchLogEntry(level: .info, message: message))
+        }
+
+        return ProviderFetchResult(
+            snapshots: snapshots,
+            errors: errors,
+            sourceStatus: SourceStatus(source: .custom, state: state, message: message, timestamp: refreshedAt),
+            logs: logs
+        )
+    }
+
+    private func fetchCustomProviderSnapshots(
+        provider: CustomAPIProvider,
+        pairs: [CurrencyPair],
+        refreshedAt: Date
+    ) async -> (snapshots: [CurrencySnapshot], errors: [String], logs: [DispatchLogEntry]) {
+        var snapshots: [CurrencySnapshot] = []
+        var errors: [String] = []
+        var logs: [DispatchLogEntry] = []
+
+        for pair in pairs {
+            guard let url = customProviderURL(provider: provider, pair: pair) else {
+                errors.append("\(provider.resolvedDisplayName) URL 模板无效")
+                logs.append(DispatchLogEntry(level: .warning, message: "\(provider.resolvedDisplayName) URL 模板无效，已跳过 \(pair.compactLabel)"))
+                continue
+            }
+
+            do {
+                let (data, response) = try await urlSession.data(for: URLRequest(url: url))
+                if let httpResponse = response as? HTTPURLResponse,
+                   (200..<300).contains(httpResponse.statusCode) == false {
+                    errors.append("\(provider.resolvedDisplayName) 返回 HTTP \(httpResponse.statusCode)")
+                    logs.append(DispatchLogEntry(level: .warning, message: "\(provider.resolvedDisplayName) 返回 HTTP \(httpResponse.statusCode)，已跳过 \(pair.compactLabel)"))
+                    continue
+                }
+
+                guard let rate = try customProviderRate(from: data, path: provider.ratePath), rate > 0 else {
+                    errors.append("\(provider.resolvedDisplayName) 未在 \(provider.ratePath) 找到有效汇率")
+                    logs.append(DispatchLogEntry(level: .warning, message: "\(provider.resolvedDisplayName) 未命中 \(pair.compactLabel)"))
+                    continue
+                }
+
+                snapshots.append(
+                    CurrencySnapshot(
+                        pair: pair,
+                        rate: rate * Double(pair.baseAmount),
+                        updatedAt: refreshedAt,
+                        effectiveDateText: SourceDateParser.isoQueryString(from: refreshedAt),
+                        source: .custom,
+                        isCached: false
+                    )
+                )
+            } catch {
+                errors.append("\(provider.resolvedDisplayName) 请求失败")
+                logs.append(DispatchLogEntry(level: .warning, message: "\(provider.resolvedDisplayName) 请求失败，已跳过 \(pair.compactLabel)"))
+            }
+        }
+
+        return (snapshots, errors, logs)
+    }
+
+    private func customProviderURL(provider: CustomAPIProvider, pair: CurrencyPair) -> URL? {
+        let encodedBase = pair.baseCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pair.baseCode
+        let encodedQuote = pair.quoteCode.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pair.quoteCode
+        let encodedKey = provider.apiKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? provider.apiKey
+        let resolvedTemplate = provider.urlTemplate
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "{base}", with: encodedBase)
+            .replacingOccurrences(of: "{quote}", with: encodedQuote)
+            .replacingOccurrences(of: "{key}", with: encodedKey)
+        return URL(string: resolvedTemplate)
+    }
+
+    private func customProviderRate(from data: Data, path: String) throws -> Double? {
+        let object = try JSONSerialization.jsonObject(with: data)
+        let segments = path
+            .split(separator: ".")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !segments.isEmpty else {
+            return nil
+        }
+
+        let value = segments.reduce(object as Any?) { current, segment in
+            guard let current else {
+                return nil
+            }
+
+            if let dictionary = current as? [String: Any] {
+                return dictionary[segment]
+            }
+
+            if let array = current as? [Any], let index = Int(segment), array.indices.contains(index) {
+                return array[index]
+            }
+
+            return nil
+        }
+
+        if let doubleValue = value as? Double {
+            return doubleValue
+        }
+
+        if let intValue = value as? Int {
+            return Double(intValue)
+        }
+
+        if let numberValue = value as? NSNumber {
+            return numberValue.doubleValue
+        }
+
+        if let stringValue = value as? String {
+            return Double(stringValue.replacingOccurrences(of: ",", with: "."))
+        }
+
+        return nil
     }
 
     private func syncEnhancedStateIfNeeded(for configuration: EnhancedSourceConfiguration) {

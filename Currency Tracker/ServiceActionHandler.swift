@@ -91,7 +91,7 @@ final class InitialLaunchCoordinator {
 
         let hasShownInitialSettingsWindow = userDefaults.bool(forKey: "hasShownInitialSettingsWindow")
         let isDebugLaunch = ProcessInfo.processInfo.arguments.contains("-NSDocumentRevisionsDebugMode")
-        let shouldPresent = !hasShownInitialSettingsWindow || isDebugLaunch
+        let shouldPresent = shouldShowSettingsForUITest || !hasShownInitialSettingsWindow || isDebugLaunch
         guard shouldPresent else {
             automaticUpdateCoordinator.checkIfNeeded()
             return

@@ -29,7 +29,7 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
                 self?.close()
             },
             onDownload: { [weak self] in
-                self?.openDownload(for: updateInfo)
+                await self?.downloadUpdate(for: updateInfo) ?? String(localized: "下载失败，请稍后重试")
             }
         )
 
@@ -69,9 +69,27 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
         windowController?.window?.contentViewController = nil
     }
 
-    private func openDownload(for updateInfo: SoftwareUpdateInfo) {
-        NSWorkspace.shared.open(updateInfo.downloadURL ?? updateInfo.releaseURL)
-        close()
+    private func downloadUpdate(for updateInfo: SoftwareUpdateInfo) async -> String {
+        guard let downloadURL = updateInfo.downloadURL else {
+            NSWorkspace.shared.open(updateInfo.releaseURL)
+            return String(localized: "已打开发布页面")
+        }
+
+        do {
+            let (temporaryURL, _) = try await URLSession.shared.download(from: downloadURL)
+            let downloadsURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+                ?? FileManager.default.temporaryDirectory
+            let fileURL = downloadsURL.appendingPathComponent("Currency-Tracker-\(updateInfo.version).zip")
+            if FileManager.default.fileExists(atPath: fileURL.path) {
+                try FileManager.default.removeItem(at: fileURL)
+            }
+            try FileManager.default.moveItem(at: temporaryURL, to: fileURL)
+            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+            return String(format: String(localized: "已下载到 %@"), fileURL.lastPathComponent)
+        } catch {
+            NSWorkspace.shared.open(updateInfo.downloadURL ?? updateInfo.releaseURL)
+            return String(localized: "下载失败，已打开发布页面")
+        }
     }
 }
 
@@ -139,7 +157,9 @@ private struct SoftwareUpdatePromptView: View {
     let preferences: PreferencesStore
     let onSkip: () -> Void
     let onRemindLater: () -> Void
-    let onDownload: () -> Void
+    let onDownload: () async -> String
+    @State private var isDownloading = false
+    @State private var downloadMessage: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 26) {
@@ -220,6 +240,18 @@ private struct SoftwareUpdatePromptView: View {
             .toggleStyle(.checkbox)
             .font(.system(size: 13, weight: .semibold, design: .rounded))
 
+            if isDownloading {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .controlSize(.small)
+            }
+
+            if let downloadMessage {
+                Text(downloadMessage)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
             HStack(spacing: 14) {
                 Button("跳过这个版本") {
                     onSkip()
@@ -238,10 +270,16 @@ private struct SoftwareUpdatePromptView: View {
                 .frame(minWidth: 140)
 
                 Button("下载更新") {
-                    onDownload()
+                    Task {
+                        isDownloading = true
+                        downloadMessage = nil
+                        downloadMessage = await onDownload()
+                        isDownloading = false
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .disabled(isDownloading)
                 .keyboardShortcut(.defaultAction)
                 .frame(minWidth: 150)
             }
