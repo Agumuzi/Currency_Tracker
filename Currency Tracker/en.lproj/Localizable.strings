@@ -311,3 +311,13 @@
 "正在校验更新包…" = "Verifying update package…";
 "正在解压更新包…" = "Extracting update package…";
 "正在验证应用版本…" = "Validating app version…";
+"语言" = "Language";
+"显示语言与区域" = "Display language and region";
+"应用语言" = "App Language";
+"当前语言" = "Current Language";
+"打开语言与地区设置" = "Open Language & Region Settings";
+"Currency Tracker 使用 macOS 的“每个应用的语言”设置。修改后需要重启应用生效。" = "Currency Tracker uses macOS per-app language settings. Restart the app after changing the language.";
+"支持的语言" = "Supported Languages";
+"在系统设置中为 Currency Tracker 添加语言覆盖，或调整首选语言顺序。" = "Add a language override for Currency Tracker in System Settings, or adjust your preferred language order.";
+"语言设置已打开" = "Language settings opened.";
+"无法打开语言设置" = "Could not open language settings.";

@@ -21,7 +21,7 @@ Currency Tracker is a macOS menu bar app for exchange rates, quick conversion, a
 - Expands any card into a history chart or a two-way converter.
 - Lets you add, remove, reorder, and search currency pairs from the ISO currency catalog supported by your configured data sources.
 - Converts selected text from other apps through macOS Services or a global shortcut.
-- Supports English, Russian, and Simplified Chinese.
+- Supports English, Simplified Chinese, Traditional Chinese, Russian, Japanese, Korean, French, German, Spanish, Brazilian Portuguese, and Italian.
 - Stores preferences and API credentials locally on your Mac without using the system Keychain.
 
 ## Screenshots
@@ -54,7 +54,11 @@ Each card can expand into a recent trend chart or a converter without leaving th
 
 ### Pair Management
 
-The settings window includes a sidebar and dedicated pages for general behavior, rate pairs, profiles, alerts, refresh policy, data sources, permissions, updates, diagnostics, and system launch behavior.
+The settings window includes a sidebar and dedicated pages for general behavior, language, rate pairs, profiles, alerts, refresh policy, data sources, permissions, updates, diagnostics, and system launch behavior.
+
+### Language And Window Behavior
+
+The app follows macOS per-app language preferences and includes a language page that opens the system Language & Region settings directly. The menu panel, pinned panel, and settings window can be resized so larger pair lists and localized labels have more room.
 
 ### Data Sources
 
@@ -77,18 +81,17 @@ The app can check GitHub Releases from Settings. Update packages are downloaded,
 
 ## Current Release
 
-Version `1.4.0` includes:
+Version `1.5.0` includes:
 
-- Custom API templates now use a clearer save/edit flow, hidden API key fields, enable/disable status, and a connection test.
-- Custom API keys are kept in the app's local credential file rather than in UserDefaults.
-- In-app updates now require and verify release SHA256 checksum files before extraction.
-- Update preparation shows staged progress for download, verification, extraction, and app validation.
-- The global shortcut copy fallback restores the previous clipboard after reading selected text.
-- Release automation now builds reproducible unsigned archives, generates checksum assets, and runs a UI smoke test in CI.
+- Adds full resource coverage for 11 app languages: English, Simplified Chinese, Traditional Chinese, Russian, Japanese, Korean, French, German, Spanish, Brazilian Portuguese, and Italian.
+- Adds a Language page in Settings with a direct link to macOS Language & Region preferences.
+- Makes the menu panel, pinned panel, and Settings window resizable.
+- Enlarges currency-pair titles in menu cards so labels like `CNY/RUB` are easier to scan.
+- Keeps localization checks dynamic so new `.lproj` folders are validated automatically.
 
 ## Installation
 
-Download `Currency-Tracker-1.4.0.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
+Download `Currency-Tracker-1.5.0.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
 The app is distributed through GitHub Releases and is not notarized through Apple. On first launch, macOS may block it. Open:
 

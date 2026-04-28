@@ -189,7 +189,7 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
         let frame = resolvedPinnedFrame(contentSize: contentSize, sourceWindow: sourceWindow)
         let panel = PinnedExchangeRatePanel(
             contentRect: frame,
-            styleMask: [.borderless],
+            styleMask: [.borderless, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -204,6 +204,8 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
         panel.hidesOnDeactivate = false
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        panel.minSize = NSSize(width: 408, height: 320)
+        panel.maxSize = NSSize(width: 560, height: max(760, contentSize.height))
         panel.setContentSize(contentSize)
         panel.setFrame(frame, display: false)
 

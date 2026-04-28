@@ -259,13 +259,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             window.identifier = NSUserInterfaceItemIdentifier("currency-tracker-settings-window")
             window.delegate = self
             window.title = "Currency Tracker"
-            window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.toolbarStyle = .unifiedCompact
             window.isReleasedWhenClosed = false
             window.setContentSize(NSSize(width: 880, height: 600))
             window.minSize = NSSize(width: 780, height: 540)
+            window.setFrameAutosaveName("currency-tracker-settings-window")
             window.center()
 
             windowController = NSWindowController(window: window)

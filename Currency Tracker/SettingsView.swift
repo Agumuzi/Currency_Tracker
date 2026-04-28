@@ -14,6 +14,7 @@ import UserNotifications
 enum SettingsSection: String, CaseIterable, Hashable, Sendable {
     case welcome
     case general
+    case language
     case rates
     case profiles
     case alerts
@@ -30,6 +31,8 @@ enum SettingsSection: String, CaseIterable, Hashable, Sendable {
             "欢迎"
         case .general:
             "通用"
+        case .language:
+            "语言"
         case .rates:
             "汇率"
         case .profiles:
@@ -57,6 +60,8 @@ enum SettingsSection: String, CaseIterable, Hashable, Sendable {
             "首次设置与使用建议"
         case .general:
             "基准货币与文本换算"
+        case .language:
+            "显示语言与区域"
         case .rates:
             "展示列表与新增汇率"
         case .profiles:
@@ -84,6 +89,8 @@ enum SettingsSection: String, CaseIterable, Hashable, Sendable {
             "sparkles"
         case .general:
             "gearshape"
+        case .language:
+            "globe"
         case .rates:
             "list.bullet.rectangle"
         case .profiles:
@@ -114,6 +121,15 @@ private enum SoftwareUpdateCheckState: Equatable {
     case failed(String)
 }
 
+private struct SupportedAppLanguage: Identifiable {
+    let code: String
+    let nativeName: String
+
+    var id: String {
+        code
+    }
+}
+
 struct SettingsView: View {
     let preferences: PreferencesStore
     let launchController: LaunchAtLoginController
@@ -136,6 +152,21 @@ struct SettingsView: View {
     @State private var alertDirection: RateAlertDirection = .above
     @State private var alertThresholdText = ""
     @State private var diagnosticExportMessage: String?
+    @State private var languageSettingsMessage: String?
+
+    private let supportedAppLanguages = [
+        SupportedAppLanguage(code: "en", nativeName: "English"),
+        SupportedAppLanguage(code: "zh-Hans", nativeName: "简体中文"),
+        SupportedAppLanguage(code: "zh-Hant", nativeName: "繁體中文"),
+        SupportedAppLanguage(code: "ru", nativeName: "Русский"),
+        SupportedAppLanguage(code: "ja", nativeName: "日本語"),
+        SupportedAppLanguage(code: "ko", nativeName: "한국어"),
+        SupportedAppLanguage(code: "fr", nativeName: "Français"),
+        SupportedAppLanguage(code: "de", nativeName: "Deutsch"),
+        SupportedAppLanguage(code: "es", nativeName: "Español"),
+        SupportedAppLanguage(code: "pt-BR", nativeName: "Português do Brasil"),
+        SupportedAppLanguage(code: "it", nativeName: "Italiano")
+    ]
 
     var body: some View {
         HStack(spacing: 0) {
@@ -153,7 +184,7 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(width: 880, height: 600, alignment: .topLeading)
+        .frame(minWidth: 780, minHeight: 540, alignment: .topLeading)
         .background(windowBackground)
         .onAppear {
             syncDraftSelectionToSearchResults()
@@ -218,6 +249,8 @@ struct SettingsView: View {
             baseCurrencySection
             menuBarDisplaySection
             textConversionShortcutSection
+        case .language:
+            languageSection
         case .rates:
             selectedPairsSection
             addPairSection
@@ -350,6 +383,79 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("settings.sidebar.\(section.rawValue)")
+    }
+
+    private var languageSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionTitle("应用语言")
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("当前语言")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        Text(currentAppLanguageName)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button("打开语言与地区设置") {
+                        openLanguageSettings()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+
+                Text("Currency Tracker 使用 macOS 的“每个应用的语言”设置。修改后需要重启应用生效。")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let languageSettingsMessage {
+                    Text(languageSettingsMessage)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(nsColor: .windowBackgroundColor))
+            )
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("支持的语言")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ForEach(supportedAppLanguages) { language in
+                        HStack(spacing: 8) {
+                            Text(language.nativeName)
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .lineLimit(1)
+                            Spacer(minLength: 4)
+                            Text(language.code)
+                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color(nsColor: .windowBackgroundColor))
+                        )
+                    }
+                }
+
+                Text("在系统设置中为 Currency Tracker 添加语言覆盖，或调整首选语言顺序。")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .background(sectionCardBackground)
+        }
     }
 
     private var baseCurrencySection: some View {
@@ -1411,6 +1517,39 @@ struct SettingsView: View {
 
     private var windowBackground: some View {
         Color(nsColor: .windowBackgroundColor)
+    }
+
+    private var currentAppLanguageName: String {
+        let code = Bundle.main.preferredLocalizations.first ?? Locale.autoupdatingCurrent.identifier
+        let locale = Locale(identifier: code)
+        let nativeName = locale.localizedString(forIdentifier: code)
+        let userVisibleName = Locale.autoupdatingCurrent.localizedString(forIdentifier: code)
+
+        if let nativeName, let userVisibleName, nativeName != userVisibleName {
+            return "\(nativeName) · \(userVisibleName)"
+        }
+
+        return nativeName ?? userVisibleName ?? code
+    }
+
+    private func openLanguageSettings() {
+        let urls = [
+            "x-apple.systempreferences:com.apple.Localization-Settings.extension",
+            "x-apple.systempreferences:com.apple.preference.language"
+        ]
+
+        for rawURL in urls {
+            guard let url = URL(string: rawURL) else {
+                continue
+            }
+
+            if NSWorkspace.shared.open(url) {
+                languageSettingsMessage = String(localized: "语言设置已打开")
+                return
+            }
+        }
+
+        languageSettingsMessage = String(localized: "无法打开语言设置")
     }
 
     private func openAccessibilitySettings() {

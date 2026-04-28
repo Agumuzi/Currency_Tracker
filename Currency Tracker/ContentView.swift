@@ -29,7 +29,15 @@ struct ContentView: View {
             footer
         }
         .padding(16)
-        .frame(width: 408, height: panelHeight, alignment: .top)
+        .frame(
+            minWidth: 408,
+            idealWidth: 408,
+            maxWidth: 560,
+            minHeight: min(panelHeight, maximumPanelHeight),
+            idealHeight: panelHeight,
+            maxHeight: maximumPanelHeight,
+            alignment: .top
+        )
         .background(panelBackground)
         .task {
             if autoBootstrap {
@@ -224,6 +232,9 @@ struct ContentView: View {
         window.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
         window.contentView?.superview?.wantsLayer = true
         window.contentView?.superview?.layer?.backgroundColor = NSColor.clear.cgColor
+        window.styleMask.insert(.resizable)
+        window.minSize = NSSize(width: 408, height: 320)
+        window.maxSize = NSSize(width: 560, height: maximumPanelHeight)
     }
 
     @ViewBuilder
@@ -466,7 +477,8 @@ struct ContentView: View {
 
     private func resizePinnedWindowIfNeeded() {
         guard panelWindowController.isPinned,
-              let currentWindow else {
+              let currentWindow,
+              currentWindow.styleMask.contains(.resizable) == false else {
             return
         }
 
@@ -602,9 +614,9 @@ private struct CurrencyCardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(card.compactPairLabel)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.86)
+                        .minimumScaleFactor(0.78)
 
                     if canExpand {
                         Button {
@@ -622,7 +634,7 @@ private struct CurrencyCardView: View {
                 }
 
                 Text(pairSecondaryText)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
