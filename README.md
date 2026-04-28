@@ -81,17 +81,17 @@ The app can check GitHub Releases from Settings. Update packages are downloaded,
 
 ## Current Release
 
-Version `1.5.0` includes:
+Version `1.5.1` includes:
 
-- Adds full resource coverage for 11 app languages: English, Simplified Chinese, Traditional Chinese, Russian, Japanese, Korean, French, German, Spanish, Brazilian Portuguese, and Italian.
-- Adds a Language page in Settings with a direct link to macOS Language & Region preferences.
-- Makes the menu panel, pinned panel, and Settings window resizable.
-- Enlarges currency-pair titles in menu cards so labels like `CNY/RUB` are easier to scan.
-- Keeps localization checks dynamic so new `.lproj` folders are validated automatically.
+- Fixes the pinned menu panel jumping down or shrinking when the pin icon is clicked.
+- Keeps the pinned panel inside the visible screen area even when macOS reports an unusable transient menu position.
+- Adds a persistent in-panel scroll indicator for long menu-bar rate lists.
+- Improves scroll feedback in Settings and the quick-add currency picker.
+- Tightens menu panel spacing so long pair lists and the bottom refresh status stay visually separated.
 
 ## Installation
 
-Download `Currency-Tracker-1.5.0.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
+Download `Currency-Tracker-1.5.1.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
 The app is distributed through GitHub Releases and is not notarized through Apple. On first launch, macOS may block it. Open:
 

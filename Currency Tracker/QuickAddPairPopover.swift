@@ -30,7 +30,7 @@ struct QuickAddPairPopover: View {
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
 
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: true) {
                     LazyVStack(spacing: 8) {
                         ForEach(filteredSourceCurrencies.prefix(8)) { currency in
                             Button {
@@ -45,7 +45,9 @@ struct QuickAddPairPopover: View {
                             .buttonStyle(.plain)
                         }
                     }
+                    .padding(.trailing, 8)
                 }
+                .scrollIndicators(.visible)
                 .frame(height: 172)
             }
 
@@ -180,9 +182,13 @@ private struct QuickAddCurrencyRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("\(CurrencyCatalog.name(for: currency.code)) · \(currency.code)")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Text(currency.englishName)
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
 
             Spacer()

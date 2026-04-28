@@ -198,7 +198,7 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
         panel.delegate = self
         panel.backgroundColor = .clear
         panel.isOpaque = false
-        panel.hasShadow = true
+        panel.hasShadow = false
         panel.isMovableByWindowBackground = true
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
@@ -206,15 +206,14 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.minSize = NSSize(width: 408, height: 320)
         panel.maxSize = NSSize(width: 560, height: max(760, contentSize.height))
-        panel.setContentSize(contentSize)
-        panel.setFrame(frame, display: false)
-
         pinnedWindow?.close()
         pinnedWindow = panel
         usesDedicatedPinnedWindow = true
         sourceWindow.orderOut(nil)
         applyPinnedState(logMessage: "汇率面板已锁定，自动刷新已暂停")
         panel.contentViewController = NSHostingController(rootView: content)
+        panel.setContentSize(contentSize)
+        panel.setFrame(frame, display: false)
         NSApplication.shared.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
@@ -235,19 +234,45 @@ final class PanelWindowController: NSObject, NSWindowDelegate {
     }
 
     private func resolvedPinnedFrame(contentSize: NSSize, sourceWindow: NSWindow) -> NSRect {
+        let visibleFrame = screen(for: sourceWindow).visibleFrame
         let sourceFrame = sourceWindow.frame
-        if sourceFrame.width > 0, sourceFrame.height > 0 {
-            return NSRect(origin: sourceFrame.origin, size: contentSize)
+        let edgeMargin: CGFloat = 8
+        let topMargin: CGFloat = 2
+        let x = clamped(
+            sourceFrame.minX,
+            lower: visibleFrame.minX + edgeMargin,
+            upper: max(visibleFrame.minX + edgeMargin, visibleFrame.maxX - contentSize.width - edgeMargin)
+        )
+        let sourceTopEdge = sourceFrame.maxY
+        let sourceTopEdgeLooksUsable = sourceTopEdge >= visibleFrame.maxY - 120
+            && sourceTopEdge <= visibleFrame.maxY + 80
+        let targetTopEdge = sourceTopEdgeLooksUsable
+            ? min(sourceTopEdge, visibleFrame.maxY - topMargin)
+            : visibleFrame.maxY - topMargin
+        let y = clamped(
+            targetTopEdge - contentSize.height,
+            lower: visibleFrame.minY + edgeMargin,
+            upper: max(visibleFrame.minY + edgeMargin, visibleFrame.maxY - contentSize.height - topMargin)
+        )
+
+        return NSRect(x: x, y: y, width: contentSize.width, height: contentSize.height)
+    }
+
+    private func screen(for sourceWindow: NSWindow) -> NSScreen {
+        if let screen = sourceWindow.screen {
+            return screen
         }
 
-        let visibleFrame = sourceWindow.screen?.visibleFrame
-            ?? NSScreen.main?.visibleFrame
-            ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
-        let origin = NSPoint(
-            x: visibleFrame.maxX - contentSize.width - 16,
-            y: visibleFrame.maxY - contentSize.height - 16
-        )
-        return NSRect(origin: origin, size: contentSize)
+        let sourceFrame = sourceWindow.frame
+        if let screen = NSScreen.screens.first(where: { $0.frame.intersects(sourceFrame) }) {
+            return screen
+        }
+
+        return NSScreen.main ?? NSScreen.screens.first!
+    }
+
+    private func clamped(_ value: CGFloat, lower: CGFloat, upper: CGFloat) -> CGFloat {
+        min(max(value, lower), upper)
     }
 
     private func applyPinnedState(logMessage: String) {

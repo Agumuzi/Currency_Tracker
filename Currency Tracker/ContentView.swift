@@ -19,6 +19,9 @@ struct ContentView: View {
     @State private var expandedCardID: String?
     @State private var currentWindow: NSWindow?
     @State private var isShowingQuickAddPanel = false
+    @State private var cardScrollContentHeight: CGFloat = 1
+    @State private var cardScrollOffset: CGFloat = 0
+    @State private var cardScrollViewportHeight: CGFloat = 1
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -293,9 +296,47 @@ struct ContentView: View {
         } else if shouldScrollCards {
             ScrollView(.vertical, showsIndicators: true) {
                 cardStack
-                    .padding(.trailing, 8)
+                    .padding(.trailing, 14)
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear
+                                .preference(
+                                    key: CardListContentHeightPreferenceKey.self,
+                                    value: proxy.size.height
+                                )
+                                .preference(
+                                    key: CardListOffsetPreferenceKey.self,
+                                    value: proxy.frame(in: .named("cardListScroll")).minY
+                                )
+                        }
+                    )
             }
+            .coordinateSpace(name: "cardListScroll")
             .scrollIndicators(.visible)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: CardListViewportHeightPreferenceKey.self,
+                        value: proxy.size.height
+                    )
+                }
+            )
+            .onPreferenceChange(CardListContentHeightPreferenceKey.self) { value in
+                cardScrollContentHeight = max(value, 1)
+            }
+            .onPreferenceChange(CardListOffsetPreferenceKey.self) { value in
+                cardScrollOffset = max(0, -value)
+            }
+            .onPreferenceChange(CardListViewportHeightPreferenceKey.self) { value in
+                cardScrollViewportHeight = max(value, 1)
+            }
+            .overlay(alignment: .topTrailing) {
+                PanelScrollIndicator(
+                    viewportHeight: cardScrollViewportHeight,
+                    contentHeight: cardScrollContentHeight,
+                    offset: cardScrollOffset
+                )
+            }
             .frame(maxWidth: .infinity, minHeight: cardAreaHeight, maxHeight: cardAreaHeight, alignment: .top)
         } else {
             cardStack
@@ -320,7 +361,7 @@ struct ContentView: View {
                 )
             }
         }
-        .padding(.bottom, 10)
+        .padding(.bottom, cardStackBottomPadding)
     }
 
     private var footer: some View {
@@ -343,7 +384,6 @@ struct ContentView: View {
                         .strokeBorder(subtleBorderColor.opacity(0.8), lineWidth: 1)
                 )
         )
-        .padding(.top, 8)
     }
 
     private var panelBackground: some View {
@@ -373,7 +413,7 @@ struct ContentView: View {
             partialResult + estimatedHeight(for: card)
         }
 
-        return total + CGFloat(max(0, viewModel.cards.count - 1)) * 12
+        return total + CGFloat(max(0, viewModel.cards.count - 1)) * 12 + cardStackBottomPadding
     }
 
     private var shouldScrollCards: Bool {
@@ -402,9 +442,13 @@ struct ContentView: View {
     private var chromeHeight: CGFloat {
         let toolbarHeight: CGFloat = 38
         let bannerHeight: CGFloat = shouldShowStatusBanner ? 44 : 0
-        let footerHeight: CGFloat = 46
+        let footerHeight: CGFloat = 34
         let spacingCount: CGFloat = shouldShowStatusBanner ? 3 : 2
         return 32 + toolbarHeight + bannerHeight + footerHeight + (spacingCount * 12)
+    }
+
+    private var cardStackBottomPadding: CGFloat {
+        14
     }
 
     private func estimatedHeight(for card: CurrencyCardModel) -> CGFloat {
@@ -486,6 +530,66 @@ struct ContentView: View {
         if currentWindow.contentLayoutRect.size != targetSize {
             currentWindow.setContentSize(targetSize)
         }
+    }
+}
+
+private struct CardListContentHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 1
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct CardListOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct CardListViewportHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 1
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct PanelScrollIndicator: View {
+    let viewportHeight: CGFloat
+    let contentHeight: CGFloat
+    let offset: CGFloat
+
+    private var trackHeight: CGFloat {
+        max(48, viewportHeight - 12)
+    }
+
+    private var thumbHeight: CGFloat {
+        let ratio = min(1, viewportHeight / max(contentHeight, 1))
+        return max(42, trackHeight * ratio)
+    }
+
+    private var thumbOffset: CGFloat {
+        let scrollableHeight = max(contentHeight - viewportHeight, 1)
+        let progress = min(max(offset / scrollableHeight, 0), 1)
+        return max(0, trackHeight - thumbHeight) * progress
+    }
+
+    var body: some View {
+        Capsule()
+            .fill(Color.secondary.opacity(0.16))
+            .frame(width: 4, height: trackHeight)
+            .overlay(alignment: .top) {
+                Capsule()
+                    .fill(Color.accentColor.opacity(0.62))
+                    .frame(width: 4, height: thumbHeight)
+                    .offset(y: thumbOffset)
+            }
+            .padding(.vertical, 6)
+            .padding(.trailing, 2)
+            .accessibilityHidden(true)
     }
 }
 

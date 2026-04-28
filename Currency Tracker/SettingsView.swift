@@ -182,6 +182,7 @@ struct SettingsView: View {
                 .padding(24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .scrollIndicators(.visible)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(minWidth: 780, minHeight: 540, alignment: .topLeading)
@@ -203,13 +204,14 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             appHeader
 
-            ScrollView(.vertical, showsIndicators: false) {
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 4) {
                     ForEach(SettingsSection.allCases, id: \.self) { section in
                         sidebarButton(for: section)
                     }
                 }
             }
+            .scrollIndicators(.visible)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 18)

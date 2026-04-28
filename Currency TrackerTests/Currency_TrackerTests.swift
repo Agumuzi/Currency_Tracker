@@ -612,6 +612,56 @@ struct Currency_TrackerTests {
 
     @MainActor
     @Test
+    func panelWindowControllerKeepsDedicatedPinnedPanelInsideVisibleFrameWhenSourceYIsUnusable() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        let preferences = PreferencesStore(userDefaults: defaults)
+        preferences.addPair(baseCode: "USD", quoteCode: "RUB")
+        let viewModel = ExchangePanelViewModel(
+            preferences: preferences,
+            credentialStore: EnhancedSourceCredentialStore(secretStore: InMemorySecretStore(), userDefaults: defaults),
+            previewState: .sample
+        )
+        let controller = PanelWindowController(viewModel: viewModel)
+        controller.configurePinnedContent { _ in
+            AnyView(Text("Pinned exchange panel").frame(width: 408, height: 360))
+        }
+
+        let visibleFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 80, width: 1200, height: 800)
+        let sourceFrame = NSRect(
+            x: visibleFrame.maxX - 424,
+            y: visibleFrame.minY - 280,
+            width: 408,
+            height: 360
+        )
+        let menuPanel = NSPanel(
+            contentRect: sourceFrame,
+            styleMask: [.borderless, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+
+        controller.registerMenuBarWindow(menuPanel)
+        menuPanel.orderFront(nil)
+        controller.togglePinnedPanel(from: menuPanel)
+
+        let pinnedPanel = NSApp.windows.first {
+            $0.identifier?.rawValue == "currency-tracker-pinned-panel"
+        }
+
+        #expect(pinnedPanel != nil)
+        if let pinnedPanel {
+            #expect(pinnedPanel.frame.minY >= visibleFrame.minY + 7)
+            #expect(pinnedPanel.frame.maxY <= visibleFrame.maxY)
+            #expect(abs(pinnedPanel.frame.maxY - (visibleFrame.maxY - 2)) < 2)
+            pinnedPanel.close()
+        }
+
+        menuPanel.close()
+    }
+
+    @MainActor
+    @Test
     func dockVisibilityControllerSwitchesActivationPolicyForSettingsWindow() {
         let applicationController = TestApplicationActivationController(initialPolicy: .accessory)
         var logs: [String] = []
