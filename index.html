@@ -4,45 +4,56 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Currency Tracker for macOS</title>
-  <meta name="description" content="Currency Tracker is a macOS menu bar app for exchange rates, trend charts, quick conversion, provider API keys, alerts, profiles, and in-app updates.">
+  <meta name="description" content="Currency Tracker is a polished macOS menu bar app for exchange rates, trend charts, quick conversion, provider API keys, alerts, profiles, and in-app updates.">
   <meta property="og:title" content="Currency Tracker for macOS">
   <meta property="og:description" content="Exchange rates, charts, conversion, alerts, and data-source management from the macOS menu bar.">
   <meta property="og:image" content="assets/screenshots/menu-panel-history.png">
-  <meta name="theme-color" content="#f5f7fb">
+  <meta name="theme-color" content="#f3f6f9">
+  <script>
+    document.documentElement.classList.add("reveal-ready");
+  </script>
   <style>
     :root {
       color-scheme: light;
-      --bg: #f5f7fb;
-      --surface: #ffffff;
-      --surface-soft: #eef3f8;
-      --text: #14171f;
-      --muted: #606775;
-      --quiet: #838b99;
-      --border: #dde3ec;
-      --accent: #1479ff;
-      --accent-strong: #075ed3;
-      --green: #128a54;
-      --red: #c03a34;
-      --gold: #d99b19;
-      --shadow: 0 18px 48px rgba(20, 23, 31, 0.12);
+      --bg: #f3f6f9;
+      --ink: #11151d;
+      --muted: #5c6470;
+      --quiet: #7b8490;
+      --panel: #ffffff;
+      --panel-soft: #edf2f6;
+      --panel-strong: #171b22;
+      --border: #d9e1ea;
+      --border-dark: #2a3039;
+      --blue: #1479ff;
+      --blue-dark: #075ed3;
+      --green: #108a55;
+      --gold: #c58a18;
+      --red: #c9413a;
+      --shadow: 0 24px 70px rgba(22, 29, 40, 0.16);
+      --soft-shadow: 0 12px 32px rgba(22, 29, 40, 0.09);
+      --radius: 8px;
+      --page: min(1180px, calc(100% - 40px));
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
         color-scheme: dark;
-        --bg: #101114;
-        --surface: #191b20;
-        --surface-soft: #20242b;
-        --text: #f4f6f8;
-        --muted: #b0b6c0;
-        --quiet: #8d95a3;
-        --border: #303640;
-        --accent: #4d9bff;
-        --accent-strong: #86bbff;
-        --green: #31b978;
-        --red: #ff6b64;
-        --gold: #f0bd52;
-        --shadow: 0 18px 52px rgba(0, 0, 0, 0.38);
+        --bg: #101216;
+        --ink: #f5f7fa;
+        --muted: #b0b7c2;
+        --quiet: #87909d;
+        --panel: #191d23;
+        --panel-soft: #20252d;
+        --panel-strong: #0c0f13;
+        --border: #313844;
+        --border-dark: #3a424e;
+        --blue: #5aa2ff;
+        --blue-dark: #9bc8ff;
+        --green: #2fc477;
+        --gold: #e1ad45;
+        --red: #ff746c;
+        --shadow: 0 24px 70px rgba(0, 0, 0, 0.44);
+        --soft-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
       }
     }
 
@@ -52,14 +63,35 @@
 
     html {
       scroll-behavior: smooth;
+      overflow-x: hidden;
     }
 
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
       background: var(--bg);
-      color: var(--text);
+      color: var(--ink);
       line-height: 1.55;
+      overflow-x: hidden;
+      text-rendering: optimizeLegibility;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0) 34%),
+        repeating-linear-gradient(90deg, rgba(20, 31, 47, 0.035) 0, rgba(20, 31, 47, 0.035) 1px, transparent 1px, transparent 96px);
+      content: "";
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body::before {
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 36%),
+          repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 96px);
+      }
     }
 
     a {
@@ -74,8 +106,8 @@
     .site-header {
       position: sticky;
       top: 0;
-      z-index: 10;
-      border-bottom: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+      z-index: 30;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
       background: color-mix(in srgb, var(--bg) 88%, transparent);
       backdrop-filter: blur(18px);
     }
@@ -84,124 +116,430 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      width: min(1160px, calc(100% - 40px));
-      min-height: 68px;
+      width: var(--page);
+      min-height: 70px;
       margin: 0 auto;
-      gap: 20px;
+      gap: 22px;
     }
 
     .brand {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      font-weight: 800;
+      gap: 11px;
+      color: var(--ink);
+      font-weight: 850;
       text-decoration: none;
     }
 
     .brand img {
       width: 34px;
       height: 34px;
-      border-radius: 8px;
+      border-radius: var(--radius);
+      box-shadow: 0 7px 18px rgba(196, 143, 33, 0.24);
     }
 
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 18px;
+      gap: 20px;
       color: var(--muted);
       font-size: 14px;
-      font-weight: 650;
+      font-weight: 680;
     }
 
     .nav-links a {
       text-decoration: none;
     }
 
+    .nav-links a:hover {
+      color: var(--ink);
+    }
+
+    .language-switcher {
+      position: relative;
+      display: inline-flex;
+    }
+
+    .language-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel) 84%, transparent);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 760;
+      cursor: pointer;
+    }
+
+    .language-button::after {
+      width: 7px;
+      height: 7px;
+      margin-left: 2px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      content: "";
+      opacity: 0.72;
+      transform: translateY(-2px) rotate(45deg);
+    }
+
+    .flag {
+      position: relative;
+      display: inline-block;
+      width: 21px;
+      height: 14px;
+      flex: 0 0 auto;
+      overflow: hidden;
+      border-radius: 2px;
+      background: var(--panel-soft);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.16);
+    }
+
+    .flag::before,
+    .flag::after {
+      position: absolute;
+      content: "";
+    }
+
+    .flag-us {
+      background: repeating-linear-gradient(180deg, #b22234 0 1.08px, #ffffff 1.08px 2.16px);
+    }
+
+    .flag-us::before {
+      top: 0;
+      left: 0;
+      width: 9px;
+      height: 7.5px;
+      background: #3c3b6e;
+    }
+
+    .flag-cn,
+    .flag-tw {
+      background: #de2910;
+    }
+
+    .flag-cn::before {
+      top: 1px;
+      left: 2px;
+      color: #ffde00;
+      content: "★";
+      font-size: 7px;
+      line-height: 1;
+    }
+
+    .flag-tw::before {
+      top: 0;
+      left: 0;
+      width: 9px;
+      height: 7.5px;
+      background: #002b7f;
+    }
+
+    .flag-tw::after {
+      top: 2px;
+      left: 2.5px;
+      width: 4px;
+      height: 4px;
+      border-radius: 999px;
+      background: #ffffff;
+    }
+
+    .flag-ru {
+      background: linear-gradient(180deg, #ffffff 0 33.33%, #1f5fbf 33.33% 66.66%, #d52b1e 66.66%);
+    }
+
+    .flag-jp {
+      background: #ffffff;
+    }
+
+    .flag-jp::before {
+      top: 3px;
+      left: 6.5px;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #bc002d;
+    }
+
+    .flag-kr {
+      background: #ffffff;
+    }
+
+    .flag-kr::before {
+      top: 3px;
+      left: 6.5px;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #c60c30 0 50%, #003478 50%);
+      transform: rotate(28deg);
+    }
+
+    .flag-de {
+      background: linear-gradient(180deg, #000000 0 33.33%, #dd0000 33.33% 66.66%, #ffce00 66.66%);
+    }
+
+    .flag-fr {
+      background: linear-gradient(90deg, #0055a4 0 33.33%, #ffffff 33.33% 66.66%, #ef4135 66.66%);
+    }
+
+    .flag-es {
+      background: linear-gradient(180deg, #aa151b 0 25%, #f1bf00 25% 75%, #aa151b 75%);
+    }
+
+    .flag-it {
+      background: linear-gradient(90deg, #009246 0 33.33%, #ffffff 33.33% 66.66%, #ce2b37 66.66%);
+    }
+
+    .flag-br {
+      background: #009b3a;
+    }
+
+    .flag-br::before {
+      top: 2px;
+      left: 5px;
+      width: 11px;
+      height: 9px;
+      background: #ffdf00;
+      transform: rotate(45deg);
+    }
+
+    .flag-br::after {
+      top: 4px;
+      left: 7px;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #002776;
+    }
+
+    .language-menu {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      display: grid;
+      width: 240px;
+      max-height: min(420px, calc(100vh - 100px));
+      padding: 6px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel) 96%, transparent);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px);
+      transition: opacity 160ms ease, transform 160ms ease;
+      backdrop-filter: blur(18px);
+    }
+
+    .language-switcher.is-open .language-menu {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .language-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 730;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .language-option:hover,
+    .language-option[aria-current="true"] {
+      background: color-mix(in srgb, var(--blue) 12%, transparent);
+      color: var(--ink);
+    }
+
+    .nav-cta {
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: var(--soft-shadow);
+    }
+
     .button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 44px;
+      min-height: 46px;
       padding: 0 18px;
       border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--surface);
-      color: var(--text);
-      font-weight: 760;
+      border-radius: var(--radius);
+      background: var(--panel);
+      color: var(--ink);
+      font-weight: 780;
       text-decoration: none;
-      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      border-color: color-mix(in srgb, var(--blue) 45%, var(--border));
+      box-shadow: var(--soft-shadow);
     }
 
     .button.primary {
-      border-color: var(--accent);
-      background: var(--accent);
-      color: white;
-      box-shadow: none;
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #ffffff;
     }
 
     .button.primary:hover {
-      background: var(--accent-strong);
+      border-color: var(--blue-dark);
+      background: var(--blue-dark);
     }
 
     .hero {
       position: relative;
-      min-height: min(700px, calc(100vh - 88px));
+      min-height: calc(88vh - 70px);
       overflow: hidden;
       border-bottom: 1px solid var(--border);
-      background: var(--surface-soft);
-    }
-
-    .hero-bg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: 76% 10%;
-      opacity: 0.46;
-      filter: saturate(0.96);
+      background: var(--panel-soft);
     }
 
     .hero::after {
       position: absolute;
       inset: 0;
-      content: "";
+      z-index: 1;
       background:
-        linear-gradient(90deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 86%, transparent) 44%, transparent 100%),
-        linear-gradient(0deg, var(--bg) 0%, transparent 28%);
+        linear-gradient(90deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 86%, transparent) 42%, transparent 72%),
+        linear-gradient(0deg, var(--bg) 0%, transparent 18%);
+      content: "";
+      pointer-events: none;
+    }
+
+    .hero-media {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .hero-media::before {
+      position: absolute;
+      inset: 0;
+      background: color-mix(in srgb, var(--panel-soft) 58%, transparent);
+      content: "";
+    }
+
+    .hero-settings {
+      position: absolute;
+      top: 64px;
+      right: -120px;
+      width: min(980px, 70vw);
+      border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      opacity: 0.72;
+      animation: heroEnter 900ms ease both;
+    }
+
+    .hero-panel {
+      position: absolute;
+      right: min(55vw, 660px);
+      bottom: 26px;
+      width: min(330px, 27vw);
+      border-radius: var(--radius);
+      box-shadow: 0 30px 88px rgba(19, 28, 40, 0.28);
+      animation: panelFloat 6400ms ease-in-out infinite;
+    }
+
+    .ticker {
+      position: absolute;
+      right: 54px;
+      bottom: 62px;
+      display: flex;
+      width: min(560px, 44vw);
+      min-height: 64px;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+      box-shadow: var(--soft-shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .ticker-track {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 960px;
+      padding: 10px 12px;
+      animation: tickerMove 24s linear infinite;
+    }
+
+    .ticker-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      font-size: 13px;
+      font-weight: 790;
+      white-space: nowrap;
+    }
+
+    .ticker-chip span {
+      color: var(--green);
+    }
+
+    .ticker-chip.down span {
+      color: var(--red);
     }
 
     .hero-inner {
       position: relative;
-      z-index: 1;
+      z-index: 2;
       display: flex;
       align-items: center;
-      width: min(1160px, calc(100% - 40px));
+      width: var(--page);
       min-height: inherit;
       margin: 0 auto;
-      padding: 76px 0 84px;
+      padding: 72px 0 86px;
     }
 
     .hero-copy {
-      max-width: 670px;
+      width: min(650px, 62vw);
     }
 
     .eyebrow {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 9px;
       margin: 0 0 18px;
-      color: var(--accent);
+      color: var(--blue);
       font-size: 14px;
-      font-weight: 780;
+      font-weight: 820;
     }
 
     .eyebrow::before {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
+      width: 9px;
+      height: 9px;
       border-radius: 999px;
       background: var(--green);
+      box-shadow: 0 0 0 6px color-mix(in srgb, var(--green) 13%, transparent);
       content: "";
     }
 
@@ -213,9 +551,10 @@
     }
 
     h1 {
+      max-width: 760px;
       margin-bottom: 22px;
-      font-size: 64px;
-      line-height: 1;
+      font-size: clamp(48px, 7vw, 86px);
+      line-height: 0.96;
       letter-spacing: 0;
     }
 
@@ -223,190 +562,379 @@
       max-width: 610px;
       margin-bottom: 28px;
       color: var(--muted);
-      font-size: 20px;
+      font-size: clamp(18px, 2vw, 22px);
     }
 
     .actions {
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin-bottom: 18px;
+      margin-bottom: 22px;
     }
 
-    .meta {
-      color: var(--quiet);
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .section {
-      width: min(1160px, calc(100% - 40px));
-      margin: 0 auto;
-      padding: 78px 0;
-    }
-
-    .section-header {
-      display: grid;
-      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
-      gap: 34px;
-      align-items: end;
-      margin-bottom: 30px;
-    }
-
-    .section-kicker {
-      margin-bottom: 8px;
-      color: var(--accent);
-      font-size: 13px;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-
-    h2 {
-      margin-bottom: 0;
-      font-size: 38px;
-      line-height: 1.12;
-      letter-spacing: 0;
-    }
-
-    .section-header p {
-      margin-bottom: 0;
-      color: var(--muted);
-      font-size: 17px;
-    }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .feature {
-      min-height: 182px;
-      padding: 22px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--surface);
-      box-shadow: 0 10px 24px rgba(20, 23, 31, 0.04);
-    }
-
-    .feature .icon {
-      display: inline-grid;
-      width: 34px;
-      height: 34px;
-      margin-bottom: 18px;
-      place-items: center;
-      border-radius: 8px;
-      background: color-mix(in srgb, var(--accent) 13%, transparent);
-      color: var(--accent);
-      font-weight: 860;
-    }
-
-    h3 {
-      margin-bottom: 9px;
-      font-size: 20px;
-      line-height: 1.2;
-      letter-spacing: 0;
-    }
-
-    .feature p,
-    .text-block p,
-    .shot p,
-    .release-list li {
-      color: var(--muted);
-    }
-
-    .gallery {
-      display: grid;
-      grid-template-columns: 0.86fr 1.14fr;
-      gap: 18px;
-      align-items: start;
-    }
-
-    .phone-stack {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .shot {
-      margin: 0;
-    }
-
-    .shot img {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--surface);
-      box-shadow: var(--shadow);
-    }
-
-    .shot figcaption {
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 14px;
-      font-weight: 650;
-    }
-
-    .settings-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-      margin-top: 18px;
-    }
-
-    .band {
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: color-mix(in srgb, var(--surface-soft) 76%, transparent);
-    }
-
-    .two-column {
-      display: grid;
-      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-      gap: 46px;
-      align-items: start;
-    }
-
-    .data-list {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 20px;
-      padding: 0;
-      list-style: none;
-    }
-
-    .data-list li {
+    .meta-row {
       display: flex;
-      align-items: center;
-      min-height: 42px;
-      padding: 0 13px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--surface);
-      color: var(--text);
-      font-weight: 700;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      color: var(--quiet);
+      list-style: none;
+      font-size: 14px;
+      font-weight: 680;
     }
 
-    .data-list li::before {
-      width: 8px;
-      height: 8px;
-      margin-right: 10px;
+    .meta-row li {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .meta-row li::before {
+      width: 6px;
+      height: 6px;
       border-radius: 999px;
       background: var(--gold);
       content: "";
     }
 
+    .section {
+      width: var(--page);
+      margin: 0 auto;
+      padding: 88px 0;
+    }
+
+    .section.compact {
+      padding: 56px 0;
+    }
+
+    .section-header {
+      display: grid;
+      grid-template-columns: minmax(0, 0.88fr) minmax(0, 1fr);
+      gap: 44px;
+      align-items: end;
+      margin-bottom: 34px;
+    }
+
+    .section-kicker {
+      margin-bottom: 9px;
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin-bottom: 0;
+      font-size: clamp(34px, 4.2vw, 54px);
+      line-height: 1.03;
+      letter-spacing: 0;
+    }
+
+    .section-header p,
+    .text-block p,
+    .feature p,
+    .source-card p,
+    .release-list li,
+    .privacy-item p {
+      color: var(--muted);
+    }
+
+    .section-header p {
+      margin-bottom: 0;
+      font-size: 17px;
+    }
+
+    .proof {
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel) 78%, transparent);
+    }
+
+    .proof-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .proof-item {
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 8px 20px rgba(22, 29, 40, 0.05);
+    }
+
+    .proof-value {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 850;
+    }
+
+    .proof-label {
+      color: var(--quiet);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .feature {
+      position: relative;
+      min-height: 218px;
+      padding: 24px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--soft-shadow);
+      transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+    }
+
+    .feature:hover {
+      transform: translateY(-5px);
+      border-color: color-mix(in srgb, var(--blue) 42%, var(--border));
+      box-shadow: var(--shadow);
+    }
+
+    .feature-number {
+      display: inline-grid;
+      width: 34px;
+      height: 34px;
+      margin-bottom: 18px;
+      place-items: center;
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--blue) 12%, transparent);
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 860;
+    }
+
+    h3 {
+      margin-bottom: 10px;
+      font-size: 21px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .showcase {
+      position: relative;
+      overflow: hidden;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-strong);
+      color: #f6f8fb;
+    }
+
+    .showcase .section-kicker,
+    .showcase .eyebrow {
+      color: #86bbff;
+    }
+
+    .showcase p {
+      color: #b9c1cc;
+    }
+
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 44px;
+      align-items: center;
+    }
+
+    .showcase-copy {
+      max-width: 500px;
+    }
+
+    .showcase-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .showcase-list div {
+      padding: 16px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .showcase-list strong {
+      display: block;
+      margin-bottom: 3px;
+      color: #ffffff;
+      font-size: 17px;
+    }
+
+    .showcase-media {
+      display: grid;
+      grid-template-columns: 0.78fr 1fr;
+      gap: 16px;
+      align-items: end;
+    }
+
+    .showcase-media img {
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: var(--radius);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+    }
+
+    .showcase-media img:first-child {
+      transform: translateY(26px);
+    }
+
+    .surface-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .surface {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .surface.large {
+      overflow: hidden;
+    }
+
+    .surface.large img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .surface-copy {
+      display: grid;
+      gap: 14px;
+      padding: 24px;
+    }
+
+    .mini-shot {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel-soft) 62%, var(--panel));
+    }
+
+    .mini-shot img {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .mini-shot p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .sources {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel-soft) 82%, transparent);
+    }
+
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .source-card {
+      min-height: 232px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .source-card.recommended {
+      border-color: color-mix(in srgb, var(--green) 34%, var(--border));
+    }
+
+    .source-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      color: var(--quiet);
+      font-size: 13px;
+      font-weight: 780;
+      text-transform: uppercase;
+    }
+
+    .pill {
+      display: inline-flex;
+      min-height: 24px;
+      align-items: center;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--green) 13%, transparent);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 840;
+    }
+
+    .source-card a {
+      color: var(--blue);
+      font-weight: 760;
+      text-decoration: none;
+    }
+
+    .source-card a:hover {
+      text-decoration: underline;
+    }
+
+    .privacy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .privacy-item {
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .release-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr);
+      gap: 36px;
+      align-items: center;
+      padding: 34px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
     .release-list {
-      margin: 18px 0 0;
+      margin: 0;
       padding-left: 20px;
     }
 
     .release-list li + li {
-      margin-top: 10px;
+      margin-top: 9px;
     }
 
     .footer {
-      width: min(1160px, calc(100% - 40px));
+      width: var(--page);
       margin: 0 auto;
       padding: 36px 0 44px;
       border-top: 1px solid var(--border);
@@ -414,7 +942,158 @@
       font-size: 14px;
     }
 
-    @media (max-width: 920px) {
+    [data-reveal] {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .reveal-ready [data-reveal] {
+      opacity: 0;
+      transform: translateY(22px);
+      transition: opacity 640ms ease, transform 640ms ease;
+    }
+
+    .reveal-ready [data-reveal].is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @keyframes heroEnter {
+      from {
+        opacity: 0;
+        transform: translateY(28px) scale(0.98);
+      }
+      to {
+        opacity: 0.72;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes panelFloat {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-12px);
+      }
+    }
+
+    @keyframes tickerMove {
+      from {
+        transform: translateX(0);
+      }
+      to {
+        transform: translateX(-50%);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+      }
+
+      [data-reveal] {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @media (max-width: 1040px) {
+      .hero {
+        min-height: auto;
+      }
+
+      .hero::after {
+        background:
+          linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 80%, transparent) 44%, transparent 100%),
+          linear-gradient(0deg, var(--bg) 0%, transparent 20%);
+      }
+
+      .hero-inner {
+        align-items: flex-start;
+        padding: 62px 0 420px;
+      }
+
+      .hero-copy {
+        width: min(100%, 720px);
+      }
+
+      .hero-settings {
+        top: auto;
+        right: -88px;
+        bottom: 42px;
+        width: min(760px, 88vw);
+      }
+
+      .hero-panel {
+        right: auto;
+        left: 24px;
+        bottom: 36px;
+        width: min(250px, 30vw);
+      }
+
+      .ticker {
+        right: 24px;
+        bottom: 24px;
+        width: min(520px, calc(100% - 48px));
+      }
+
+      .section-header,
+      .showcase-grid,
+      .surface-grid,
+      .release-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .workflow,
+      .proof-grid,
+      .source-grid,
+      .privacy-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      :root {
+        --page: calc(100% - 28px);
+      }
+
+      .nav,
+      .section,
+      .footer,
+      .hero-inner {
+        max-width: calc(100vw - 28px);
+      }
+
+      .section-header,
+      .section-header > *,
+      .workflow,
+      .feature,
+      .showcase-grid,
+      .showcase-copy,
+      .showcase-list,
+      .surface-grid,
+      .surface,
+      .source-card,
+      .privacy-item,
+      .release-panel {
+        min-width: 0;
+      }
+
+      .section-header p,
+      .feature p,
+      .showcase p,
+      .source-card p,
+      .privacy-item p,
+      .release-list li {
+        overflow-wrap: anywhere;
+      }
+
       .nav {
         align-items: flex-start;
         flex-direction: column;
@@ -423,52 +1102,73 @@
 
       .nav-links {
         flex-wrap: wrap;
+        gap: 10px;
+        width: 100%;
+        font-size: 13px;
       }
 
-      .hero {
-        min-height: auto;
+      .language-menu {
+        position: fixed;
+        top: 118px;
+        right: 14px;
+        left: 14px;
+        z-index: 40;
+        width: auto;
+        max-height: min(420px, calc(100vh - 140px));
       }
 
-      .hero-bg {
-        opacity: 0.28;
-        object-position: 62% 0;
+      .nav-cta {
+        display: none;
       }
 
       .hero-inner {
-        padding: 62px 0 58px;
+        padding: 52px 0 430px;
+      }
+
+      .hero-copy {
+        width: 100%;
+        max-width: 340px;
       }
 
       h1 {
-        font-size: 44px;
+        font-size: 36px;
+        line-height: 1.02;
+        overflow-wrap: break-word;
       }
 
-      .section {
-        padding: 58px 0;
+      h2 {
+        font-size: 31px;
+        line-height: 1.08;
+        overflow-wrap: anywhere;
       }
 
-      .section-header,
-      .gallery,
-      .settings-grid,
-      .two-column,
-      .feature-grid {
-        grid-template-columns: 1fr;
+      h3 {
+        font-size: 20px;
       }
 
-      .phone-stack {
-        grid-template-columns: 1fr;
+      .lede {
+        font-size: 16px;
+        overflow-wrap: break-word;
       }
 
-      .phone-stack .shot img {
-        width: min(420px, 100%);
+      .meta-row {
+        max-width: 330px;
       }
-    }
 
-    @media (max-width: 560px) {
-      .nav,
-      .section,
-      .footer,
-      .hero-inner {
-        width: min(100% - 28px, 1160px);
+      .hero-panel {
+        left: 14px;
+        width: 190px;
+      }
+
+      .hero-settings {
+        right: -210px;
+        width: 700px;
+      }
+
+      .ticker {
+        left: 14px;
+        right: 14px;
+        width: auto;
       }
 
       .actions {
@@ -479,8 +1179,25 @@
         width: 100%;
       }
 
-      .data-list {
+      .workflow,
+      .proof-grid,
+      .source-grid,
+      .privacy-grid,
+      .showcase-media {
         grid-template-columns: 1fr;
+      }
+
+      .showcase-media img:first-child {
+        width: min(360px, 100%);
+        transform: none;
+      }
+
+      .mini-shot {
+        grid-template-columns: 1fr;
+      }
+
+      .mini-shot img {
+        width: min(180px, 100%);
       }
     }
   </style>
@@ -493,186 +1210,1364 @@
         <span>Currency Tracker</span>
       </a>
       <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#screenshots">Screenshots</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#product">Product</a>
         <a href="#sources">Data sources</a>
-        <a href="https://github.com/Agumuzi/Currency_Tracker">GitHub</a>
+        <a href="#privacy">Privacy</a>
+        <div class="language-switcher" data-language-switcher>
+          <button class="language-button" type="button" aria-haspopup="true" aria-expanded="false" data-language-button>
+            <span class="flag flag-us" data-current-flag aria-hidden="true"></span>
+            <span data-current-language>English</span>
+          </button>
+          <div class="language-menu" role="menu" data-language-menu>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="en"><span class="flag flag-us" aria-hidden="true"></span><span>English</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="zh-Hans"><span class="flag flag-cn" aria-hidden="true"></span><span>简体中文</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="zh-Hant"><span class="flag flag-tw" aria-hidden="true"></span><span>繁體中文</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="ru"><span class="flag flag-ru" aria-hidden="true"></span><span>Русский</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="ja"><span class="flag flag-jp" aria-hidden="true"></span><span>日本語</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="ko"><span class="flag flag-kr" aria-hidden="true"></span><span>한국어</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="de"><span class="flag flag-de" aria-hidden="true"></span><span>Deutsch</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="fr"><span class="flag flag-fr" aria-hidden="true"></span><span>Français</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="es"><span class="flag flag-es" aria-hidden="true"></span><span>Español</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="it"><span class="flag flag-it" aria-hidden="true"></span><span>Italiano</span></button>
+            <button class="language-option" type="button" role="menuitemradio" data-lang="pt-BR"><span class="flag flag-br" aria-hidden="true"></span><span>Português do Brasil</span></button>
+          </div>
+        </div>
+        <a class="nav-cta" href="https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.5.2/Currency-Tracker-1.5.2.zip">Download</a>
       </div>
     </nav>
   </header>
 
   <main>
     <section class="hero">
-      <img class="hero-bg" src="assets/screenshots/settings-rates.png" alt="">
+      <div class="hero-media" aria-hidden="true">
+        <img class="hero-settings" src="assets/screenshots/settings-rates.png" alt="">
+        <img class="hero-panel" src="assets/screenshots/menu-panel-history.png" alt="">
+        <div class="ticker">
+          <div class="ticker-track">
+            <span class="ticker-chip">USD/RUB <span>+0.26</span></span>
+            <span class="ticker-chip">CNY/RUB <span>12.74</span></span>
+            <span class="ticker-chip down">USD/CNY <span>-0.01</span></span>
+            <span class="ticker-chip">EUR/CNY <span>7.89</span></span>
+            <span class="ticker-chip">JPY/CNY <span>0.042</span></span>
+            <span class="ticker-chip">USD/RUB <span>+0.26</span></span>
+            <span class="ticker-chip">CNY/RUB <span>12.74</span></span>
+            <span class="ticker-chip down">USD/CNY <span>-0.01</span></span>
+            <span class="ticker-chip">EUR/CNY <span>7.89</span></span>
+            <span class="ticker-chip">JPY/CNY <span>0.042</span></span>
+          </div>
+        </div>
+      </div>
       <div class="hero-inner">
         <div class="hero-copy">
           <p class="eyebrow">Current release v1.5.2</p>
-          <h1>Currency Tracker</h1>
-          <p class="lede">Exchange rates, trend charts, conversion, alerts, profiles, and provider API management from the macOS menu bar.</p>
+          <h1>Exchange rates that stay where your work happens.</h1>
+          <p class="lede">Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.</p>
           <div class="actions">
-            <a class="button primary" href="https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.5.2/Currency-Tracker-1.5.2.zip">Download v1.5.2</a>
-            <a class="button" href="https://github.com/Agumuzi/Currency_Tracker/releases">View releases</a>
+            <a class="button primary" href="https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.5.2/Currency-Tracker-1.5.2.zip">Download for macOS</a>
+            <a class="button" href="https://github.com/Agumuzi/Currency_Tracker">View source</a>
           </div>
-          <p class="meta">Requires macOS 14.0 or later. Distributed through GitHub Releases.</p>
+          <ul class="meta-row" aria-label="Product facts">
+            <li>macOS 14 or later</li>
+            <li>11 app languages</li>
+            <li>Local-first preferences</li>
+          </ul>
         </div>
       </div>
     </section>
 
-    <section class="section" id="features">
-      <div class="section-header">
+    <section class="proof">
+      <div class="section compact proof-grid" data-reveal>
+        <div class="proof-item">
+          <span class="proof-value">1 click</span>
+          <span class="proof-label">Menu bar access to selected rates</span>
+        </div>
+        <div class="proof-item">
+          <span class="proof-value">11</span>
+          <span class="proof-label">Localized interface languages</span>
+        </div>
+        <div class="proof-item">
+          <span class="proof-value">100+</span>
+          <span class="proof-label">ISO currencies through provider-backed search</span>
+        </div>
+        <div class="proof-item">
+          <span class="proof-value">0</span>
+          <span class="proof-label">Project-owned backend services</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="workflow">
+      <div class="section-header" data-reveal>
         <div>
           <p class="section-kicker">Workflow</p>
-          <h2>Built around the rates you check every day.</h2>
+          <h2>A daily currency desk in a small surface.</h2>
         </div>
-        <p>Currency Tracker keeps a focused exchange-rate workspace close to the menu bar, then gives you deeper controls only when you need them.</p>
+        <p>The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.</p>
       </div>
 
-      <div class="feature-grid">
-        <article class="feature">
-          <span class="icon">01</span>
-          <h3>Menu bar rates</h3>
-          <p>Pin selected pairs, refresh manually or automatically, and switch the menu bar item between icon, compact pair, and featured-rate modes.</p>
+      <div class="workflow">
+        <article class="feature" data-reveal>
+          <span class="feature-number">01</span>
+          <h3>Scan the rates that matter</h3>
+          <p>Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.</p>
         </article>
-        <article class="feature">
-          <span class="icon">02</span>
-          <h3>Charts and conversion</h3>
-          <p>Expand any pair into a history chart or a two-way converter without leaving the menu bar panel.</p>
+        <article class="feature" data-reveal>
+          <span class="feature-number">02</span>
+          <h3>Open history in context</h3>
+          <p>Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.</p>
         </article>
-        <article class="feature">
-          <span class="icon">03</span>
-          <h3>System text conversion</h3>
-          <p>Convert selected amounts from other macOS apps through Services or a global shortcut.</p>
+        <article class="feature" data-reveal>
+          <span class="feature-number">03</span>
+          <h3>Convert without switching tools</h3>
+          <p>Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.</p>
         </article>
-        <article class="feature">
-          <span class="icon">04</span>
-          <h3>Profiles and alerts</h3>
-          <p>Save different pair lists and refresh behavior as profiles, then add threshold alerts for important rates.</p>
-        </article>
-        <article class="feature">
-          <span class="icon">05</span>
-          <h3>Provider control</h3>
-          <p>Use public fallback data sources, add mainstream API credentials, or define and test a custom JSON endpoint template.</p>
-        </article>
-        <article class="feature">
-          <span class="icon">06</span>
-          <h3>In-app updates</h3>
-          <p>Check GitHub Releases from Settings, verify downloaded packages with SHA256 checksums, and install prepared updates inside the app after confirmation.</p>
-        </article>
-        <article class="feature">
-          <span class="icon">07</span>
-          <h3>Localized workspace</h3>
-          <p>Use the app in English, Chinese, Russian, Japanese, Korean, French, German, Spanish, Portuguese, or Italian, with a direct Settings link to macOS language preferences.</p>
-        </article>
-        <article class="feature">
-          <span class="icon">08</span>
-          <h3>Resizable windows</h3>
-          <p>Keep the menu panel anchored to the status item, then resize the pinned panel and Settings window when you need more space for long localized labels or larger rate lists.</p>
+        <article class="feature" data-reveal>
+          <span class="feature-number">04</span>
+          <h3>Control the data layer</h3>
+          <p>Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.</p>
         </article>
       </div>
     </section>
 
-    <section class="section" id="screenshots">
-      <div class="section-header">
+    <section class="showcase" id="product">
+      <div class="section showcase-grid">
+        <div class="showcase-copy" data-reveal>
+          <p class="section-kicker">Product surface</p>
+          <h2>Small enough for the menu bar. Complete enough for real work.</h2>
+          <p>Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.</p>
+          <div class="showcase-list">
+            <div>
+              <strong>Native scroll feedback</strong>
+              <p>Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.</p>
+            </div>
+            <div>
+              <strong>Anchored menu behavior</strong>
+              <p>The menu panel stays attached to the status item, while the pinned panel can be resized independently.</p>
+            </div>
+            <div>
+              <strong>Chart and conversion modes</strong>
+              <p>The card itself becomes the chart or converter, keeping the workflow in one place.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="showcase-media" data-reveal>
+          <img src="assets/screenshots/menu-panel.png" alt="Currency Tracker menu bar panel showing multiple exchange-rate cards.">
+          <img src="assets/screenshots/menu-panel-conversion.png" alt="Expanded currency card with conversion fields.">
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header" data-reveal>
         <div>
-          <p class="section-kicker">Screenshots</p>
-          <h2>The main surfaces are small, dense, and practical.</h2>
+          <p class="section-kicker">Settings</p>
+          <h2>A control room instead of a crowded settings page.</h2>
         </div>
-        <p>The menu panel is designed for quick scanning. Settings split advanced behavior into dedicated sidebar sections so the app can grow without one crowded page.</p>
+        <p>Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.</p>
       </div>
 
-      <div class="gallery">
-        <div class="phone-stack">
-          <figure class="shot">
-            <img src="assets/screenshots/menu-panel.png" alt="Currency Tracker menu bar panel with multiple exchange-rate cards.">
-            <figcaption>Scrollable menu bar rate list</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="assets/screenshots/menu-panel-history.png" alt="Expanded currency card with history chart.">
-            <figcaption>History chart inside a card</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="assets/screenshots/menu-panel-conversion.png" alt="Expanded currency card with conversion fields.">
-            <figcaption>Two-way conversion</figcaption>
-          </figure>
-        </div>
-
-        <figure class="shot">
+      <div class="surface-grid">
+        <figure class="surface large" data-reveal>
           <img src="assets/screenshots/settings-rates.png" alt="Settings window showing selected pair management.">
-          <figcaption>Pair management with reorder controls and full currency search</figcaption>
         </figure>
-      </div>
-
-      <div class="settings-grid">
-        <figure class="shot">
-          <img src="assets/screenshots/data-sources-window.png" alt="Settings window showing API sources and custom API templates.">
-          <figcaption>API source management</figcaption>
-        </figure>
-        <figure class="shot">
-          <img src="assets/screenshots/settings-updates.png" alt="Settings window showing software update controls.">
-          <figcaption>Software update controls</figcaption>
-        </figure>
-        <figure class="shot">
-          <img src="assets/screenshots/settings-profiles.png" alt="Settings window showing profiles.">
-          <figcaption>Profiles for different workflows</figcaption>
-        </figure>
-        <figure class="shot">
-          <img src="assets/screenshots/settings-alerts.png" alt="Settings window showing rate alerts.">
-          <figcaption>Rate threshold alerts</figcaption>
-        </figure>
+        <div class="surface surface-copy" data-reveal>
+          <div class="mini-shot">
+            <img src="assets/screenshots/data-sources-window.png" alt="Data source settings with API fields.">
+            <div>
+              <h3>Provider management</h3>
+              <p>Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.</p>
+            </div>
+          </div>
+          <div class="mini-shot">
+            <img src="assets/screenshots/settings-updates.png" alt="Software update settings.">
+            <div>
+              <h3>In-app update flow</h3>
+              <p>Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.</p>
+            </div>
+          </div>
+          <div class="mini-shot">
+            <img src="assets/screenshots/settings-profiles.png" alt="Settings profiles screen.">
+            <div>
+              <h3>Profiles and alerts</h3>
+              <p>Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="band" id="sources">
-      <div class="section two-column">
-        <div class="text-block">
-          <p class="section-kicker">Data sources</p>
-          <h2>Works out of the box, improves with your own keys.</h2>
-          <p>Currency Tracker uses public fallback sources by default. Twelve Data and Open Exchange Rates are the recommended enhanced sources for personal use because both offer free tiers: Twelve Data provides 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker, while Open Exchange Rates provides 1,000 free requests per month.</p>
-          <p><a href="https://twelvedata.com/">Twelve Data</a> · <a href="https://openexchangerates.org/">Open Exchange Rates</a></p>
+    <section class="sources" id="sources">
+      <div class="section">
+        <div class="section-header" data-reveal>
+          <div>
+            <p class="section-kicker">Data sources</p>
+            <h2>Works out of the box, improves with your own keys.</h2>
+          </div>
+          <p>Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.</p>
         </div>
-        <ul class="data-list" aria-label="Supported data providers">
-          <li><a href="https://twelvedata.com/">Twelve Data</a></li>
-          <li>ExchangeRate-API</li>
-          <li><a href="https://openexchangerates.org/">Open Exchange Rates</a></li>
-          <li>Fixer</li>
-          <li>Currencylayer</li>
-          <li>Custom JSON APIs</li>
+
+        <div class="source-grid">
+          <article class="source-card recommended" data-reveal>
+            <div class="source-meta">
+              <span>Recommended</span>
+              <span class="pill">Free tier</span>
+            </div>
+            <h3>Twelve Data</h3>
+            <p>Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.</p>
+            <p><a href="https://twelvedata.com/">Open Twelve Data</a></p>
+          </article>
+          <article class="source-card recommended" data-reveal>
+            <div class="source-meta">
+              <span>Recommended</span>
+              <span class="pill">Free tier</span>
+            </div>
+            <h3>Open Exchange Rates</h3>
+            <p>Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.</p>
+            <p><a href="https://openexchangerates.org/">Open Exchange Rates</a></p>
+          </article>
+          <article class="source-card" data-reveal>
+            <div class="source-meta">
+              <span>Flexible</span>
+              <span class="pill">Custom</span>
+            </div>
+            <h3>Other providers</h3>
+            <p>ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.</p>
+            <p><a href="https://github.com/Agumuzi/Currency_Tracker">Review supported sources</a></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="privacy">
+      <div class="section-header" data-reveal>
+        <div>
+          <p class="section-kicker">Privacy and operations</p>
+          <h2>Transparent behavior for an open-source Mac utility.</h2>
+        </div>
+        <p>The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.</p>
+      </div>
+
+      <div class="privacy-grid">
+        <div class="privacy-item" data-reveal>
+          <h3>Local credential storage</h3>
+          <p>Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.</p>
+        </div>
+        <div class="privacy-item" data-reveal>
+          <h3>No project backend</h3>
+          <p>The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.</p>
+        </div>
+        <div class="privacy-item" data-reveal>
+          <h3>Unsigned distribution</h3>
+          <p>Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section compact">
+      <div class="release-panel" data-reveal>
+        <div>
+          <p class="section-kicker">Release</p>
+          <h2>Version 1.5.2</h2>
+          <p>Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.5.2/Currency-Tracker-1.5.2.zip">Download v1.5.2</a>
+            <a class="button" href="https://github.com/Agumuzi/Currency_Tracker/releases/tag/v1.5.2">Release notes</a>
+          </div>
+        </div>
+        <ul class="release-list">
+          <li>Menu bar panel stays anchored to the status item.</li>
+          <li>Native macOS overlay scroller replaces the custom scroll marker.</li>
+          <li>Rate card gutters now align evenly on both sides.</li>
+          <li>Menu bar display settings use a stacked layout for long localized labels.</li>
+          <li>README and product-page screenshots match the current app UI.</li>
         </ul>
-      </div>
-    </section>
-
-    <section class="section two-column">
-      <div class="text-block">
-        <p class="section-kicker">Release</p>
-        <h2>What is new in 1.5.2</h2>
-        <p>This bugfix release focuses on menu-panel polish, native scroll feedback, and clearer documentation for recommended free data sources.</p>
-      </div>
-      <ul class="release-list">
-        <li>Keeps the menu bar panel anchored to the status item while preserving resize support for the pinned panel.</li>
-        <li>Replaces the custom scroll marker with the native macOS overlay scroller outside the rate cards.</li>
-        <li>Aligns menu panel card gutters so the list has consistent left and right spacing.</li>
-        <li>Changes the menu bar display setting to a stacked layout for long localized labels.</li>
-        <li>Refreshes README and product-page screenshots with the current app UI.</li>
-      </ul>
-    </section>
-
-    <section class="band">
-      <div class="section two-column">
-        <div class="text-block">
-          <p class="section-kicker">Privacy</p>
-          <h2>Local-first by default.</h2>
-          <p>Preferences, selected pairs, profiles, alerts, and API credentials stay on your Mac. Provider keys are stored in the app's local Application Support data rather than the system Keychain. The project does not operate a backend service for collecting local files, clipboard contents, or device data.</p>
-        </div>
-        <div class="text-block">
-          <p>External providers only receive exchange-rate requests for the data sources you enable. The app is distributed through GitHub Releases and is not currently Apple-notarized, so macOS may ask for first-launch approval.</p>
-          <p><a class="button" href="https://github.com/Agumuzi/Currency_Tracker">View source on GitHub</a></p>
-        </div>
       </div>
     </section>
   </main>
 
   <footer class="footer">
-    Currency Tracker is maintained by Agumuzi. Source code and packaged builds are available on GitHub.
+    Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.
   </footer>
+
+  <script>
+    const languages = {
+      en: { flagClass: "flag-us", label: "English", htmlLang: "en", languageLabel: "Language" },
+      "zh-Hans": { flagClass: "flag-cn", label: "简体中文", htmlLang: "zh-Hans", languageLabel: "语言" },
+      "zh-Hant": { flagClass: "flag-tw", label: "繁體中文", htmlLang: "zh-Hant", languageLabel: "語言" },
+      ru: { flagClass: "flag-ru", label: "Русский", htmlLang: "ru", languageLabel: "Язык" },
+      ja: { flagClass: "flag-jp", label: "日本語", htmlLang: "ja", languageLabel: "言語" },
+      ko: { flagClass: "flag-kr", label: "한국어", htmlLang: "ko", languageLabel: "언어" },
+      de: { flagClass: "flag-de", label: "Deutsch", htmlLang: "de", languageLabel: "Sprache" },
+      fr: { flagClass: "flag-fr", label: "Français", htmlLang: "fr", languageLabel: "Langue" },
+      es: { flagClass: "flag-es", label: "Español", htmlLang: "es", languageLabel: "Idioma" },
+      it: { flagClass: "flag-it", label: "Italiano", htmlLang: "it", languageLabel: "Lingua" },
+      "pt-BR": { flagClass: "flag-br", label: "Português do Brasil", htmlLang: "pt-BR", languageLabel: "Idioma" }
+    };
+
+    const pageMeta = {
+      en: {
+        title: "Currency Tracker for macOS",
+        description: "Currency Tracker is a polished macOS menu bar app for exchange rates, trend charts, quick conversion, provider API keys, alerts, profiles, and in-app updates."
+      },
+      "zh-Hans": {
+        title: "Currency Tracker for macOS",
+        description: "Currency Tracker 是一款精致的 macOS 菜单栏汇率工具，支持实时汇率、趋势图、快速换算、数据源 API Key、提醒、配置档和应用内更新。"
+      },
+      "zh-Hant": {
+        title: "Currency Tracker for macOS",
+        description: "Currency Tracker 是一款精緻的 macOS 選單列匯率工具，支援即時匯率、趨勢圖、快速換算、資料源 API Key、提醒、設定檔與應用內更新。"
+      },
+      ru: {
+        title: "Currency Tracker для macOS",
+        description: "Currency Tracker - аккуратное приложение для строки меню macOS с курсами валют, графиками, быстрым конвертером, API-ключами поставщиков, уведомлениями, профилями и обновлениями внутри приложения."
+      },
+      ja: {
+        title: "Currency Tracker for macOS",
+        description: "Currency Tracker は、為替レート、チャート、クイック換算、プロバイダー API キー、アラート、プロファイル、アプリ内アップデートを備えた macOS メニューバーアプリです。"
+      },
+      ko: {
+        title: "macOS용 Currency Tracker",
+        description: "Currency Tracker는 환율, 추세 차트, 빠른 환산, 공급자 API 키, 알림, 프로필, 앱 내 업데이트를 제공하는 macOS 메뉴 막대 앱입니다."
+      },
+      de: {
+        title: "Currency Tracker für macOS",
+        description: "Currency Tracker ist eine elegante macOS-Menuleisten-App für Wechselkurse, Verlaufsgrafiken, schnelle Umrechnung, Anbieter-API-Schlüssel, Warnungen, Profile und In-App-Updates."
+      },
+      fr: {
+        title: "Currency Tracker pour macOS",
+        description: "Currency Tracker est une application soignée pour la barre des menus macOS avec taux de change, graphiques, conversion rapide, clés API, alertes, profils et mises à jour intégrées."
+      },
+      es: {
+        title: "Currency Tracker para macOS",
+        description: "Currency Tracker es una app pulida para la barra de menús de macOS con tipos de cambio, gráficos, conversión rápida, claves API, alertas, perfiles y actualizaciones internas."
+      },
+      it: {
+        title: "Currency Tracker per macOS",
+        description: "Currency Tracker è un'app curata per la barra dei menu di macOS con tassi di cambio, grafici, conversione rapida, chiavi API, avvisi, profili e aggiornamenti integrati."
+      },
+      "pt-BR": {
+        title: "Currency Tracker para macOS",
+        description: "Currency Tracker e um app refinado para a barra de menus do macOS com cotacoes, graficos, conversao rapida, chaves de API, alertas, perfis e atualizacoes no app."
+      }
+    };
+
+    const textTranslations = {
+      "zh-Hans": {
+        "Workflow": "工作流",
+        "Product": "产品",
+        "Data sources": "数据源",
+        "Privacy": "隐私",
+        "Download": "下载",
+        "Current release v1.5.2": "当前版本 v1.5.2",
+        "Exchange rates that stay where your work happens.": "始终待在工作场景里的汇率工具。",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker 把 macOS 菜单栏变成专注的汇率工作区，支持实时汇率、趋势图、换算、提醒、配置档和数据源管理。",
+        "Download for macOS": "下载 macOS 版本",
+        "View source": "查看源代码",
+        "macOS 14 or later": "macOS 14 或更高版本",
+        "11 app languages": "11 种应用语言",
+        "Local-first preferences": "本地优先的偏好设置",
+        "1 click": "1 次点击",
+        "Menu bar access to selected rates": "从菜单栏快速查看所选汇率",
+        "Localized interface languages": "本地化界面语言",
+        "100+": "100+",
+        "ISO currencies through provider-backed search": "通过数据源搜索 ISO 货币",
+        "0": "0",
+        "Project-owned backend services": "项目自有后端服务",
+        "A daily currency desk in a small surface.": "把日常汇率工作台放进一个小窗口。",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "这款应用面向高频查看，而不是偶尔查询。默认路径适合从菜单栏快速扫一眼，更深的控制只需要一次交互。",
+        "Scan the rates that matter": "扫一眼重要汇率",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "把精选货币对放在紧凑卡片中，同时显示数据源、刷新时间、涨跌标记，并为更长列表保留原生滚动体验。",
+        "Open history in context": "在当前卡片中查看历史",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "当历史数据可用时，可以把卡片展开成趋势图，并在 7 天到 1 年之间切换实用区间。",
+        "Convert without switching tools": "不用切换工具也能换算",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "使用卡片内双向换算器、macOS 服务或全局快捷键，直接换算其他应用中选中的文本。",
+        "Control the data layer": "管理数据层",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "在专门的设置窗口中添加供应商凭据、测试自定义 JSON API、设置提醒、切换配置档并管理更新。",
+        "Product surface": "产品界面",
+        "Small enough for the menu bar. Complete enough for real work.": "足够轻巧，可以放进菜单栏；也足够完整，可以认真工作。",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker 让主要汇率列表保持紧凑、清晰且可预期。当你需要一边处理其他工作一边监控汇率时，固定面板可以变成可调整大小、始终置顶的工作区。",
+        "Native scroll feedback": "原生滚动反馈",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "较长的汇率列表使用位于卡片内容外侧的 macOS 原生覆盖滚动条，因此左右间距保持一致。",
+        "Anchored menu behavior": "稳定的菜单栏锚定",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "菜单面板会保持附着在状态栏图标上，而固定面板可以独立调整大小。",
+        "Chart and conversion modes": "图表和换算模式",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "卡片本身可以变成图表或换算器，让工作流留在同一个位置。",
+        "Settings": "设置",
+        "A control room instead of a crowded settings page.": "把拥挤的设置页变成清晰的控制中心。",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "设置被拆分到清晰的边栏目录中，包括汇率、数据源、更新、配置档、提醒、语言、权限、诊断和启动行为。",
+        "Provider management": "数据源管理",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "从菜单中添加主流 API 供应商，本地保存凭据，并在启用前测试自定义 JSON 模板。",
+        "In-app update flow": "应用内更新流程",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "检查 GitHub Releases、下载安装包、验证 SHA256 校验和，并在确认后安装。",
+        "Profiles and alerts": "配置档和提醒",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "为不同场景保存不同汇率列表和刷新行为，并为重点关注的货币对添加阈值提醒。",
+        "Works out of the box, improves with your own keys.": "开箱即可使用，填入自己的 Key 后更强。",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "公共数据源让应用可以立即使用。当你需要更广覆盖或更高可靠性时，可以添加供应商凭据或定义自定义 JSON 端点。",
+        "Recommended": "推荐",
+        "Free tier": "免费额度",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data 每天提供 800 个免费 API 点数，在 Currency Tracker 中大约相当于 100 次完整的多货币对刷新。",
+        "Open Twelve Data": "打开 Twelve Data",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates 每月提供 1,000 次免费请求，非常适合作为个人工作流中的备用数据源。",
+        "Open Exchange Rates": "打开 Open Exchange Rates",
+        "Flexible": "灵活",
+        "Custom": "自定义",
+        "Other providers": "其他供应商",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "当你的工作流依赖特定来源时，也可以添加 ExchangeRate-API、Fixer、Currencylayer 或自定义 JSON API。",
+        "Review supported sources": "查看支持的数据源",
+        "Privacy and operations": "隐私与运行方式",
+        "Transparent behavior for an open-source Mac utility.": "为开源 Mac 工具保持透明行为。",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "应用的行为尽量保持可理解：本地偏好设置、没有项目自有后端、可见的数据源选择，以及通过 GitHub 完成发布流程。",
+        "Local credential storage": "本地凭据存储",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "供应商 Key 存储在应用本地 Application Support 数据中，而不是 macOS Keychain，以避免未签名开源工具触发令人困惑的信任提示。",
+        "No project backend": "没有项目自有后端",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "项目不会运行服务器来收集本地文件、剪贴板内容、供应商 Key 或设备数据。",
+        "Unsigned distribution": "未签名分发",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "构建版本通过 GitHub Releases 分发。由于应用没有经过 Apple 公证，macOS 可能会在首次启动时要求确认。",
+        "Release": "发布",
+        "Version 1.5.2": "版本 1.5.2",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "优化菜单栏面板、原生滚动反馈、更新截图，并更清晰地说明推荐免费数据源。",
+        "Download v1.5.2": "下载 v1.5.2",
+        "Release notes": "发布说明",
+        "Menu bar panel stays anchored to the status item.": "菜单栏面板保持锚定在状态栏图标上。",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "使用 macOS 原生覆盖滚动条替代自定义滚动标记。",
+        "Rate card gutters now align evenly on both sides.": "汇率卡片左右边距现在保持一致。",
+        "Menu bar display settings use a stacked layout for long localized labels.": "菜单栏显示设置对较长的本地化标签使用上下布局。",
+        "README and product-page screenshots match the current app UI.": "README 和产品页截图与当前应用界面保持一致。",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker 由 Agumuzi 维护。源代码、打包版本和发布说明都可以在 GitHub 查看。"
+      },
+      "zh-Hant": {
+        "Workflow": "工作流程",
+        "Product": "產品",
+        "Data sources": "資料源",
+        "Privacy": "隱私",
+        "Download": "下載",
+        "Current release v1.5.2": "目前版本 v1.5.2",
+        "Exchange rates that stay where your work happens.": "始終留在工作場景裡的匯率工具。",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker 將 macOS 選單列變成專注的匯率工作區，支援即時匯率、趨勢圖、換算、提醒、設定檔與資料源管理。",
+        "Download for macOS": "下載 macOS 版本",
+        "View source": "查看原始碼",
+        "macOS 14 or later": "macOS 14 或更新版本",
+        "11 app languages": "11 種應用程式語言",
+        "Local-first preferences": "以本機為優先的偏好設定",
+        "1 click": "1 次點擊",
+        "Menu bar access to selected rates": "從選單列快速查看所選匯率",
+        "Localized interface languages": "本地化介面語言",
+        "ISO currencies through provider-backed search": "透過資料源搜尋 ISO 貨幣",
+        "Project-owned backend services": "專案自有後端服務",
+        "A daily currency desk in a small surface.": "把日常匯率工作台放進小巧介面。",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "這款應用程式面向高頻查看，而不是偶爾查詢。預設流程適合從選單列快速掃描，更深入的控制只需一次互動。",
+        "Scan the rates that matter": "快速掃描重要匯率",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "將精選貨幣對放在緊湊卡片中，同時顯示資料源、刷新時間、漲跌標記，並為較長列表保留原生捲動體驗。",
+        "Open history in context": "在目前卡片中查看歷史",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "當歷史資料可用時，可將卡片展開為趨勢圖，並在 7 天到 1 年之間切換實用區間。",
+        "Convert without switching tools": "不切換工具也能換算",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "使用卡片內雙向換算器、macOS 服務或全域快捷鍵，直接換算其他應用程式中選取的文字。",
+        "Control the data layer": "管理資料層",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "在專門的設定視窗中新增供應商憑證、測試自訂 JSON API、設定提醒、切換設定檔並管理更新。",
+        "Product surface": "產品介面",
+        "Small enough for the menu bar. Complete enough for real work.": "足夠輕巧可放進選單列，也足夠完整可應付實際工作。",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker 讓主要匯率列表保持緊湊、清晰且可預期。當你需要一邊處理其他工作一邊監控匯率時，固定面板可以變成可調整大小、永遠置頂的工作區。",
+        "Native scroll feedback": "原生捲動回饋",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "較長的匯率列表使用位於卡片內容外側的 macOS 原生覆蓋捲動條，因此左右間距保持一致。",
+        "Anchored menu behavior": "穩定的選單列錨定",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "選單面板會保持附著在狀態列圖示上，而固定面板可獨立調整大小。",
+        "Chart and conversion modes": "圖表與換算模式",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "卡片本身可以變成圖表或換算器，讓工作流程留在同一處。",
+        "Settings": "設定",
+        "A control room instead of a crowded settings page.": "把擁擠的設定頁變成清楚的控制中心。",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "設定被拆分到清楚的側邊欄目錄中，包括匯率、資料源、更新、設定檔、提醒、語言、權限、診斷與啟動行為。",
+        "Provider management": "資料源管理",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "從選單新增主流 API 供應商，本機儲存憑證，並在啟用前測試自訂 JSON 範本。",
+        "In-app update flow": "應用程式內更新流程",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "檢查 GitHub Releases、下載安裝包、驗證 SHA256 校驗和，並在確認後安裝。",
+        "Profiles and alerts": "設定檔與提醒",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "為不同場景儲存不同匯率列表與刷新行為，並為重點關注的貨幣對加入閾值提醒。",
+        "Works out of the box, improves with your own keys.": "開箱即可使用，填入自己的 Key 後更強。",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "公共資料源讓應用程式可立即使用。當你需要更廣覆蓋或更高可靠性時，可以新增供應商憑證或定義自訂 JSON 端點。",
+        "Recommended": "推薦",
+        "Free tier": "免費額度",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data 每天提供 800 個免費 API 點數，在 Currency Tracker 中約等於 100 次完整的多貨幣對刷新。",
+        "Open Twelve Data": "開啟 Twelve Data",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates 每月提供 1,000 次免費請求，很適合作為個人工作流程中的備用資料源。",
+        "Open Exchange Rates": "開啟 Open Exchange Rates",
+        "Flexible": "靈活",
+        "Custom": "自訂",
+        "Other providers": "其他供應商",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "當你的工作流程依賴特定來源時，也可以新增 ExchangeRate-API、Fixer、Currencylayer 或自訂 JSON API。",
+        "Review supported sources": "查看支援的資料源",
+        "Privacy and operations": "隱私與運作方式",
+        "Transparent behavior for an open-source Mac utility.": "為開源 Mac 工具保持透明行為。",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "應用程式行為盡量保持可理解：本機偏好設定、沒有專案自有後端、可見的資料源選擇，以及透過 GitHub 完成發布流程。",
+        "Local credential storage": "本機憑證儲存",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "供應商 Key 儲存在應用程式本機 Application Support 資料中，而不是 macOS Keychain，以避免未簽名開源工具觸發令人困惑的信任提示。",
+        "No project backend": "沒有專案自有後端",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "專案不會運行伺服器來收集本機檔案、剪貼簿內容、供應商 Key 或裝置資料。",
+        "Unsigned distribution": "未簽名發佈",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "建置版本透過 GitHub Releases 發佈。由於應用程式未經 Apple 公證，macOS 可能會在首次啟動時要求確認。",
+        "Release": "發佈",
+        "Version 1.5.2": "版本 1.5.2",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "優化選單列面板、原生捲動回饋、更新截圖，並更清楚說明推薦免費資料源。",
+        "Download v1.5.2": "下載 v1.5.2",
+        "Release notes": "發佈說明",
+        "Menu bar panel stays anchored to the status item.": "選單列面板保持錨定在狀態列圖示上。",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "使用 macOS 原生覆蓋捲動條取代自訂捲動標記。",
+        "Rate card gutters now align evenly on both sides.": "匯率卡片左右邊距現在保持一致。",
+        "Menu bar display settings use a stacked layout for long localized labels.": "選單列顯示設定對較長的本地化標籤使用上下排列。",
+        "README and product-page screenshots match the current app UI.": "README 與產品頁截圖和目前應用程式介面保持一致。",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker 由 Agumuzi 維護。原始碼、打包版本與發佈說明都可在 GitHub 查看。"
+      },
+      ru: {
+        "Workflow": "Сценарии",
+        "Product": "Продукт",
+        "Data sources": "Источники",
+        "Privacy": "Приватность",
+        "Download": "Скачать",
+        "Current release v1.5.2": "Текущая версия v1.5.2",
+        "Exchange rates that stay where your work happens.": "Курсы валют там, где вы работаете.",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker превращает строку меню macOS в рабочее пространство для курсов валют с текущими значениями, графиками, конвертацией, уведомлениями, профилями и управлением поставщиками.",
+        "Download for macOS": "Скачать для macOS",
+        "View source": "Исходный код",
+        "macOS 14 or later": "macOS 14 или новее",
+        "11 app languages": "11 языков приложения",
+        "Local-first preferences": "Локальные настройки",
+        "1 click": "1 клик",
+        "Menu bar access to selected rates": "Доступ к выбранным курсам из строки меню",
+        "Localized interface languages": "Локализованных языков интерфейса",
+        "ISO currencies through provider-backed search": "Валюты ISO через поиск поставщиков",
+        "Project-owned backend services": "Собственных серверных сервисов",
+        "A daily currency desk in a small surface.": "Ежедневный валютный стол в компактном окне.",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "Приложение рассчитано на регулярную проверку, а не на редкие поиски. Основной путь - быстрый просмотр из строки меню, а подробные настройки доступны за одно действие.",
+        "Scan the rates that matter": "Просматривайте важные курсы",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "Держите выбранные валютные пары в компактных карточках с источником, временем обновления, индикаторами движения и нативной прокруткой для длинных списков.",
+        "Open history in context": "Открывайте историю в контексте",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "Разворачивайте карточку в график тренда с диапазонами от 7 дней до 1 года, когда доступны исторические данные.",
+        "Convert without switching tools": "Конвертируйте без смены инструмента",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "Используйте встроенный двусторонний конвертер, службы macOS или глобальное сочетание клавиш для конвертации выделенного текста из других приложений.",
+        "Control the data layer": "Управляйте источниками данных",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "Добавляйте учетные данные поставщиков, проверяйте собственные JSON API, настраивайте уведомления, переключайте профили и управляйте обновлениями в отдельном окне настроек.",
+        "Product surface": "Интерфейс",
+        "Small enough for the menu bar. Complete enough for real work.": "Достаточно компактно для строки меню и достаточно полноценно для работы.",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker делает основной список курсов плотным и предсказуемым. Закрепленная панель превращается в изменяемое окно поверх остальных, когда нужно следить за курсами параллельно с другой работой.",
+        "Native scroll feedback": "Нативная прокрутка",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "Длинные списки курсов используют нативный overlay-скроллер macOS за пределами карточек, поэтому отступы остаются ровными.",
+        "Anchored menu behavior": "Привязка к строке меню",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "Панель меню остается привязанной к значку статуса, а закрепленную панель можно менять по размеру отдельно.",
+        "Chart and conversion modes": "График и конвертер",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "Сама карточка становится графиком или конвертером, сохраняя рабочий процесс в одном месте.",
+        "Settings": "Настройки",
+        "A control room instead of a crowded settings page.": "Центр управления вместо перегруженной страницы настроек.",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "Настройки разделены на разделы боковой панели: курсы, источники данных, обновления, профили, уведомления, язык, разрешения, диагностика и запуск.",
+        "Provider management": "Управление поставщиками",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "Добавляйте популярных API-поставщиков из меню, сохраняйте данные локально и проверяйте шаблоны JSON перед включением.",
+        "In-app update flow": "Обновления в приложении",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "Проверяйте GitHub Releases, скачивайте пакеты, сверяйте SHA256 и устанавливайте после подтверждения.",
+        "Profiles and alerts": "Профили и уведомления",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "Сохраняйте разные списки курсов и режимы обновления для разных контекстов, затем добавляйте пороговые уведомления для важных пар.",
+        "Works out of the box, improves with your own keys.": "Работает сразу и становится лучше с вашими ключами.",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "Публичные источники позволяют пользоваться приложением сразу. Для большего покрытия или надежности добавьте ключи поставщика или собственный JSON endpoint.",
+        "Recommended": "Рекомендуется",
+        "Free tier": "Бесплатно",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data дает 800 бесплатных API-кредитов в день, что примерно равно 100 полным обновлениям нескольких пар в Currency Tracker.",
+        "Open Twelve Data": "Открыть Twelve Data",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates дает 1000 бесплатных запросов в месяц и хорошо подходит как дополнительный источник для личных сценариев.",
+        "Open Exchange Rates": "Открыть Open Exchange Rates",
+        "Flexible": "Гибко",
+        "Custom": "Свое",
+        "Other providers": "Другие поставщики",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "ExchangeRate-API, Fixer, Currencylayer и собственные JSON API можно добавить, если ваш процесс зависит от конкретного источника.",
+        "Review supported sources": "Посмотреть источники",
+        "Privacy and operations": "Приватность и работа",
+        "Transparent behavior for an open-source Mac utility.": "Прозрачное поведение для open-source утилиты Mac.",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "Приложение сделано понятным: локальные настройки, отсутствие серверов проекта, видимый выбор поставщиков и публикация через GitHub.",
+        "Local credential storage": "Локальное хранение ключей",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "Ключи поставщиков хранятся в локальных данных Application Support, а не в macOS Keychain, чтобы unsigned open-source утилита не вызывала лишних вопросов о доверии.",
+        "No project backend": "Нет серверов проекта",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "Проект не использует сервер для сбора локальных файлов, содержимого буфера обмена, ключей поставщиков или данных устройства.",
+        "Unsigned distribution": "Распространение без подписи",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "Сборки распространяются через GitHub Releases. Так как приложение не нотариализовано Apple, macOS может запросить подтверждение при первом запуске.",
+        "Release": "Релиз",
+        "Version 1.5.2": "Версия 1.5.2",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "Доработанная панель меню, нативная прокрутка, обновленные скриншоты и понятная документация по рекомендуемым бесплатным источникам.",
+        "Download v1.5.2": "Скачать v1.5.2",
+        "Release notes": "Заметки релиза",
+        "Menu bar panel stays anchored to the status item.": "Панель меню остается привязанной к значку в строке меню.",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "Нативный overlay-скроллер macOS заменяет пользовательский индикатор прокрутки.",
+        "Rate card gutters now align evenly on both sides.": "Отступы карточек курсов теперь одинаковые слева и справа.",
+        "Menu bar display settings use a stacked layout for long localized labels.": "Настройки отображения в строке меню используют вертикальную компоновку для длинных локализованных подписей.",
+        "README and product-page screenshots match the current app UI.": "Скриншоты README и страницы продукта соответствуют текущему интерфейсу.",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker поддерживает Agumuzi. Исходный код, сборки и заметки релизов доступны на GitHub."
+      },
+      ja: {
+        "Workflow": "ワークフロー",
+        "Product": "製品",
+        "Data sources": "データソース",
+        "Privacy": "プライバシー",
+        "Download": "ダウンロード",
+        "Current release v1.5.2": "最新リリース v1.5.2",
+        "Exchange rates that stay where your work happens.": "作業場所に常駐する為替レート。",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker は macOS メニューバーを、リアルタイムレート、チャート、換算、アラート、プロファイル、プロバイダー管理を備えた為替ワークスペースにします。",
+        "Download for macOS": "macOS 版をダウンロード",
+        "View source": "ソースを見る",
+        "macOS 14 or later": "macOS 14 以降",
+        "11 app languages": "11 のアプリ言語",
+        "Local-first preferences": "ローカル優先の設定",
+        "1 click": "1 クリック",
+        "Menu bar access to selected rates": "選択したレートへメニューバーからアクセス",
+        "Localized interface languages": "ローカライズ済みインターフェイス言語",
+        "ISO currencies through provider-backed search": "プロバイダー検索による ISO 通貨",
+        "Project-owned backend services": "プロジェクト所有のバックエンド",
+        "A daily currency desk in a small surface.": "小さな画面に収まる毎日の為替デスク。",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "このアプリはたまに調べるためではなく、繰り返し確認するために設計されています。メニューバーからすばやく確認でき、詳細操作も 1 回の操作で届きます。",
+        "Scan the rates that matter": "重要なレートをすばやく確認",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "選んだ通貨ペアをコンパクトなカードにまとめ、ソース、更新時刻、変動バッジ、長いリスト向けのネイティブスクロールを表示します。",
+        "Open history in context": "カード内で履歴を開く",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "履歴データがある場合、カードを 7 日から 1 年までの実用的な範囲を持つトレンドチャートに展開できます。",
+        "Convert without switching tools": "ツールを切り替えずに換算",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "インラインの双方向コンバーター、macOS サービス、グローバルショートカットで、他のアプリの選択テキストを換算できます。",
+        "Control the data layer": "データレイヤーを管理",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "専用の設定ウィンドウでプロバイダー認証情報の追加、カスタム JSON API のテスト、アラート、プロファイル切替、更新管理ができます。",
+        "Product surface": "製品画面",
+        "Small enough for the menu bar. Complete enough for real work.": "メニューバーに収まる小ささ、本格的に使える十分な機能。",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker は主要レートリストを密度高く見やすく保ちます。固定パネルは、他の作業中にレートを監視するためのサイズ変更可能な最前面ワークスペースになります。",
+        "Native scroll feedback": "ネイティブなスクロール表示",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "長いレートリストではカード内容の外側に macOS のオーバーレイスクロールバーを使い、余白を均一に保ちます。",
+        "Anchored menu behavior": "メニューの固定表示",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "メニューパネルはステータス項目に固定され、ピン留めパネルは独立してサイズ変更できます。",
+        "Chart and conversion modes": "チャートと換算モード",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "カード自体がチャートやコンバーターになり、作業を一か所に保ちます。",
+        "Settings": "設定",
+        "A control room instead of a crowded settings page.": "混み合った設定ページではなく、整理されたコントロールルーム。",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "設定は、レート、データソース、更新、プロファイル、アラート、言語、権限、診断、起動動作のサイドバー項目に分かれています。",
+        "Provider management": "プロバイダー管理",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "主要 API プロバイダーをメニューから追加し、認証情報をローカル保存し、有効化前にカスタム JSON テンプレートをテストできます。",
+        "In-app update flow": "アプリ内更新",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "GitHub Releases を確認し、パッケージをダウンロードし、SHA256 を検証してから確認後にインストールします。",
+        "Profiles and alerts": "プロファイルとアラート",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "場面ごとに異なるレートリストと更新動作を保存し、注視するペアにはしきい値アラートを追加できます。",
+        "Works out of the box, improves with your own keys.": "すぐに使えて、自分のキーでさらに強力に。",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "公開ソースによりすぐに使用できます。より広いカバー範囲や信頼性が必要な場合は、プロバイダー認証情報やカスタム JSON エンドポイントを追加できます。",
+        "Recommended": "おすすめ",
+        "Free tier": "無料枠",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data は 1 日 800 無料 API クレジットを提供し、Currency Tracker では約 100 回の複数ペア完全更新に相当します。",
+        "Open Twelve Data": "Twelve Data を開く",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates は月 1,000 回の無料リクエストを提供し、個人ワークフローの補助ソースとして実用的です。",
+        "Open Exchange Rates": "Open Exchange Rates を開く",
+        "Flexible": "柔軟",
+        "Custom": "カスタム",
+        "Other providers": "その他のプロバイダー",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "特定のソースに依存するワークフローでは、ExchangeRate-API、Fixer、Currencylayer、カスタム JSON API を追加できます。",
+        "Review supported sources": "対応ソースを見る",
+        "Privacy and operations": "プライバシーと運用",
+        "Transparent behavior for an open-source Mac utility.": "オープンソース Mac ユーティリティとして透明な動作。",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "ローカル設定、プロジェクト側バックエンドなし、見えるプロバイダー選択、GitHub によるリリースという理解しやすい構成です。",
+        "Local credential storage": "ローカル認証情報ストレージ",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "プロバイダーキーは macOS Keychain ではなくアプリの Application Support データに保存され、未署名のオープンソースツールで紛らわしい信頼プロンプトを避けます。",
+        "No project backend": "プロジェクト側バックエンドなし",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "このプロジェクトはローカルファイル、クリップボード内容、プロバイダーキー、デバイスデータを収集するサーバーを運用していません。",
+        "Unsigned distribution": "未署名配布",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "ビルドは GitHub Releases で配布されます。Apple 公証済みではないため、macOS が初回起動時に承認を求める場合があります。",
+        "Release": "リリース",
+        "Version 1.5.2": "バージョン 1.5.2",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "メニューパネルの改善、ネイティブスクロール表示、更新されたスクリーンショット、推奨無料データソースの明確な説明を含みます。",
+        "Download v1.5.2": "v1.5.2 をダウンロード",
+        "Release notes": "リリースノート",
+        "Menu bar panel stays anchored to the status item.": "メニューバーパネルはステータス項目に固定されます。",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "カスタムスクロールマーカーを macOS ネイティブのオーバーレイスクロールバーに置き換えました。",
+        "Rate card gutters now align evenly on both sides.": "レートカードの左右余白が均一になりました。",
+        "Menu bar display settings use a stacked layout for long localized labels.": "メニューバー表示設定は、長いローカライズラベルに縦積みレイアウトを使います。",
+        "README and product-page screenshots match the current app UI.": "README と製品ページのスクリーンショットは現在のアプリ UI と一致しています。",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker は Agumuzi が管理しています。ソースコード、配布ビルド、リリースノートは GitHub で入手できます。"
+      },
+      ko: {
+        "Workflow": "워크플로",
+        "Product": "제품",
+        "Data sources": "데이터 소스",
+        "Privacy": "개인정보",
+        "Download": "다운로드",
+        "Current release v1.5.2": "현재 릴리스 v1.5.2",
+        "Exchange rates that stay where your work happens.": "작업 공간에 머무는 환율 도구.",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker는 macOS 메뉴 막대를 실시간 환율, 추세 차트, 환산, 알림, 프로필, 공급자 관리가 있는 환율 작업 공간으로 바꿉니다.",
+        "Download for macOS": "macOS용 다운로드",
+        "View source": "소스 보기",
+        "macOS 14 or later": "macOS 14 이상",
+        "11 app languages": "앱 언어 11개",
+        "Local-first preferences": "로컬 우선 설정",
+        "1 click": "클릭 1번",
+        "Menu bar access to selected rates": "선택한 환율을 메뉴 막대에서 확인",
+        "Localized interface languages": "현지화된 인터페이스 언어",
+        "ISO currencies through provider-backed search": "공급자 기반 검색의 ISO 통화",
+        "Project-owned backend services": "프로젝트 소유 백엔드 서비스",
+        "A daily currency desk in a small surface.": "작은 공간에 담은 일상 환율 데스크.",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "이 앱은 가끔 조회가 아니라 반복 확인을 위해 설계되었습니다. 메뉴 막대에서 빠르게 훑어보고, 더 깊은 제어는 한 번의 상호작용으로 접근합니다.",
+        "Scan the rates that matter": "중요한 환율을 빠르게 확인",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "선별한 통화쌍을 소스, 새로고침 시간, 변동 배지, 긴 목록용 네이티브 스크롤과 함께 compact 카드로 유지합니다.",
+        "Open history in context": "맥락 안에서 히스토리 열기",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "과거 데이터가 있으면 카드를 7일에서 1년까지의 실용적인 범위를 가진 추세 차트로 확장합니다.",
+        "Convert without switching tools": "도구 전환 없이 환산",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "인라인 양방향 변환기, macOS 서비스, 전역 단축키로 다른 앱의 선택 텍스트를 환산합니다.",
+        "Control the data layer": "데이터 계층 제어",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "전용 설정 창에서 공급자 자격 증명을 추가하고, 사용자 JSON API를 테스트하고, 알림, 프로필, 업데이트를 관리합니다.",
+        "Product surface": "제품 화면",
+        "Small enough for the menu bar. Complete enough for real work.": "메뉴 막대에 들어갈 만큼 작고, 실제 작업에 충분할 만큼 완성되어 있습니다.",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker는 주요 환율 목록을 조밀하고 예측 가능하게 유지합니다. 고정 패널은 다른 작업 중에도 환율을 볼 수 있는 크기 조절 가능한 항상 위 작업 공간이 됩니다.",
+        "Native scroll feedback": "네이티브 스크롤 피드백",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "긴 환율 목록은 카드 콘텐츠 바깥의 macOS 오버레이 스크롤러를 사용해 간격을 균일하게 유지합니다.",
+        "Anchored menu behavior": "고정된 메뉴 동작",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "메뉴 패널은 상태 항목에 붙어 있고, 고정 패널은 독립적으로 크기를 조절할 수 있습니다.",
+        "Chart and conversion modes": "차트 및 환산 모드",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "카드 자체가 차트나 변환기가 되어 작업 흐름을 한곳에 유지합니다.",
+        "Settings": "설정",
+        "A control room instead of a crowded settings page.": "복잡한 설정 페이지 대신 정리된 제어실.",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "설정은 환율, 데이터 소스, 업데이트, 프로필, 알림, 언어, 권한, 진단, 실행 동작을 위한 사이드바 섹션으로 나뉩니다.",
+        "Provider management": "공급자 관리",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "메뉴에서 주요 API 공급자를 추가하고, 자격 증명을 로컬에 저장하며, 활성화 전에 사용자 JSON 템플릿을 테스트합니다.",
+        "In-app update flow": "앱 내 업데이트 흐름",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "GitHub Releases를 확인하고, 패키지를 다운로드하고, SHA256 체크섬을 검증한 뒤 확인 후 설치합니다.",
+        "Profiles and alerts": "프로필 및 알림",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "상황별로 다른 환율 목록과 새로고침 동작을 저장하고, 주시하는 통화쌍에는 임계값 알림을 추가합니다.",
+        "Works out of the box, improves with your own keys.": "바로 사용할 수 있고, 자신의 키를 넣으면 더 좋아집니다.",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "공개 소스로 즉시 사용할 수 있습니다. 더 넓은 범위나 안정성이 필요하면 공급자 자격 증명 또는 사용자 JSON 엔드포인트를 추가하세요.",
+        "Recommended": "추천",
+        "Free tier": "무료 플랜",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data는 하루 800 무료 API 크레딧을 제공하며, Currency Tracker에서 약 100회의 전체 다중 통화쌍 새로고침에 해당합니다.",
+        "Open Twelve Data": "Twelve Data 열기",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates는 월 1,000회 무료 요청을 제공해 개인 워크플로의 보조 소스로 실용적입니다.",
+        "Open Exchange Rates": "Open Exchange Rates 열기",
+        "Flexible": "유연함",
+        "Custom": "사용자 지정",
+        "Other providers": "기타 공급자",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "특정 소스에 의존하는 워크플로라면 ExchangeRate-API, Fixer, Currencylayer, 사용자 JSON API를 추가할 수 있습니다.",
+        "Review supported sources": "지원 소스 보기",
+        "Privacy and operations": "개인정보와 운영",
+        "Transparent behavior for an open-source Mac utility.": "오픈소스 Mac 유틸리티에 맞는 투명한 동작.",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "로컬 설정, 프로젝트 백엔드 없음, 보이는 공급자 선택, GitHub 릴리스 과정을 통해 이해하기 쉬운 구조를 유지합니다.",
+        "Local credential storage": "로컬 자격 증명 저장",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "공급자 키는 macOS Keychain이 아니라 앱의 로컬 Application Support 데이터에 저장되어, 서명되지 않은 오픈소스 유틸리티에서 혼란스러운 신뢰 프롬프트를 피합니다.",
+        "No project backend": "프로젝트 백엔드 없음",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "이 프로젝트는 로컬 파일, 클립보드 내용, 공급자 키 또는 장치 데이터를 수집하는 서버를 운영하지 않습니다.",
+        "Unsigned distribution": "서명되지 않은 배포",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "빌드는 GitHub Releases를 통해 배포됩니다. Apple 공증을 받지 않았기 때문에 macOS가 첫 실행 승인을 요청할 수 있습니다.",
+        "Release": "릴리스",
+        "Version 1.5.2": "버전 1.5.2",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "메뉴 패널 개선, 네이티브 스크롤 피드백, 최신 스크린샷, 추천 무료 데이터 소스 설명을 포함합니다.",
+        "Download v1.5.2": "v1.5.2 다운로드",
+        "Release notes": "릴리스 노트",
+        "Menu bar panel stays anchored to the status item.": "메뉴 막대 패널이 상태 항목에 고정됩니다.",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "사용자 스크롤 표시 대신 macOS 네이티브 오버레이 스크롤러를 사용합니다.",
+        "Rate card gutters now align evenly on both sides.": "환율 카드의 좌우 여백이 균일하게 정렬됩니다.",
+        "Menu bar display settings use a stacked layout for long localized labels.": "긴 현지화 레이블에는 메뉴 막대 표시 설정이 세로 레이아웃을 사용합니다.",
+        "README and product-page screenshots match the current app UI.": "README와 제품 페이지 스크린샷이 현재 앱 UI와 일치합니다.",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker는 Agumuzi가 유지 관리합니다. 소스 코드, 패키지 빌드, 릴리스 노트는 GitHub에서 확인할 수 있습니다."
+      }
+    };
+
+    const westernLanguages = {
+      de: {
+        "Workflow": "Workflow",
+        "Product": "Produkt",
+        "Data sources": "Datenquellen",
+        "Privacy": "Datenschutz",
+        "Download": "Download",
+        "Current release v1.5.2": "Aktuelle Version v1.5.2",
+        "Exchange rates that stay where your work happens.": "Wechselkurse dort, wo Sie arbeiten.",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker macht die macOS-Menuleiste zu einem fokussierten Arbeitsbereich fur Wechselkurse mit Live-Kursen, Diagrammen, Umrechnung, Warnungen, Profilen und Anbietersteuerung.",
+        "Download for macOS": "Fur macOS laden",
+        "View source": "Quellcode ansehen",
+        "macOS 14 or later": "macOS 14 oder neuer",
+        "11 app languages": "11 App-Sprachen",
+        "Local-first preferences": "Lokale Einstellungen zuerst",
+        "1 click": "1 Klick",
+        "Menu bar access to selected rates": "Ausgewahlte Kurse direkt in der Menuleiste",
+        "Localized interface languages": "Lokalisierte Oberflachensprachen",
+        "ISO currencies through provider-backed search": "ISO-Wahrungen per Anbietersuche",
+        "Project-owned backend services": "Projekteigene Backend-Dienste",
+        "A daily currency desk in a small surface.": "Ein taglicher Wahrungsarbeitsplatz auf kleiner Flache.",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "Die App ist fur wiederholtes Prufen gebaut, nicht fur gelegentliche Abfragen. Der Standardweg ist schnelles Scannen aus der Menuleiste, tiefere Kontrollen sind nur eine Aktion entfernt.",
+        "Small enough for the menu bar. Complete enough for real work.": "Klein genug fur die Menuleiste. Vollstandig genug fur echte Arbeit.",
+        "Works out of the box, improves with your own keys.": "Sofort nutzbar, besser mit eigenen Schlusseln.",
+        "Transparent behavior for an open-source Mac utility.": "Transparentes Verhalten fur ein Open-Source-Mac-Werkzeug.",
+        "Version 1.5.2": "Version 1.5.2",
+        "Download v1.5.2": "v1.5.2 laden",
+        "Release notes": "Versionshinweise"
+      },
+      fr: {
+        "Workflow": "Flux",
+        "Product": "Produit",
+        "Data sources": "Sources",
+        "Privacy": "Confidentialite",
+        "Download": "Telecharger",
+        "Current release v1.5.2": "Version actuelle v1.5.2",
+        "Exchange rates that stay where your work happens.": "Les taux de change restent la ou vous travaillez.",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker transforme la barre des menus macOS en espace de travail pour les taux de change avec cours en direct, graphiques, conversion, alertes, profils et controle des fournisseurs.",
+        "Download for macOS": "Telecharger pour macOS",
+        "View source": "Voir le code",
+        "macOS 14 or later": "macOS 14 ou plus recent",
+        "11 app languages": "11 langues d'interface",
+        "Local-first preferences": "Preferences locales d'abord",
+        "1 click": "1 clic",
+        "Menu bar access to selected rates": "Acces aux taux choisis depuis la barre des menus",
+        "Localized interface languages": "Langues d'interface localisees",
+        "ISO currencies through provider-backed search": "Devises ISO via la recherche des fournisseurs",
+        "Project-owned backend services": "Services backend du projet",
+        "A daily currency desk in a small surface.": "Un poste de change quotidien dans une petite surface.",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "L'app est concue pour les controles repetes, pas les recherches ponctuelles. Le parcours principal permet de scanner vite depuis la barre des menus, avec les controles avances a une seule action.",
+        "Small enough for the menu bar. Complete enough for real work.": "Assez petite pour la barre des menus. Assez complete pour le vrai travail.",
+        "Works out of the box, improves with your own keys.": "Utilisable immediatement, meilleure avec vos propres cles.",
+        "Transparent behavior for an open-source Mac utility.": "Un comportement transparent pour un utilitaire Mac open source.",
+        "Version 1.5.2": "Version 1.5.2",
+        "Download v1.5.2": "Telecharger v1.5.2",
+        "Release notes": "Notes de version"
+      },
+      es: {
+        "Workflow": "Flujo",
+        "Product": "Producto",
+        "Data sources": "Fuentes",
+        "Privacy": "Privacidad",
+        "Download": "Descargar",
+        "Current release v1.5.2": "Version actual v1.5.2",
+        "Exchange rates that stay where your work happens.": "Tipos de cambio donde ocurre tu trabajo.",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker convierte la barra de menus de macOS en un espacio de trabajo para tipos de cambio con valores en vivo, graficos, conversion, alertas, perfiles y control de proveedores.",
+        "Download for macOS": "Descargar para macOS",
+        "View source": "Ver codigo",
+        "macOS 14 or later": "macOS 14 o posterior",
+        "11 app languages": "11 idiomas de app",
+        "Local-first preferences": "Preferencias locales primero",
+        "1 click": "1 clic",
+        "Menu bar access to selected rates": "Acceso desde la barra de menus a los tipos elegidos",
+        "Localized interface languages": "Idiomas de interfaz localizados",
+        "ISO currencies through provider-backed search": "Monedas ISO mediante busqueda de proveedores",
+        "Project-owned backend services": "Servicios backend del proyecto",
+        "A daily currency desk in a small surface.": "Una mesa diaria de divisas en una superficie pequena.",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "La app esta pensada para revisar a menudo, no para consultas ocasionales. El flujo principal permite escanear rapido desde la barra de menus, con controles avanzados a una interaccion.",
+        "Small enough for the menu bar. Complete enough for real work.": "Lo bastante pequena para la barra de menus. Lo bastante completa para trabajar.",
+        "Works out of the box, improves with your own keys.": "Funciona al instante y mejora con tus propias claves.",
+        "Transparent behavior for an open-source Mac utility.": "Comportamiento transparente para una utilidad Mac de codigo abierto.",
+        "Version 1.5.2": "Version 1.5.2",
+        "Download v1.5.2": "Descargar v1.5.2",
+        "Release notes": "Notas de version"
+      },
+      it: {
+        "Workflow": "Flusso",
+        "Product": "Prodotto",
+        "Data sources": "Fonti dati",
+        "Privacy": "Privacy",
+        "Download": "Scarica",
+        "Current release v1.5.2": "Versione attuale v1.5.2",
+        "Exchange rates that stay where your work happens.": "Tassi di cambio dove lavori.",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker trasforma la barra dei menu di macOS in uno spazio per i tassi di cambio con valori live, grafici, conversione, avvisi, profili e gestione dei provider.",
+        "Download for macOS": "Scarica per macOS",
+        "View source": "Vedi sorgente",
+        "macOS 14 or later": "macOS 14 o successivo",
+        "11 app languages": "11 lingue dell'app",
+        "Local-first preferences": "Preferenze locali prima di tutto",
+        "1 click": "1 clic",
+        "Menu bar access to selected rates": "Accesso dalla barra dei menu ai tassi scelti",
+        "Localized interface languages": "Lingue interfaccia localizzate",
+        "ISO currencies through provider-backed search": "Valute ISO tramite ricerca dei provider",
+        "Project-owned backend services": "Servizi backend del progetto",
+        "A daily currency desk in a small surface.": "Una scrivania valutaria quotidiana in poco spazio.",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "L'app e progettata per controlli frequenti, non per ricerche occasionali. Il percorso principale e una scansione rapida dalla barra dei menu, con controlli avanzati a una sola interazione.",
+        "Small enough for the menu bar. Complete enough for real work.": "Abbastanza piccola per la barra dei menu. Abbastanza completa per lavorare davvero.",
+        "Works out of the box, improves with your own keys.": "Funziona subito e migliora con le tue chiavi.",
+        "Transparent behavior for an open-source Mac utility.": "Comportamento trasparente per una utility Mac open source.",
+        "Version 1.5.2": "Versione 1.5.2",
+        "Download v1.5.2": "Scarica v1.5.2",
+        "Release notes": "Note di rilascio"
+      },
+      "pt-BR": {
+        "Workflow": "Fluxo",
+        "Product": "Produto",
+        "Data sources": "Fontes",
+        "Privacy": "Privacidade",
+        "Download": "Baixar",
+        "Current release v1.5.2": "Versao atual v1.5.2",
+        "Exchange rates that stay where your work happens.": "Cotacoes no lugar onde voce trabalha.",
+        "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker transforma a barra de menus do macOS em um espaco de trabalho para cambio com cotacoes ao vivo, graficos, conversao, alertas, perfis e controle de provedores.",
+        "Download for macOS": "Baixar para macOS",
+        "View source": "Ver codigo",
+        "macOS 14 or later": "macOS 14 ou posterior",
+        "11 app languages": "11 idiomas no app",
+        "Local-first preferences": "Preferencias locais primeiro",
+        "1 click": "1 clique",
+        "Menu bar access to selected rates": "Acesso pela barra de menus as cotacoes escolhidas",
+        "Localized interface languages": "Idiomas de interface localizados",
+        "ISO currencies through provider-backed search": "Moedas ISO via busca dos provedores",
+        "Project-owned backend services": "Servicos backend do projeto",
+        "A daily currency desk in a small surface.": "Uma mesa diaria de cambio em pouco espaco.",
+        "The app is designed for repeated checking, not occasional lookup. The default path is fast scanning from the menu bar, with deeper controls only one interaction away.": "O app foi feito para verificacoes repetidas, nao para buscas ocasionais. O caminho principal e escanear rapido pela barra de menus, com controles avancados a uma interacao.",
+        "Small enough for the menu bar. Complete enough for real work.": "Pequeno o bastante para a barra de menus. Completo o bastante para trabalho real.",
+        "Works out of the box, improves with your own keys.": "Funciona de imediato e melhora com suas proprias chaves.",
+        "Transparent behavior for an open-source Mac utility.": "Comportamento transparente para um utilitario Mac open source.",
+        "Version 1.5.2": "Versao 1.5.2",
+        "Download v1.5.2": "Baixar v1.5.2",
+        "Release notes": "Notas da versao"
+      }
+    };
+
+    const westernSupplements = {
+      de: {
+        "0": "0",
+        "100+": "100+",
+        "Scan the rates that matter": "Wichtige Kurse schnell erfassen",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "Behalten Sie ausgewahlte Wahrungspaare in kompakten Karten mit Quelle, Aktualisierungszeit, Bewegungsmarken und nativer Scrollflache fur langere Listen.",
+        "Open history in context": "Verlauf im Kontext offnen",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "Erweitern Sie eine Karte zu einem Trenddiagramm mit praktischen Bereichen von 7 Tagen bis 1 Jahr, wenn historische Daten verfugbar sind.",
+        "Convert without switching tools": "Umrechnen ohne Toolwechsel",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "Nutzen Sie den eingebauten Zwei-Wege-Konverter, macOS-Dienste oder ein globales Kurzel, um markierten Text aus anderen Apps umzurechnen.",
+        "Control the data layer": "Datenebene steuern",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "Fugen Sie Anbieterzugangsdaten hinzu, testen Sie eigene JSON-APIs, setzen Sie Warnungen, wechseln Sie Profile und verwalten Sie Updates im eigenen Einstellungsfenster.",
+        "Product surface": "Produktoberflache",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker halt die wichtigste Kursliste dicht und vorhersehbar. Das angeheftete Panel wird zu einem skalierbaren Arbeitsbereich im Vordergrund, wenn Sie Kurse neben anderer Arbeit beobachten.",
+        "Native scroll feedback": "Natives Scroll-Feedback",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "Lange Kurslisten verwenden den macOS-Overlay-Scroller ausserhalb der Karteninhalte, damit die Abstande gleich bleiben.",
+        "Anchored menu behavior": "Verankertes Menuverhalten",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "Das Menupanel bleibt am Statussymbol verankert, wahrend das angeheftete Panel unabhangig skalierbar ist.",
+        "Chart and conversion modes": "Diagramm- und Umrechnungsmodi",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "Die Karte selbst wird zum Diagramm oder Konverter und halt den Ablauf an einem Ort.",
+        "Settings": "Einstellungen",
+        "A control room instead of a crowded settings page.": "Ein Kontrollraum statt einer uberladenen Einstellungsseite.",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "Einstellungen sind in fokussierte Seitenleistenbereiche fur Kurse, Datenquellen, Updates, Profile, Warnungen, Sprache, Berechtigungen, Diagnose und Startverhalten aufgeteilt.",
+        "Provider management": "Anbieterverwaltung",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "Fugen Sie gangige API-Anbieter aus einem Menu hinzu, speichern Sie Zugangsdaten lokal und testen Sie eigene JSON-Vorlagen vor dem Aktivieren.",
+        "In-app update flow": "Update-Ablauf in der App",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "Prufen Sie GitHub Releases, laden Sie Pakete, verifizieren Sie SHA256-Prufsummen und installieren Sie nach Bestatigung.",
+        "Profiles and alerts": "Profile und Warnungen",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "Speichern Sie unterschiedliche Kurslisten und Aktualisierungsregeln fur verschiedene Kontexte und setzen Sie Schwellenwarnungen fur wichtige Paare.",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "Offentliche Quellen machen die App sofort nutzbar. Fur breitere Abdeckung oder mehr Zuverlassigkeit fugen Sie Anbieterzugangsdaten hinzu oder definieren einen eigenen JSON-Endpunkt.",
+        "Recommended": "Empfohlen",
+        "Free tier": "Kostenlos",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data bietet 800 kostenlose API-Credits pro Tag, etwa 100 vollstandige Mehrpaar-Aktualisierungen in Currency Tracker.",
+        "Open Twelve Data": "Twelve Data offnen",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates bietet 1.000 kostenlose Anfragen pro Monat und ist damit eine praktische Zweitquelle fur personliche Workflows.",
+        "Open Exchange Rates": "Open Exchange Rates offnen",
+        "Flexible": "Flexibel",
+        "Custom": "Eigene",
+        "Other providers": "Weitere Anbieter",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "ExchangeRate-API, Fixer, Currencylayer und eigene JSON-APIs konnen hinzugefugt werden, wenn Ihr Workflow von einer bestimmten Quelle abhangt.",
+        "Review supported sources": "Unterstutzte Quellen ansehen",
+        "Privacy and operations": "Datenschutz und Betrieb",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "Die App ist nachvollziehbar aufgebaut: lokale Einstellungen, kein Projekt-Backend, sichtbare Anbieterwahl und Veroffentlichung uber GitHub.",
+        "Local credential storage": "Lokale Speicherung von Zugangsdaten",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "Anbieterschlussel werden in den lokalen Application-Support-Daten der App statt im macOS-Schlusselbund gespeichert, um verwirrende Vertrauensdialoge bei einer unsignierten Open-Source-App zu vermeiden.",
+        "No project backend": "Kein Projekt-Backend",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "Das Projekt betreibt keinen Server zum Sammeln lokaler Dateien, Zwischenablageinhalte, Anbieterschlussel oder Geratedaten.",
+        "Unsigned distribution": "Unsignierte Verteilung",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "Builds werden uber GitHub Releases verteilt. Da die App nicht von Apple notarisiert ist, kann macOS beim ersten Start eine Bestatigung verlangen.",
+        "Release": "Release",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "Verfeinertes Menupanel, natives Scroll-Feedback, aktualisierte Screenshots und klarere Dokumentation fur empfohlene kostenlose Datenquellen.",
+        "Menu bar panel stays anchored to the status item.": "Das Menuleisten-Panel bleibt am Statussymbol verankert.",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "Der native macOS-Overlay-Scroller ersetzt die eigene Scroll-Markierung.",
+        "Rate card gutters now align evenly on both sides.": "Die Abstande der Kurskarten sind links und rechts gleichmassig.",
+        "Menu bar display settings use a stacked layout for long localized labels.": "Menuleisten-Anzeigeeinstellungen nutzen fur lange lokalisierte Beschriftungen ein gestapeltes Layout.",
+        "README and product-page screenshots match the current app UI.": "README- und Produktseiten-Screenshots entsprechen der aktuellen App-Oberflache.",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker wird von Agumuzi gepflegt. Quellcode, Builds und Versionshinweise sind auf GitHub verfugbar."
+      },
+      fr: {
+        "0": "0",
+        "100+": "100+",
+        "Scan the rates that matter": "Parcourez les taux importants",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "Gardez une liste choisie de paires dans des cartes compactes avec source, heure d'actualisation, badges de variation et defilement natif pour les longues listes.",
+        "Open history in context": "Ouvrir l'historique dans le contexte",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "Transformez une carte en graphique de tendance avec des plages utiles de 7 jours a 1 an lorsque l'historique est disponible.",
+        "Convert without switching tools": "Convertir sans changer d'outil",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "Utilisez le convertisseur bidirectionnel integre, les services macOS ou un raccourci global pour convertir du texte selectionne dans d'autres apps.",
+        "Control the data layer": "Controler la couche de donnees",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "Ajoutez des identifiants fournisseur, testez des API JSON personnalisees, reglez des alertes, changez de profil et gerez les mises a jour depuis une fenetre Reglages dediee.",
+        "Product surface": "Interface produit",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker garde la liste principale des taux dense et previsible. Le panneau epingle devient un espace redimensionnable toujours au premier plan pour surveiller les taux en travaillant ailleurs.",
+        "Native scroll feedback": "Retour de defilement natif",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "Les longues listes utilisent la barre de defilement overlay de macOS hors du contenu des cartes afin de garder des marges regulieres.",
+        "Anchored menu behavior": "Comportement de menu ancre",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "Le panneau de menu reste attache a l'element de statut, tandis que le panneau epingle peut etre redimensionne independamment.",
+        "Chart and conversion modes": "Modes graphique et conversion",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "La carte devient elle-meme graphique ou convertisseur, ce qui garde le flux au meme endroit.",
+        "Settings": "Reglages",
+        "A control room instead of a crowded settings page.": "Une salle de controle plutot qu'une page de reglages surchargee.",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "Les reglages sont divises en sections laterales pour les taux, sources, mises a jour, profils, alertes, langue, autorisations, diagnostics et lancement.",
+        "Provider management": "Gestion des fournisseurs",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "Ajoutez les fournisseurs API courants depuis un menu, enregistrez les identifiants localement et testez les modeles JSON avant activation.",
+        "In-app update flow": "Mises a jour integrees",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "Verifiez GitHub Releases, telechargez les paquets, controlez les sommes SHA256 et installez apres confirmation.",
+        "Profiles and alerts": "Profils et alertes",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "Enregistrez des listes et comportements d'actualisation differents selon le contexte, puis ajoutez des alertes de seuil pour les paires importantes.",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "Les sources publiques rendent l'app utilisable immediatement. Pour plus de couverture ou de fiabilite, ajoutez des identifiants fournisseur ou un endpoint JSON personnalise.",
+        "Recommended": "Recommande",
+        "Free tier": "Offre gratuite",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data offre 800 credits API gratuits par jour, soit environ 100 actualisations completes multi-paires dans Currency Tracker.",
+        "Open Twelve Data": "Ouvrir Twelve Data",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates offre 1 000 requetes gratuites par mois, une source secondaire pratique pour les usages personnels.",
+        "Open Exchange Rates": "Ouvrir Open Exchange Rates",
+        "Flexible": "Flexible",
+        "Custom": "Personnalise",
+        "Other providers": "Autres fournisseurs",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "ExchangeRate-API, Fixer, Currencylayer et des API JSON personnalisees peuvent etre ajoutes si votre flux depend d'une source precise.",
+        "Review supported sources": "Voir les sources prises en charge",
+        "Privacy and operations": "Confidentialite et fonctionnement",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "L'app est concue pour etre comprehensible : preferences locales, aucun backend du projet, choix de fournisseurs visibles et publication via GitHub.",
+        "Local credential storage": "Stockage local des identifiants",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "Les cles fournisseur sont stockees dans les donnees Application Support locales de l'app plutot que dans le trousseau macOS, afin d'eviter des invites de confiance confuses pour une app open source non signee.",
+        "No project backend": "Aucun backend du projet",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "Le projet n'exploite aucun serveur pour collecter fichiers locaux, contenu du presse-papiers, cles fournisseur ou donnees d'appareil.",
+        "Unsigned distribution": "Distribution non signee",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "Les builds sont distribues via GitHub Releases. Comme l'app n'est pas notarisee par Apple, macOS peut demander une approbation au premier lancement.",
+        "Release": "Version",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "Panneau de menu affine, defilement natif, captures mises a jour et documentation plus claire pour les sources gratuites recommandees.",
+        "Menu bar panel stays anchored to the status item.": "Le panneau de barre des menus reste ancre a l'element de statut.",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "La barre overlay native de macOS remplace le marqueur de defilement personnalise.",
+        "Rate card gutters now align evenly on both sides.": "Les marges des cartes de taux sont maintenant egales des deux cotes.",
+        "Menu bar display settings use a stacked layout for long localized labels.": "Les reglages d'affichage de la barre des menus utilisent une disposition empilee pour les libelles localises longs.",
+        "README and product-page screenshots match the current app UI.": "Les captures du README et de la page produit correspondent a l'interface actuelle.",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker est maintenu par Agumuzi. Le code source, les builds et les notes de version sont disponibles sur GitHub."
+      },
+      es: {
+        "0": "0",
+        "100+": "100+",
+        "Scan the rates that matter": "Revisa los tipos que importan",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "Mantén una lista seleccionada de pares en tarjetas compactas con fuente, hora de actualización, insignias de movimiento y desplazamiento nativo para listas largas.",
+        "Open history in context": "Abre el historial en contexto",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "Convierte una tarjeta en un gráfico de tendencia con rangos prácticos de 7 días a 1 año cuando haya datos históricos.",
+        "Convert without switching tools": "Convierte sin cambiar de herramienta",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "Usa el conversor bidireccional integrado, Servicios de macOS o un atajo global para convertir texto seleccionado en otras apps.",
+        "Control the data layer": "Controla la capa de datos",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "Añade credenciales de proveedores, prueba API JSON personalizadas, configura alertas, cambia perfiles y gestiona actualizaciones desde Ajustes.",
+        "Product surface": "Interfaz del producto",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker mantiene la lista principal de tipos densa y predecible. El panel fijado se convierte en un espacio redimensionable siempre visible para vigilar tipos mientras trabajas.",
+        "Native scroll feedback": "Desplazamiento nativo",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "Las listas largas usan el desplazamiento superpuesto de macOS fuera del contenido de la tarjeta para mantener márgenes uniformes.",
+        "Anchored menu behavior": "Comportamiento anclado",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "El panel del menú permanece unido al elemento de estado, mientras que el panel fijado puede redimensionarse de forma independiente.",
+        "Chart and conversion modes": "Modos gráfico y conversión",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "La propia tarjeta se convierte en gráfico o conversor, manteniendo el flujo en un solo lugar.",
+        "Settings": "Ajustes",
+        "A control room instead of a crowded settings page.": "Una sala de control en lugar de una página de ajustes saturada.",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "Los ajustes se dividen en secciones de barra lateral para tipos, fuentes, actualizaciones, perfiles, alertas, idioma, permisos, diagnóstico e inicio.",
+        "Provider management": "Gestión de proveedores",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "Añade proveedores API populares desde un menú, guarda credenciales localmente y prueba plantillas JSON antes de activarlas.",
+        "In-app update flow": "Actualizaciones internas",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "Consulta GitHub Releases, descarga paquetes, verifica SHA256 e instala tras confirmar.",
+        "Profiles and alerts": "Perfiles y alertas",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "Guarda distintas listas y comportamientos de actualización para cada contexto, y añade alertas de umbral a los pares importantes.",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "Las fuentes públicas permiten usar la app de inmediato. Para más cobertura o fiabilidad, añade credenciales de proveedor o define un endpoint JSON propio.",
+        "Recommended": "Recomendado",
+        "Free tier": "Plan gratis",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data ofrece 800 créditos API gratis al día, unas 100 actualizaciones completas de múltiples pares en Currency Tracker.",
+        "Open Twelve Data": "Abrir Twelve Data",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates ofrece 1.000 solicitudes gratis al mes, una fuente secundaria práctica para uso personal.",
+        "Open Exchange Rates": "Abrir Open Exchange Rates",
+        "Flexible": "Flexible",
+        "Custom": "Personalizado",
+        "Other providers": "Otros proveedores",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "Puedes añadir ExchangeRate-API, Fixer, Currencylayer y API JSON personalizadas si tu flujo depende de una fuente concreta.",
+        "Review supported sources": "Ver fuentes compatibles",
+        "Privacy and operations": "Privacidad y funcionamiento",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "La app está pensada para ser comprensible: preferencias locales, sin backend del proyecto, elección visible de proveedores y publicación mediante GitHub.",
+        "Local credential storage": "Almacenamiento local de credenciales",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "Las claves de proveedor se guardan en Application Support local de la app, no en el llavero de macOS, para evitar avisos confusos en una utilidad open source sin firma.",
+        "No project backend": "Sin backend del proyecto",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "El proyecto no opera servidores para recopilar archivos locales, portapapeles, claves de proveedores o datos del dispositivo.",
+        "Unsigned distribution": "Distribución sin firma",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "Las compilaciones se distribuyen en GitHub Releases. Como la app no está notarizada por Apple, macOS puede pedir aprobación en el primer inicio.",
+        "Release": "Lanzamiento",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "Panel de menú refinado, desplazamiento nativo, capturas actualizadas y documentación más clara sobre fuentes gratuitas recomendadas.",
+        "Menu bar panel stays anchored to the status item.": "El panel de la barra de menús permanece anclado al elemento de estado.",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "El desplazamiento superpuesto nativo de macOS sustituye al marcador personalizado.",
+        "Rate card gutters now align evenly on both sides.": "Los márgenes de las tarjetas de tipos ahora son uniformes a ambos lados.",
+        "Menu bar display settings use a stacked layout for long localized labels.": "Los ajustes de visualización usan diseño apilado para etiquetas localizadas largas.",
+        "README and product-page screenshots match the current app UI.": "Las capturas del README y de la página del producto coinciden con la interfaz actual.",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker lo mantiene Agumuzi. El código fuente, los paquetes y las notas de versión están disponibles en GitHub."
+      }
+    };
+
+    const westernSupplementsLite = {
+      it: {
+        "0": "0",
+        "100+": "100+",
+        "Scan the rates that matter": "Controlla i tassi importanti",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "Mantieni una lista selezionata di coppie in schede compatte con fonte, ora di aggiornamento, badge di movimento e scorrimento nativo per liste lunghe.",
+        "Open history in context": "Apri la cronologia nel contesto",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "Espandi una scheda in un grafico di tendenza con intervalli pratici da 7 giorni a 1 anno quando i dati storici sono disponibili.",
+        "Convert without switching tools": "Converti senza cambiare strumento",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "Usa il convertitore bidirezionale integrato, i Servizi macOS o una scorciatoia globale per convertire testo selezionato da altre app.",
+        "Control the data layer": "Controlla il livello dati",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "Aggiungi credenziali provider, prova API JSON personalizzate, imposta avvisi, cambia profili e gestisci aggiornamenti dalla finestra Impostazioni.",
+        "Product surface": "Interfaccia prodotto",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker mantiene la lista principale dei tassi densa e prevedibile. Il pannello fissato diventa uno spazio ridimensionabile sempre in primo piano per monitorare i tassi mentre lavori altrove.",
+        "Native scroll feedback": "Scorrimento nativo",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "Le liste lunghe usano lo scroller overlay di macOS fuori dal contenuto delle schede, mantenendo spazi uniformi.",
+        "Anchored menu behavior": "Menu ancorato",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "Il pannello menu resta collegato all'elemento di stato, mentre il pannello fissato puo essere ridimensionato indipendentemente.",
+        "Chart and conversion modes": "Grafici e conversione",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "La scheda stessa diventa grafico o convertitore, mantenendo il flusso in un solo punto.",
+        "Settings": "Impostazioni",
+        "A control room instead of a crowded settings page.": "Una sala di controllo invece di una pagina impostazioni affollata.",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "Le impostazioni sono divise in sezioni laterali per tassi, fonti dati, aggiornamenti, profili, avvisi, lingua, permessi, diagnostica e avvio.",
+        "Provider management": "Gestione provider",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "Aggiungi provider API principali da un menu, salva le credenziali localmente e prova modelli JSON personalizzati prima di abilitarli.",
+        "In-app update flow": "Aggiornamenti nell'app",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "Controlla GitHub Releases, scarica i pacchetti, verifica i checksum SHA256 e installa dopo conferma.",
+        "Profiles and alerts": "Profili e avvisi",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "Salva liste di tassi e comportamenti di aggiornamento diversi per contesti diversi, poi aggiungi avvisi di soglia per le coppie piu importanti.",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "Le fonti pubbliche rendono l'app subito utilizzabile. Per maggiore copertura o affidabilita, aggiungi credenziali provider o definisci un endpoint JSON personalizzato.",
+        "Recommended": "Consigliato",
+        "Free tier": "Piano gratuito",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data offre 800 crediti API gratuiti al giorno, circa 100 aggiornamenti completi multi-coppia in Currency Tracker.",
+        "Open Twelve Data": "Apri Twelve Data",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates offre 1.000 richieste gratuite al mese, una seconda fonte pratica per flussi personali.",
+        "Open Exchange Rates": "Apri Open Exchange Rates",
+        "Flexible": "Flessibile",
+        "Custom": "Personalizzato",
+        "Other providers": "Altri provider",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "ExchangeRate-API, Fixer, Currencylayer e API JSON personalizzate possono essere aggiunte quando il flusso dipende da una fonte specifica.",
+        "Review supported sources": "Vedi fonti supportate",
+        "Privacy and operations": "Privacy e operazioni",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "L'app e pensata per essere comprensibile: preferenze locali, nessun backend del progetto, scelta visibile dei provider e rilascio tramite GitHub.",
+        "Local credential storage": "Archiviazione locale credenziali",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "Le chiavi dei provider sono salvate nei dati Application Support locali dell'app invece che nel Portachiavi macOS, evitando richieste di fiducia confuse per una utility open source non firmata.",
+        "No project backend": "Nessun backend del progetto",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "Il progetto non gestisce server per raccogliere file locali, contenuti degli appunti, chiavi provider o dati del dispositivo.",
+        "Unsigned distribution": "Distribuzione non firmata",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "Le build sono distribuite tramite GitHub Releases. Poiche l'app non e notarizzata da Apple, macOS puo chiedere approvazione al primo avvio.",
+        "Release": "Rilascio",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "Pannello menu rifinito, scorrimento nativo, screenshot aggiornati e documentazione piu chiara sulle fonti dati gratuite consigliate.",
+        "Menu bar panel stays anchored to the status item.": "Il pannello della barra dei menu resta ancorato all'elemento di stato.",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "Lo scroller overlay nativo di macOS sostituisce il marcatore personalizzato.",
+        "Rate card gutters now align evenly on both sides.": "I margini delle schede tasso ora sono uniformi su entrambi i lati.",
+        "Menu bar display settings use a stacked layout for long localized labels.": "Le impostazioni di visualizzazione usano un layout impilato per etichette localizzate lunghe.",
+        "README and product-page screenshots match the current app UI.": "Gli screenshot di README e pagina prodotto corrispondono all'interfaccia attuale.",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker e mantenuto da Agumuzi. Codice sorgente, build e note di rilascio sono disponibili su GitHub."
+      },
+      "pt-BR": {
+        "0": "0",
+        "100+": "100+",
+        "Scan the rates that matter": "Veja as cotacoes importantes",
+        "Keep a curated list of exchange pairs in compact cards with source, refresh time, movement badges, and a native scroll surface for longer lists.": "Mantenha uma lista selecionada de pares em cartoes compactos com fonte, horario de atualizacao, indicadores de movimento e rolagem nativa para listas longas.",
+        "Open history in context": "Abra o historico no contexto",
+        "Expand a card into a trend chart with practical ranges from 7 days to 1 year when historical data is available.": "Expanda um cartao para um grafico de tendencia com intervalos praticos de 7 dias a 1 ano quando houver dados historicos.",
+        "Convert without switching tools": "Converta sem trocar de ferramenta",
+        "Use the inline two-way converter, macOS Services, or a global shortcut to convert selected text from other apps.": "Use o conversor bidirecional embutido, Servicos do macOS ou um atalho global para converter texto selecionado em outros apps.",
+        "Control the data layer": "Controle a camada de dados",
+        "Add provider credentials, test custom JSON APIs, set alerts, switch profiles, and manage updates from a dedicated Settings window.": "Adicione credenciais de provedores, teste APIs JSON personalizadas, configure alertas, troque perfis e gerencie atualizacoes na janela de Ajustes.",
+        "Product surface": "Interface do produto",
+        "Currency Tracker keeps the primary rate list visually dense and predictable. The pinned panel becomes a resizable always-on-top workspace when you need to monitor rates while working elsewhere.": "Currency Tracker mantem a lista principal de cotacoes densa e previsivel. O painel fixado vira um espaco redimensionavel sempre em primeiro plano para monitorar cotacoes enquanto voce trabalha.",
+        "Native scroll feedback": "Rolagem nativa",
+        "Long rate lists use the macOS overlay scroller outside the card content so spacing stays even.": "Listas longas usam a barra de rolagem overlay do macOS fora do conteudo dos cartoes para manter espacamentos uniformes.",
+        "Anchored menu behavior": "Menu ancorado",
+        "The menu panel stays attached to the status item, while the pinned panel can be resized independently.": "O painel do menu permanece ligado ao item de status, enquanto o painel fixado pode ser redimensionado de forma independente.",
+        "Chart and conversion modes": "Grafico e conversao",
+        "The card itself becomes the chart or converter, keeping the workflow in one place.": "O proprio cartao vira grafico ou conversor, mantendo o fluxo em um so lugar.",
+        "Settings": "Ajustes",
+        "A control room instead of a crowded settings page.": "Uma sala de controle em vez de uma pagina de ajustes lotada.",
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.": "Os ajustes sao divididos em secoes laterais para cotacoes, fontes, atualizacoes, perfis, alertas, idioma, permissoes, diagnostico e inicializacao.",
+        "Provider management": "Gerenciamento de provedores",
+        "Add mainstream API providers from a menu, save credentials locally, and test custom JSON templates before enabling them.": "Adicione provedores API populares pelo menu, salve credenciais localmente e teste modelos JSON personalizados antes de ativar.",
+        "In-app update flow": "Atualizacao no app",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.": "Verifique GitHub Releases, baixe pacotes, valide checksums SHA256 e instale apos confirmacao.",
+        "Profiles and alerts": "Perfis e alertas",
+        "Save different rate lists and refresh behavior for different contexts, then add threshold alerts for pairs you watch closely.": "Salve listas e comportamentos de atualizacao diferentes para cada contexto e adicione alertas de limite para pares importantes.",
+        "Public sources keep the app usable immediately. When you need broader coverage or reliability, add provider credentials or define a custom JSON endpoint.": "Fontes publicas deixam o app utilizavel imediatamente. Para maior cobertura ou confiabilidade, adicione credenciais de provedor ou defina um endpoint JSON personalizado.",
+        "Recommended": "Recomendado",
+        "Free tier": "Plano gratuito",
+        "Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker.": "Twelve Data oferece 800 creditos API gratuitos por dia, cerca de 100 atualizacoes completas de multiplos pares no Currency Tracker.",
+        "Open Twelve Data": "Abrir Twelve Data",
+        "Open Exchange Rates offers 1,000 free requests per month, making it a practical secondary source for personal workflows.": "Open Exchange Rates oferece 1.000 requisicoes gratuitas por mes, uma fonte secundaria pratica para fluxos pessoais.",
+        "Open Exchange Rates": "Abrir Open Exchange Rates",
+        "Flexible": "Flexivel",
+        "Custom": "Personalizado",
+        "Other providers": "Outros provedores",
+        "ExchangeRate-API, Fixer, Currencylayer, and custom JSON APIs can be added when your workflow depends on a specific source.": "ExchangeRate-API, Fixer, Currencylayer e APIs JSON personalizadas podem ser adicionadas quando seu fluxo depende de uma fonte especifica.",
+        "Review supported sources": "Ver fontes compatíveis",
+        "Privacy and operations": "Privacidade e operacao",
+        "The app is built to be understandable: local preferences, no project backend, visible provider choices, and a release process through GitHub.": "O app foi feito para ser claro: preferencias locais, sem backend do projeto, escolha visivel de provedores e publicacao via GitHub.",
+        "Local credential storage": "Credenciais locais",
+        "Provider keys are stored in the app's local Application Support data rather than the macOS Keychain, avoiding confusing trust prompts for an unsigned open-source utility.": "As chaves de provedores sao salvas nos dados locais de Application Support do app, nao no Keychain do macOS, evitando prompts confusos em um utilitario open source sem assinatura.",
+        "No project backend": "Sem backend do projeto",
+        "The project does not operate a server for collecting local files, clipboard contents, provider keys, or device data.": "O projeto nao opera servidores para coletar arquivos locais, conteudo da area de transferencia, chaves de provedores ou dados do dispositivo.",
+        "Unsigned distribution": "Distribuicao sem assinatura",
+        "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "As builds sao distribuidas pelo GitHub Releases. Como o app nao e notarizado pela Apple, o macOS pode pedir aprovacao no primeiro uso.",
+        "Release": "Versao",
+        "Menu-panel polish, native scroll feedback, refreshed screenshots, and clearer documentation for recommended free data sources.": "Painel de menu refinado, rolagem nativa, screenshots atualizados e documentacao mais clara para fontes gratuitas recomendadas.",
+        "Menu bar panel stays anchored to the status item.": "O painel da barra de menus permanece ancorado ao item de status.",
+        "Native macOS overlay scroller replaces the custom scroll marker.": "A rolagem overlay nativa do macOS substitui o marcador personalizado.",
+        "Rate card gutters now align evenly on both sides.": "As margens dos cartoes de cotacao agora ficam uniformes nos dois lados.",
+        "Menu bar display settings use a stacked layout for long localized labels.": "Os ajustes de exibicao usam layout empilhado para rotulos localizados longos.",
+        "README and product-page screenshots match the current app UI.": "Os screenshots do README e da pagina do produto correspondem a interface atual.",
+        "Currency Tracker is maintained by Agumuzi. Source code, packaged builds, and release notes are available on GitHub.": "Currency Tracker e mantido por Agumuzi. Codigo-fonte, builds e notas da versao estao disponiveis no GitHub."
+      }
+    };
+
+    Object.entries(westernSupplements).forEach(([language, entries]) => {
+      Object.assign(westernLanguages[language], entries);
+    });
+
+    Object.entries(westernSupplementsLite).forEach(([language, entries]) => {
+      Object.assign(westernLanguages[language], entries);
+    });
+
+    Object.entries(westernLanguages).forEach(([language, entries]) => {
+      textTranslations[language] = entries;
+    });
+
+    ["zh-Hant", "ru", "ja", "ko"].forEach((language) => {
+      Object.assign(textTranslations[language], {
+        "0": "0",
+        "100+": "100+"
+      });
+    });
+
+    const copySelector = [
+      ".nav-links a",
+      ".eyebrow",
+      "h1",
+      ".lede",
+      ".button",
+      ".meta-row li",
+      ".proof-value",
+      ".proof-label",
+      ".section-kicker",
+      "h2",
+      ".section-header > p",
+      ".feature h3",
+      ".feature p",
+      ".showcase-list strong",
+      ".showcase-list p",
+      ".mini-shot h3",
+      ".mini-shot p",
+      ".source-meta span",
+      ".pill",
+      ".source-card h3",
+      ".source-card p",
+      ".source-card a",
+      ".privacy-item h3",
+      ".privacy-item p",
+      ".release-list li",
+      ".footer"
+    ].join(",");
+
+    const normalizeCopy = (value) => value.replace(/\s+/g, " ").trim();
+    const savedLanguage = localStorage.getItem("currencyTrackerPageLanguage");
+    const requestedLanguage = new URLSearchParams(window.location.search).get("lang");
+    let currentLanguage = languages[requestedLanguage] ? requestedLanguage : (languages[savedLanguage] ? savedLanguage : "en");
+
+    function setLanguageMenuOpen(isOpen) {
+      const switcher = document.querySelector("[data-language-switcher]");
+      const button = document.querySelector("[data-language-button]");
+
+      if (!switcher || !button) {
+        return;
+      }
+
+      switcher.classList.toggle("is-open", isOpen);
+      button.setAttribute("aria-expanded", String(isOpen));
+    }
+
+    function translatePage(language) {
+      const languageInfo = languages[language] || languages.en;
+      const translations = textTranslations[language] || {};
+      const meta = pageMeta[language] || pageMeta.en;
+
+      document.documentElement.lang = languageInfo.htmlLang;
+      document.documentElement.dataset.language = language;
+      document.title = meta.title;
+
+      const description = document.querySelector("meta[name='description']");
+      const ogTitle = document.querySelector("meta[property='og:title']");
+      const ogDescription = document.querySelector("meta[property='og:description']");
+
+      if (description) {
+        description.setAttribute("content", meta.description);
+      }
+
+      if (ogTitle) {
+        ogTitle.setAttribute("content", meta.title);
+      }
+
+      if (ogDescription) {
+        ogDescription.setAttribute("content", meta.description);
+      }
+
+      document.querySelectorAll(copySelector).forEach((element) => {
+        if (element.closest("[data-language-switcher]")) {
+          return;
+        }
+
+        if (!element.dataset.i18nSource) {
+          element.dataset.i18nSource = normalizeCopy(element.textContent);
+        }
+
+        const source = element.dataset.i18nSource;
+        element.textContent = translations[source] || source;
+      });
+
+      const currentFlag = document.querySelector("[data-current-flag]");
+      const currentLabel = document.querySelector("[data-current-language]");
+      const languageButton = document.querySelector("[data-language-button]");
+
+      if (currentFlag) {
+        currentFlag.className = `flag ${languageInfo.flagClass}`;
+      }
+
+      if (currentLabel) {
+        currentLabel.textContent = languageInfo.label;
+      }
+
+      if (languageButton) {
+        languageButton.setAttribute("aria-label", `${languageInfo.languageLabel}: ${languageInfo.label}`);
+      }
+
+      document.querySelectorAll("[data-lang]").forEach((option) => {
+        option.setAttribute("aria-current", String(option.dataset.lang === language));
+      });
+    }
+
+    function setLanguage(language) {
+      currentLanguage = languages[language] ? language : "en";
+      localStorage.setItem("currencyTrackerPageLanguage", currentLanguage);
+      translatePage(currentLanguage);
+      setLanguageMenuOpen(false);
+    }
+
+    const revealItems = document.querySelectorAll("[data-reveal]");
+    const languageButton = document.querySelector("[data-language-button]");
+    const languageSwitcher = document.querySelector("[data-language-switcher]");
+
+    translatePage(currentLanguage);
+
+    languageButton?.addEventListener("click", () => {
+      setLanguageMenuOpen(!languageSwitcher?.classList.contains("is-open"));
+    });
+
+    document.querySelectorAll("[data-lang]").forEach((option) => {
+      option.addEventListener("click", () => setLanguage(option.dataset.lang));
+    });
+
+    document.addEventListener("click", (event) => {
+      if (languageSwitcher && !languageSwitcher.contains(event.target)) {
+        setLanguageMenuOpen(false);
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        setLanguageMenuOpen(false);
+      }
+    });
+
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.16 });
+
+      revealItems.forEach((item) => observer.observe(item));
+    } else {
+      revealItems.forEach((item) => item.classList.add("is-visible"));
+    }
+  </script>
 </body>
 </html>
