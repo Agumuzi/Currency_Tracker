@@ -315,31 +315,35 @@ private final class PinnedExchangeRatePanel: NSPanel {
 
 struct WindowEventObserver: NSViewRepresentable {
     let onResolveWindow: (NSWindow?) -> Void
+    let onResize: (CGSize) -> Void
     let onBecomeKey: () -> Void
 
     func makeNSView(context: Context) -> EventObservingView {
         let view = EventObservingView()
         view.onResolveWindow = onResolveWindow
+        view.onResize = onResize
         view.onBecomeKey = onBecomeKey
         return view
     }
 
     func updateNSView(_ nsView: EventObservingView, context: Context) {
         nsView.onResolveWindow = onResolveWindow
+        nsView.onResize = onResize
         nsView.onBecomeKey = onBecomeKey
     }
 }
 
 final class EventObservingView: NSView {
     var onResolveWindow: ((NSWindow?) -> Void)?
+    var onResize: ((CGSize) -> Void)?
     var onBecomeKey: (() -> Void)?
 
-    private var observer: NSObjectProtocol?
+    private var observers: [NSObjectProtocol] = []
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        observer.map(NotificationCenter.default.removeObserver)
-        observer = nil
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers.removeAll()
 
         onResolveWindow?(window)
 
@@ -347,16 +351,30 @@ final class EventObservingView: NSView {
             return
         }
 
-        observer = NotificationCenter.default.addObserver(
+        onResize?(window.contentLayoutRect.size)
+
+        observers.append(NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification,
             object: window,
             queue: .main
         ) { [weak self] _ in
             self?.onBecomeKey?()
-        }
+        })
+
+        observers.append(NotificationCenter.default.addObserver(
+            forName: NSWindow.didResizeNotification,
+            object: window,
+            queue: .main
+        ) { [weak self, weak window] _ in
+            guard let window else {
+                return
+            }
+
+            self?.onResize?(window.contentLayoutRect.size)
+        })
     }
 
     deinit {
-        observer.map(NotificationCenter.default.removeObserver)
+        observers.forEach(NotificationCenter.default.removeObserver)
     }
 }

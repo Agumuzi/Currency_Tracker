@@ -58,15 +58,17 @@ The settings window includes a sidebar and dedicated pages for general behavior,
 
 ### Language And Window Behavior
 
-The app follows macOS per-app language preferences and includes a language page that opens the system Language & Region settings directly. The menu panel, pinned panel, and settings window can be resized so larger pair lists and localized labels have more room.
+The app follows macOS per-app language preferences and includes a language page that opens the system Language & Region settings directly. The menu bar panel stays anchored to the status item, while the pinned panel and settings window can be resized when larger pair lists or localized labels need more room.
 
 ### Data Sources
 
-Currency Tracker works with public fallback sources by default. You can add credentials for mainstream providers when you need better coverage or reliability:
+Currency Tracker works with public fallback sources by default. For personal use, the recommended enhanced sources are [Twelve Data](https://twelvedata.com/) and [Open Exchange Rates](https://openexchangerates.org/) because both provide free tiers: Twelve Data offers 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker, while Open Exchange Rates offers 1,000 free requests per month.
 
-- Twelve Data
+You can also add credentials for other mainstream providers when you need broader coverage or reliability:
+
+- [Twelve Data](https://twelvedata.com/)
 - ExchangeRate-API
-- Open Exchange Rates
+- [Open Exchange Rates](https://openexchangerates.org/)
 - Fixer
 - Currencylayer
 - Custom JSON API templates with `{base}`, `{quote}`, and `{key}` placeholders, secure entry, enable/edit states, and a built-in connection test
@@ -81,17 +83,17 @@ The app can check GitHub Releases from Settings. Update packages are downloaded,
 
 ## Current Release
 
-Version `1.5.1` includes:
+Version `1.5.2` includes:
 
-- Fixes the pinned menu panel jumping down or shrinking when the pin icon is clicked.
-- Keeps the pinned panel inside the visible screen area even when macOS reports an unusable transient menu position.
-- Adds a persistent in-panel scroll indicator for long menu-bar rate lists.
-- Improves scroll feedback in Settings and the quick-add currency picker.
-- Tightens menu panel spacing so long pair lists and the bottom refresh status stay visually separated.
+- Keeps the menu bar panel anchored to the status item while preserving resize support for the pinned panel.
+- Replaces the custom scroll marker with the native macOS overlay scroller outside the rate cards.
+- Aligns menu panel card gutters so the list has consistent left and right spacing.
+- Changes the menu bar display setting to a stacked layout so long localized labels no longer crowd the segmented picker.
+- Refreshes README and product-page screenshots, and clarifies why Twelve Data and Open Exchange Rates are recommended free data sources.
 
 ## Installation
 
-Download `Currency-Tracker-1.5.1.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
+Download `Currency-Tracker-1.5.2.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
 The app is distributed through GitHub Releases and is not notarized through Apple. On first launch, macOS may block it. Open:
 

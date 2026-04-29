@@ -498,16 +498,17 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("菜单栏显示")
 
-            HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("选择菜单栏中显示的信息密度")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                     Text("重点汇率来自面板中的第一张卡片。空间紧张时建议保持只显示图标。")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Picker("菜单栏显示", selection: Binding(
                     get: { preferences.menuBarDisplayMode },
@@ -519,7 +520,7 @@ struct SettingsView: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
-                .frame(width: 360)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)

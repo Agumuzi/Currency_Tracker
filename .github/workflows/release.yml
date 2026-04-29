@@ -34,7 +34,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p build/release
-          ditto -c -k --keepParent "build/Currency Tracker.xcarchive/Products/Applications/Currency Tracker.app" "build/release/Currency-Tracker-${VERSION}.zip"
+          COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "build/Currency Tracker.xcarchive/Products/Applications/Currency Tracker.app" "build/release/Currency-Tracker-${VERSION}.zip"
           shasum -a 256 "build/release/Currency-Tracker-${VERSION}.zip" > "build/release/Currency-Tracker-${VERSION}.zip.sha256"
 
       - name: Upload artifact

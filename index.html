@@ -506,11 +506,11 @@
       <img class="hero-bg" src="assets/screenshots/settings-rates.png" alt="">
       <div class="hero-inner">
         <div class="hero-copy">
-          <p class="eyebrow">Current release v1.5.1</p>
+          <p class="eyebrow">Current release v1.5.2</p>
           <h1>Currency Tracker</h1>
           <p class="lede">Exchange rates, trend charts, conversion, alerts, profiles, and provider API management from the macOS menu bar.</p>
           <div class="actions">
-            <a class="button primary" href="https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.5.1/Currency-Tracker-1.5.1.zip">Download v1.5.1</a>
+            <a class="button primary" href="https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.5.2/Currency-Tracker-1.5.2.zip">Download v1.5.2</a>
             <a class="button" href="https://github.com/Agumuzi/Currency_Tracker/releases">View releases</a>
           </div>
           <p class="meta">Requires macOS 14.0 or later. Distributed through GitHub Releases.</p>
@@ -566,7 +566,7 @@
         <article class="feature">
           <span class="icon">08</span>
           <h3>Resizable windows</h3>
-          <p>Resize the menu panel, pinned panel, and Settings window when you need more space for long localized labels or larger rate lists.</p>
+          <p>Keep the menu panel anchored to the status item, then resize the pinned panel and Settings window when you need more space for long localized labels or larger rate lists.</p>
         </article>
       </div>
     </section>
@@ -627,12 +627,13 @@
         <div class="text-block">
           <p class="section-kicker">Data sources</p>
           <h2>Works out of the box, improves with your own keys.</h2>
-          <p>Currency Tracker uses public fallback sources by default. For broader coverage or better reliability, add credentials for supported providers or define a custom JSON API template with secure key entry and a connection test.</p>
+          <p>Currency Tracker uses public fallback sources by default. Twelve Data and Open Exchange Rates are the recommended enhanced sources for personal use because both offer free tiers: Twelve Data provides 800 free API credits per day, which is about 100 full multi-pair refreshes in Currency Tracker, while Open Exchange Rates provides 1,000 free requests per month.</p>
+          <p><a href="https://twelvedata.com/">Twelve Data</a> · <a href="https://openexchangerates.org/">Open Exchange Rates</a></p>
         </div>
         <ul class="data-list" aria-label="Supported data providers">
-          <li>Twelve Data</li>
+          <li><a href="https://twelvedata.com/">Twelve Data</a></li>
           <li>ExchangeRate-API</li>
-          <li>Open Exchange Rates</li>
+          <li><a href="https://openexchangerates.org/">Open Exchange Rates</a></li>
           <li>Fixer</li>
           <li>Currencylayer</li>
           <li>Custom JSON APIs</li>
@@ -643,15 +644,15 @@
     <section class="section two-column">
       <div class="text-block">
         <p class="section-kicker">Release</p>
-        <h2>What is new in 1.5.1</h2>
-        <p>This bugfix release focuses on pinned-panel stability and clearer scroll feedback in dense menu and settings layouts.</p>
+        <h2>What is new in 1.5.2</h2>
+        <p>This bugfix release focuses on menu-panel polish, native scroll feedback, and clearer documentation for recommended free data sources.</p>
       </div>
       <ul class="release-list">
-        <li>Fixes the pinned menu panel jumping down or shrinking after clicking the pin icon.</li>
-        <li>Keeps the pinned panel inside the visible screen area when the transient menu reports an unusable position.</li>
-        <li>Adds a persistent scroll indicator for long menu-bar rate lists.</li>
-        <li>Improves scroll feedback in Settings and the quick-add currency picker.</li>
-        <li>Tightens menu panel spacing so long lists and the bottom refresh status remain visually separated.</li>
+        <li>Keeps the menu bar panel anchored to the status item while preserving resize support for the pinned panel.</li>
+        <li>Replaces the custom scroll marker with the native macOS overlay scroller outside the rate cards.</li>
+        <li>Aligns menu panel card gutters so the list has consistent left and right spacing.</li>
+        <li>Changes the menu bar display setting to a stacked layout for long localized labels.</li>
+        <li>Refreshes README and product-page screenshots with the current app UI.</li>
       </ul>
     </section>
 

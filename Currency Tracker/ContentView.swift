@@ -19,9 +19,7 @@ struct ContentView: View {
     @State private var expandedCardID: String?
     @State private var currentWindow: NSWindow?
     @State private var isShowingQuickAddPanel = false
-    @State private var cardScrollContentHeight: CGFloat = 1
-    @State private var cardScrollOffset: CGFloat = 0
-    @State private var cardScrollViewportHeight: CGFloat = 1
+    @State private var windowContentSize: CGSize?
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -36,7 +34,7 @@ struct ContentView: View {
             minWidth: 408,
             idealWidth: 408,
             maxWidth: 560,
-            minHeight: min(panelHeight, maximumPanelHeight),
+            minHeight: minimumPanelHeight,
             idealHeight: panelHeight,
             maxHeight: maximumPanelHeight,
             alignment: .top
@@ -54,9 +52,13 @@ struct ContentView: View {
             WindowEventObserver(
                 onResolveWindow: {
                     currentWindow = $0
+                    windowContentSize = $0?.contentLayoutRect.size
                     configureMenuBarWindow($0)
                     panelWindowController.registerMenuBarWindow($0)
                     resizePinnedWindowIfNeeded()
+                },
+                onResize: { size in
+                    windowContentSize = size
                 },
                 onBecomeKey: {
                     guard presentationMode == .menuBar else {
@@ -235,7 +237,9 @@ struct ContentView: View {
         window.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
         window.contentView?.superview?.wantsLayer = true
         window.contentView?.superview?.layer?.backgroundColor = NSColor.clear.cgColor
-        window.styleMask.insert(.resizable)
+        window.styleMask.remove(.resizable)
+        window.isMovable = false
+        window.isMovableByWindowBackground = false
         window.minSize = NSSize(width: 408, height: 320)
         window.maxSize = NSSize(width: 560, height: maximumPanelHeight)
     }
@@ -292,55 +296,22 @@ struct ContentView: View {
                             .strokeBorder(subtleBorderColor, lineWidth: 1)
                     )
             )
-            .frame(maxWidth: .infinity, minHeight: cardAreaHeight, maxHeight: cardAreaHeight, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: cardListMinimumHeight, maxHeight: cardAreaHeight, alignment: .topLeading)
         } else if shouldScrollCards {
-            ScrollView(.vertical, showsIndicators: true) {
+            NativePanelScrollView {
                 cardStack
-                    .padding(.trailing, 14)
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear
-                                .preference(
-                                    key: CardListContentHeightPreferenceKey.self,
-                                    value: proxy.size.height
-                                )
-                                .preference(
-                                    key: CardListOffsetPreferenceKey.self,
-                                    value: proxy.frame(in: .named("cardListScroll")).minY
-                                )
-                        }
-                    )
+                    .padding(.trailing, nativeScrollBarGutterWidth)
             }
-            .coordinateSpace(name: "cardListScroll")
-            .scrollIndicators(.visible)
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(
-                        key: CardListViewportHeightPreferenceKey.self,
-                        value: proxy.size.height
-                    )
-                }
+            .padding(.trailing, -nativeScrollBarGutterWidth)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: cardListMinimumHeight,
+                maxHeight: cardAreaHeight,
+                alignment: .top
             )
-            .onPreferenceChange(CardListContentHeightPreferenceKey.self) { value in
-                cardScrollContentHeight = max(value, 1)
-            }
-            .onPreferenceChange(CardListOffsetPreferenceKey.self) { value in
-                cardScrollOffset = max(0, -value)
-            }
-            .onPreferenceChange(CardListViewportHeightPreferenceKey.self) { value in
-                cardScrollViewportHeight = max(value, 1)
-            }
-            .overlay(alignment: .topTrailing) {
-                PanelScrollIndicator(
-                    viewportHeight: cardScrollViewportHeight,
-                    contentHeight: cardScrollContentHeight,
-                    offset: cardScrollOffset
-                )
-            }
-            .frame(maxWidth: .infinity, minHeight: cardAreaHeight, maxHeight: cardAreaHeight, alignment: .top)
         } else {
             cardStack
-                .frame(maxWidth: .infinity, minHeight: cardAreaHeight, maxHeight: cardAreaHeight, alignment: .top)
+                .frame(maxWidth: .infinity, minHeight: cardListMinimumHeight, maxHeight: cardAreaHeight, alignment: .top)
         }
     }
 
@@ -405,7 +376,7 @@ struct ContentView: View {
     }
 
     private var maximumCardAreaHeight: CGFloat {
-        maximumPanelHeight - chromeHeight
+        max(112, panelHeightLimit - chromeHeight)
     }
 
     private var estimatedCardsHeight: CGFloat {
@@ -439,6 +410,20 @@ struct ContentView: View {
         return max(320, min(760, visibleHeight - 120))
     }
 
+    private var minimumPanelHeight: CGFloat {
+        presentationMode == .pinned ? pinnedMinimumPanelHeight : min(panelHeight, maximumPanelHeight)
+    }
+
+    private var panelHeightLimit: CGFloat {
+        guard presentationMode == .pinned,
+              let contentHeight = windowContentSize?.height,
+              contentHeight > 0 else {
+            return maximumPanelHeight
+        }
+
+        return min(max(contentHeight, pinnedMinimumPanelHeight), maximumPanelHeight)
+    }
+
     private var chromeHeight: CGFloat {
         let toolbarHeight: CGFloat = 38
         let bannerHeight: CGFloat = shouldShowStatusBanner ? 44 : 0
@@ -449,6 +434,18 @@ struct ContentView: View {
 
     private var cardStackBottomPadding: CGFloat {
         14
+    }
+
+    private var cardListMinimumHeight: CGFloat {
+        presentationMode == .pinned ? 112 : cardAreaHeight
+    }
+
+    private var pinnedMinimumPanelHeight: CGFloat {
+        320
+    }
+
+    private var nativeScrollBarGutterWidth: CGFloat {
+        13
     }
 
     private func estimatedHeight(for card: CurrencyCardModel) -> CGFloat {
@@ -533,63 +530,63 @@ struct ContentView: View {
     }
 }
 
-private struct CardListContentHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 1
+private struct NativePanelScrollView<Content: View>: NSViewRepresentable {
+    let content: Content
 
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-private struct CardListOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-private struct CardListViewportHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 1
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
-private struct PanelScrollIndicator: View {
-    let viewportHeight: CGFloat
-    let contentHeight: CGFloat
-    let offset: CGFloat
-
-    private var trackHeight: CGFloat {
-        max(48, viewportHeight - 12)
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
     }
 
-    private var thumbHeight: CGFloat {
-        let ratio = min(1, viewportHeight / max(contentHeight, 1))
-        return max(42, trackHeight * ratio)
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
     }
 
-    private var thumbOffset: CGFloat {
-        let scrollableHeight = max(contentHeight - viewportHeight, 1)
-        let progress = min(max(offset / scrollableHeight, 0), 1)
-        return max(0, trackHeight - thumbHeight) * progress
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
+        scrollView.verticalScrollElasticity = .allowed
+        scrollView.horizontalScrollElasticity = .none
+        scrollView.usesPredominantAxisScrolling = true
+        scrollView.automaticallyAdjustsContentInsets = false
+        scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        scrollView.scrollerInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 1)
+        scrollView.verticalScroller?.controlSize = .small
+
+        let hostingView = NSHostingView(rootView: content)
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        hostingView.wantsLayer = true
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
+        context.coordinator.hostingView = hostingView
+
+        scrollView.documentView = hostingView
+        NSLayoutConstraint.activate([
+            hostingView.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
+            hostingView.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
+            hostingView.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
+            hostingView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor)
+        ])
+
+        return scrollView
     }
 
-    var body: some View {
-        Capsule()
-            .fill(Color.secondary.opacity(0.16))
-            .frame(width: 4, height: trackHeight)
-            .overlay(alignment: .top) {
-                Capsule()
-                    .fill(Color.accentColor.opacity(0.62))
-                    .frame(width: 4, height: thumbHeight)
-                    .offset(y: thumbOffset)
-            }
-            .padding(.vertical, 6)
-            .padding(.trailing, 2)
-            .accessibilityHidden(true)
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        context.coordinator.hostingView?.rootView = content
+        context.coordinator.hostingView?.invalidateIntrinsicContentSize()
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
+        scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        scrollView.scrollerInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 1)
+        scrollView.verticalScroller?.controlSize = .small
+    }
+
+    final class Coordinator {
+        var hostingView: NSHostingView<Content>?
     }
 }
 
