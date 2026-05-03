@@ -3,11 +3,11 @@
 Currency Tracker is a macOS menu bar app for exchange rates, quick conversion, and system-wide selected-text currency conversion. It is built for people who check a small set of rates repeatedly and want the workflow to stay close to the menu bar.
 
 <p>
-  <a href="https://github.com/Agumuzi/Currency_Tracker/releases/latest"><strong>Download latest release</strong></a>
+  <a href="https://github.com/Agumuzi/Currency-Tracker/releases/latest"><strong>Download latest release</strong></a>
   ·
-  <a href="https://agumuzi.github.io/Currency_Tracker/">Product page</a>
+  <a href="https://agumuzi.github.io/Currency-Tracker/">Product page</a>
   ·
-  <a href="https://github.com/Agumuzi/Currency_Tracker/releases">Release notes</a>
+  <a href="https://github.com/Agumuzi/Currency-Tracker/releases">Release notes</a>
 </p>
 
 <p>
@@ -19,6 +19,8 @@ Currency Tracker is a macOS menu bar app for exchange rates, quick conversion, a
 - Keeps selected exchange-rate pairs one click away in the macOS menu bar.
 - Shows compact cards with latest rates, source, refresh time, and positive or negative movement badges.
 - Expands any card into a history chart or a two-way converter.
+- Switches the menu bar panel between the rate list and a multi-currency converter.
+- Lets you choose whether rates display as `1 BASE` or `100 BASE`, with fixed 2, 4, or 6 decimal places.
 - Lets you add, remove, reorder, and search currency pairs from the ISO currency catalog supported by your configured data sources.
 - Converts selected text from other apps through macOS Services or a global shortcut.
 - Supports English, Simplified Chinese, Traditional Chinese, Russian, Japanese, Korean, French, German, Spanish, Brazilian Portuguese, and Italian.
@@ -50,11 +52,11 @@ Choose the pairs you care about and keep them in a compact menu bar panel. The p
 
 ### History And Conversion
 
-Each card can expand into a recent trend chart or a converter without leaving the panel. Chart ranges include 7 days, 1 month, 3 months, 6 months, and 1 year when historical data is available.
+Each card can expand into a recent trend chart or a converter without leaving the panel. The menu bar panel also has a dedicated converter page that builds a de-duplicated currency list from the currencies you configure. Chart ranges include 7 days, 1 month, 3 months, 6 months, and 1 year when historical data is available.
 
 ### Pair Management
 
-The settings window includes a sidebar and dedicated pages for general behavior, language, rate pairs, profiles, alerts, refresh policy, data sources, permissions, updates, diagnostics, and system launch behavior.
+The settings window includes a sidebar and dedicated pages for general behavior, language, rate pairs, converter currencies, profiles, alerts, refresh policy, data sources, permissions, updates, diagnostics, and system launch behavior. Converter currencies can follow the selected rate pairs or be managed separately.
 
 ### Language And Window Behavior
 
@@ -83,17 +85,17 @@ The app can check GitHub Releases from Settings. Update packages are downloaded,
 
 ## Current Release
 
-Version `1.5.2` includes:
+Version `1.5.4` includes:
 
-- Keeps the menu bar panel anchored to the status item while preserving resize support for the pinned panel.
-- Replaces the custom scroll marker with the native macOS overlay scroller outside the rate cards.
-- Aligns menu panel card gutters so the list has consistent left and right spacing.
-- Changes the menu bar display setting to a stacked layout so long localized labels no longer crowd the segmented picker.
-- Refreshes README and product-page screenshots, and clarifies why Twelve Data and Open Exchange Rates are recommended free data sources.
+- Adds global currency display controls for `1` or `100` base amount and fixed 2, 4, or 6 decimal places.
+- Adds a menu bar converter page with linked multi-currency inputs based on configured currencies.
+- Allows converter currencies to either follow selected rate pairs or be managed independently.
+- Fixes decimal input parsing so values such as `7493.499` stay decimal values when focus changes.
+- Polishes long localized text in rate cards and the Settings window layout.
 
 ## Installation
 
-Download `Currency-Tracker-1.5.2.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
+Download `Currency-Tracker-1.5.4.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder. The published SHA256 checksum is `5ae12ecc6fe4b729937f2e04db652ba64f14532b55e9de516f83f0b30d5c7199`.
 
 The app is distributed through GitHub Releases and is not notarized through Apple. On first launch, macOS may block it. Open:
 
@@ -114,6 +116,6 @@ External exchange-rate providers only receive the exchange-rate requests needed 
 
 ## Links
 
-- [Product page](https://agumuzi.github.io/Currency_Tracker/)
-- [Repository](https://github.com/Agumuzi/Currency_Tracker)
-- [Releases](https://github.com/Agumuzi/Currency_Tracker/releases)
+- [Product page](https://agumuzi.github.io/Currency-Tracker/)
+- [Repository](https://github.com/Agumuzi/Currency-Tracker)
+- [Releases](https://github.com/Agumuzi/Currency-Tracker/releases)
