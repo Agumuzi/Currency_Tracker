@@ -25,7 +25,7 @@ struct Currency_TrackerApp: App {
     @State private var viewModel: ExchangePanelViewModel
 
     init() {
-        let isRunningUITests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        let isRunningUITests = Self.isRunningUITests()
         let userDefaults = Self.makeUserDefaults()
         let secretStore = Self.makeSecretStore()
         let preferences = PreferencesStore(userDefaults: userDefaults, secretStore: secretStore)
@@ -182,6 +182,15 @@ struct Currency_TrackerApp: App {
         }
 
         return defaults
+    }
+
+    private static func isRunningUITests() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        let arguments = ProcessInfo.processInfo.arguments
+
+        return environment["XCTestConfigurationFilePath"] != nil
+            || environment["CURRENCY_TRACKER_UI_TEST_SHOW_SETTINGS"] == "1"
+            || arguments.contains("-CurrencyTrackerUITestShowSettings")
     }
 
     private static func makeSecretStore() -> any SecretStoring {

@@ -52,6 +52,7 @@ final class InitialLaunchCoordinator {
     private let automaticUpdateCoordinator: AutomaticSoftwareUpdateCoordinator
     private let isRunningUITests: Bool
     private var observer: NSObjectProtocol?
+    private var didHandleInitialPresentation = false
 
     init(
         userDefaults: UserDefaults,
@@ -72,6 +73,13 @@ final class InitialLaunchCoordinator {
                 self?.handleApplicationDidFinishLaunching(notification)
             }
         }
+
+        if Self.shouldShowSettingsForUITest {
+            Task { @MainActor [self] in
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                presentInitialSettingsIfNeeded(isDefaultLaunch: true, forceShowSettings: true)
+            }
+        }
     }
 
     deinit {
@@ -79,7 +87,7 @@ final class InitialLaunchCoordinator {
     }
 
     private func handleApplicationDidFinishLaunching(_ notification: Notification) {
-        let shouldShowSettingsForUITest = ProcessInfo.processInfo.environment["CURRENCY_TRACKER_UI_TEST_SHOW_SETTINGS"] == "1"
+        let shouldShowSettingsForUITest = Self.shouldShowSettingsForUITest
         if isRunningUITests && !shouldShowSettingsForUITest {
             return
         }
@@ -89,15 +97,42 @@ final class InitialLaunchCoordinator {
             return
         }
 
+        presentInitialSettingsIfNeeded(isDefaultLaunch: isDefaultLaunch, forceShowSettings: shouldShowSettingsForUITest)
+    }
+
+    private func presentInitialSettingsIfNeeded(isDefaultLaunch: Bool, forceShowSettings: Bool) {
+        guard didHandleInitialPresentation == false else {
+            return
+        }
+
+        if isRunningUITests && !forceShowSettings {
+            didHandleInitialPresentation = true
+            return
+        }
+
+        guard isDefaultLaunch || forceShowSettings else {
+            return
+        }
+
         let hasShownInitialSettingsWindow = userDefaults.bool(forKey: "hasShownInitialSettingsWindow")
         let isDebugLaunch = ProcessInfo.processInfo.arguments.contains("-NSDocumentRevisionsDebugMode")
-        let shouldPresent = shouldShowSettingsForUITest || !hasShownInitialSettingsWindow || isDebugLaunch
+        let shouldPresent = forceShowSettings || !hasShownInitialSettingsWindow || isDebugLaunch
         guard shouldPresent else {
+            didHandleInitialPresentation = true
             automaticUpdateCoordinator.checkIfNeeded()
             return
         }
 
+        didHandleInitialPresentation = true
         userDefaults.set(true, forKey: "hasShownInitialSettingsWindow")
         settingsWindowController.show()
+    }
+
+    private static var shouldShowSettingsForUITest: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        let arguments = ProcessInfo.processInfo.arguments
+
+        return environment["CURRENCY_TRACKER_UI_TEST_SHOW_SETTINGS"] == "1"
+            || arguments.contains("-CurrencyTrackerUITestShowSettings")
     }
 }

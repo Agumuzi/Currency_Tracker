@@ -28,6 +28,7 @@ final class Currency_TrackerUITests: XCTestCase {
     func testSettingsWindowStartsBlankWithEmptyAPIState() throws {
         let app = XCUIApplication()
         let suiteName = "CurrencyTrackerUITests.\(UUID().uuidString)"
+        app.launchArguments.append("-CurrencyTrackerUITestShowSettings")
         app.launchEnvironment["CURRENCY_TRACKER_DEFAULTS_SUITE"] = suiteName
         app.launchEnvironment["CURRENCY_TRACKER_RESET_DEFAULTS"] = "1"
         app.launchEnvironment["CURRENCY_TRACKER_UI_TEST_SHOW_SETTINGS"] = "1"

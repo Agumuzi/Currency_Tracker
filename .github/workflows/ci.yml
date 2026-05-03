@@ -14,13 +14,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check localizations
         run: python3 scripts/check-localizations.py
 
       - name: Run unit tests
-        run: xcodebuild test -scheme "Currency Tracker" -destination "platform=macOS" -only-testing:"Currency TrackerTests"
+        run: xcodebuild test -scheme "Currency Tracker" -destination "platform=macOS" -derivedDataPath "$PWD/.build/DerivedData" -only-testing:"Currency TrackerTests"
 
       - name: Run UI smoke test
-        run: xcodebuild test -scheme "Currency Tracker" -destination "platform=macOS" -only-testing:"Currency TrackerUITests/Currency_TrackerUITests/testSettingsWindowStartsBlankWithEmptyAPIState"
+        run: xcodebuild test -scheme "Currency Tracker" -destination "platform=macOS" -derivedDataPath "$PWD/.build/DerivedData" -only-testing:"Currency TrackerUITests/Currency_TrackerUITests/testSettingsWindowStartsBlankWithEmptyAPIState"
