@@ -1194,7 +1194,7 @@ private struct CurrencyCardView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             if showsFlags {
                 Text("\(CurrencyCatalog.flag(for: card.pair.baseCode))\n\(CurrencyCatalog.flag(for: card.pair.quoteCode))")
                     .font(.system(size: 13))
@@ -1206,67 +1206,78 @@ private struct CurrencyCardView: View {
                     )
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(card.compactPairLabel)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    HStack(spacing: 6) {
+                        Text(card.compactPairLabel)
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
 
-                    if canExpand {
-                        Button {
-                            toggleExpanded()
-                        } label: {
-                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 20, height: 20)
-                                .contentShape(Rectangle())
+                        if canExpand {
+                            Button {
+                                toggleExpanded()
+                            } label: {
+                                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 20, height: 20)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help(isExpanded ? "收起详情" : "展开详情")
                         }
-                        .buttonStyle(.plain)
-                        .help(isExpanded ? "收起详情" : "展开详情")
                     }
+                    .layoutPriority(1)
+
+                    Spacer(minLength: 12)
+
+                    Text(card.valueText)
+                        .font(.system(size: card.snapshot == nil ? 18 : 26, weight: .semibold, design: .rounded))
+                        .contentTransition(.numericText())
+                        .foregroundStyle(card.valueColor)
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.68)
+                        .allowsTightening(true)
+                        .frame(minWidth: 150, idealWidth: 170, maxWidth: 190, alignment: .trailing)
+                        .layoutPriority(2)
                 }
 
-                Text(pairSecondaryText)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                HStack(alignment: .center, spacing: 8) {
+                    Text(pairSecondaryText)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.86)
+                        .allowsTightening(true)
+                        .truncationMode(.tail)
+                        .layoutPriority(1)
+
+                    Spacer(minLength: 8)
+
+                    if let changeText = card.changeText {
+                        valueChip(text: changeText, color: card.changeColor)
+                            .layoutPriority(2)
+                    } else if let statusChipText = card.statusChipText {
+                        valueChip(text: statusChipText, color: card.statusChipColor)
+                            .layoutPriority(2)
+                    }
+
+                    if card.state == .failed {
+                        Button {
+                            onRefresh()
+                        } label: {
+                            Label("重试", systemImage: "arrow.clockwise")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        }
+                        .buttonStyle(.borderless)
+                        .controlSize(.small)
+                        .layoutPriority(2)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .layoutPriority(0)
-
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(card.valueText)
-                    .font(.system(size: card.snapshot == nil ? 18 : 26, weight: .semibold, design: .rounded))
-                    .contentTransition(.numericText())
-                    .foregroundStyle(card.valueColor)
-                    .multilineTextAlignment(.trailing)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.68)
-                    .allowsTightening(true)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-
-                if let changeText = card.changeText {
-                    valueChip(text: changeText, color: card.changeColor)
-                } else if let statusChipText = card.statusChipText {
-                    valueChip(text: statusChipText, color: card.statusChipColor)
-                }
-
-                if card.state == .failed {
-                    Button {
-                        onRefresh()
-                    } label: {
-                        Label("重试", systemImage: "arrow.clockwise")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    }
-                    .buttonStyle(.borderless)
-                    .controlSize(.small)
-                }
-            }
-            .frame(minWidth: 150, idealWidth: 170, maxWidth: 190, alignment: .trailing)
-            .layoutPriority(2)
         }
     }
 

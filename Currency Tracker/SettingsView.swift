@@ -139,6 +139,8 @@ struct SettingsView: View {
     let softwareUpdateWindowController: SoftwareUpdateWindowController
     let focusSection: SettingsSection?
 
+    @Environment(\.colorScheme) private var colorScheme
+
     @State private var draftBaseCode = "USD"
     @State private var draftQuoteCode = "RUB"
     @State private var currencySearch = ""
@@ -155,6 +157,10 @@ struct SettingsView: View {
     @State private var alertThresholdText = ""
     @State private var diagnosticExportMessage: String?
     @State private var languageSettingsMessage: String?
+
+    private let detailTitlebarClearance: CGFloat = 36
+    private let detailContentPadding: CGFloat = 24
+    private let detailContentMaxWidth: CGFloat = 820
 
     private let supportedAppLanguages = [
         SupportedAppLanguage(code: "en", nativeName: "English"),
@@ -174,18 +180,9 @@ struct SettingsView: View {
         HStack(spacing: 0) {
             sidebar
 
-            Divider()
+            settingsDivider
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    pageHeader
-                    selectedPageContent
-                }
-                .padding(24)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .scrollIndicators(.visible)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            detailPane
         }
         .frame(minWidth: 780, minHeight: 540, alignment: .topLeading)
         .background(windowBackground)
@@ -206,6 +203,29 @@ struct SettingsView: View {
         }
     }
 
+    private var detailPane: some View {
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: detailTitlebarClearance)
+                .frame(maxWidth: .infinity)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    pageHeader
+                    selectedPageContent
+                }
+                .frame(maxWidth: detailContentMaxWidth, alignment: .leading)
+                .padding(.horizontal, detailContentPadding)
+                .padding(.top, detailContentPadding)
+                .padding(.bottom, detailContentPadding)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .scrollIndicators(.visible)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(detailPaneBackground)
+    }
+
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 18) {
             appHeader
@@ -220,32 +240,63 @@ struct SettingsView: View {
             .scrollIndicators(.visible)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 18)
+        .padding(.top, detailTitlebarClearance + 14)
+        .padding(.bottom, 18)
         .frame(width: 252)
         .frame(maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .underPageBackgroundColor).opacity(0.72))
+        .background(sidebarBackground)
     }
 
     private var appHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Currency Tracker")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-            Text("管理汇率展示、刷新行为和系统级文本换算入口")
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "banknote.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 38, height: 38)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.18 : 0.12))
+                )
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Currency Tracker")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                Text("管理汇率展示、刷新行为和系统级文本换算入口")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+        .padding(.horizontal, 2)
+        .padding(.bottom, 6)
     }
 
     private var pageHeader: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(selectedSection.title)
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-            Text(selectedSection.subtitle)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: selectedSection.symbolName)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 42, height: 42)
+                .background(
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.18 : 0.12))
+                )
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(selectedSection.title)
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                Text(selectedSection.subtitle)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
         }
+        .padding(16)
+        .background(pageHeaderBackground)
     }
 
     @ViewBuilder
@@ -364,14 +415,21 @@ struct SettingsView: View {
         Button {
             selectedSection = section
         } label: {
+            let isSelected = selectedSection == section
             HStack(spacing: 10) {
                 Image(systemName: section.symbolName)
                     .font(.system(size: 13, weight: .semibold))
-                    .frame(width: 20)
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.primary.opacity(colorScheme == .dark ? 0.045 : 0.035))
+                    )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(section.title)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.primary)
                     Text(section.subtitle)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
@@ -384,12 +442,8 @@ struct SettingsView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 9)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(selectedSection == section ? Color.accentColor.opacity(0.14) : Color.clear)
-            )
-            .foregroundStyle(selectedSection == section ? Color.accentColor : Color.primary)
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(sidebarRowBackground(isSelected: isSelected))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("settings.sidebar.\(section.rawValue)")
@@ -1610,19 +1664,25 @@ struct SettingsView: View {
     }
 
     private func sectionTitle(_ title: LocalizedStringKey) -> some View {
-        Text(title)
-            .font(.system(size: 14, weight: .semibold, design: .rounded))
+        HStack(spacing: 8) {
+            Capsule(style: .continuous)
+                .fill(Color.accentColor)
+                .frame(width: 3, height: 15)
+
+            Text(title)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+        }
     }
 
     private func countBadge(_ count: Int) -> some View {
         Text("\(count)")
             .font(.system(size: 11, weight: .semibold, design: .rounded))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Color.accentColor)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
                 Capsule(style: .continuous)
-                    .fill(Color(nsColor: .windowBackgroundColor))
+                    .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.16 : 0.10))
             )
     }
 
@@ -1832,16 +1892,79 @@ struct SettingsView: View {
     }
 
     private var sectionCardBackground: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(sectionSurfaceColor)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(sectionStrokeColor, lineWidth: 1)
+            )
+            .shadow(color: sectionShadowColor, radius: 10, x: 0, y: 4)
+    }
+
+    private var pageHeaderBackground: some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(headerSurfaceColor)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(sectionStrokeColor, lineWidth: 1)
+            )
+            .shadow(color: sectionShadowColor.opacity(0.7), radius: 8, x: 0, y: 3)
+    }
+
+    private func sidebarRowBackground(isSelected: Bool) -> some View {
         RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .fill(Color(nsColor: .controlBackgroundColor))
+            .fill(isSelected ? Color.accentColor.opacity(colorScheme == .dark ? 0.18 : 0.12) : Color.clear)
             .overlay(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.05), lineWidth: 1)
+                    .strokeBorder(isSelected ? Color.accentColor.opacity(colorScheme == .dark ? 0.26 : 0.18) : Color.clear, lineWidth: 1)
             )
+    }
+
+    private var settingsDivider: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.08))
+            .frame(width: 1)
+    }
+
+    private var sidebarBackground: some View {
+        Color(nsColor: .underPageBackgroundColor)
+            .opacity(colorScheme == .dark ? 0.74 : 0.58)
+    }
+
+    private var detailPaneBackground: some View {
+        Color(nsColor: .windowBackgroundColor)
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    colors: [
+                        Color.primary.opacity(colorScheme == .dark ? 0.035 : 0.025),
+                        Color.clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 120)
+                .allowsHitTesting(false)
+            }
     }
 
     private var windowBackground: some View {
         Color(nsColor: .windowBackgroundColor)
+    }
+
+    private var sectionSurfaceColor: Color {
+        Color(nsColor: .controlBackgroundColor).opacity(colorScheme == .dark ? 0.72 : 0.92)
+    }
+
+    private var headerSurfaceColor: Color {
+        Color(nsColor: .controlBackgroundColor).opacity(colorScheme == .dark ? 0.62 : 0.86)
+    }
+
+    private var sectionStrokeColor: Color {
+        Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.06)
+    }
+
+    private var sectionShadowColor: Color {
+        Color.black.opacity(colorScheme == .dark ? 0.18 : 0.06)
     }
 
     private var currentAppLanguageName: String {
