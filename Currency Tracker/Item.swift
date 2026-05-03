@@ -261,6 +261,269 @@ nonisolated enum MenuBarDisplayMode: String, Codable, CaseIterable, Identifiable
     }
 }
 
+nonisolated enum CurrencyDisplayFormatting {
+    static let displayBaseAmountOptions = [1, 100]
+    static let fractionDigitOptions = [2, 4, 6]
+
+    static func normalizedDisplayBaseAmount(_ value: Int) -> Int {
+        displayBaseAmountOptions.contains(value) ? value : 1
+    }
+
+    static func normalizedFractionDigits(_ value: Int) -> Int {
+        fractionDigitOptions.contains(value) ? value : 4
+    }
+
+    static func rateText(
+        snapshotRate: Double,
+        pairBaseAmount: Int,
+        displayBaseAmount: Int,
+        fractionDigits: Int
+    ) -> String {
+        let unitRate = snapshotRate / Double(max(pairBaseAmount, 1))
+        let displayRate = unitRate * Double(normalizedDisplayBaseAmount(displayBaseAmount))
+        return localizedNumber(displayRate, fractionDigits: fractionDigits)
+    }
+
+    static func localizedNumber(_ value: Double, fractionDigits: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = true
+        formatter.minimumFractionDigits = normalizedFractionDigits(fractionDigits)
+        formatter.maximumFractionDigits = normalizedFractionDigits(fractionDigits)
+        return formatter.string(from: value as NSNumber) ?? String(format: "%.\(normalizedFractionDigits(fractionDigits))f", value)
+    }
+
+    static func plainNumber(_ value: Decimal, fractionDigits: Int) -> String {
+        plainNumber(NSDecimalNumber(decimal: value).doubleValue, fractionDigits: fractionDigits)
+    }
+
+    static func plainNumber(_ value: Double, fractionDigits: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = false
+        formatter.minimumFractionDigits = normalizedFractionDigits(fractionDigits)
+        formatter.maximumFractionDigits = normalizedFractionDigits(fractionDigits)
+        return formatter.string(from: value as NSNumber) ?? String(format: "%.\(normalizedFractionDigits(fractionDigits))f", value)
+    }
+}
+
+nonisolated enum AmountInputParsing {
+    static func parseDecimal(_ text: String) -> Decimal? {
+        let normalizedText = text
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
+            .replacingOccurrences(of: "\u{202F}", with: " ")
+            .replacingOccurrences(of: "\u{3000}", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let amountText = extractAmountCandidate(from: normalizedText) else {
+            return nil
+        }
+
+        let compact = amountText
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "'", with: "")
+            .replacingOccurrences(of: "’", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard compact.contains(where: \.isNumber) else {
+            return nil
+        }
+
+        let normalized = normalizeDecimalSeparators(in: compact)
+        let validationPattern = #"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$"#
+        guard normalized.range(of: validationPattern, options: .regularExpression) != nil else {
+            return nil
+        }
+
+        let decimalText: String
+        if normalized.hasPrefix(".") {
+            decimalText = "0\(normalized)"
+        } else if normalized.hasSuffix(".") {
+            decimalText = String(normalized.dropLast())
+        } else {
+            decimalText = normalized
+        }
+
+        return Decimal(string: decimalText, locale: Locale(identifier: "en_US_POSIX"))
+    }
+
+    private static func extractAmountCandidate(from text: String) -> String? {
+        var bestCandidate: String?
+        var currentCandidate = ""
+
+        func commitCurrentCandidate() {
+            let trimmedCandidate = currentCandidate
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: ".,'’"))
+
+            defer { currentCandidate.removeAll(keepingCapacity: true) }
+
+            guard trimmedCandidate.contains(where: \.isNumber) else {
+                return
+            }
+
+            if let bestCandidate {
+                let bestDigitCount = bestCandidate.filter(\.isNumber).count
+                let currentDigitCount = trimmedCandidate.filter(\.isNumber).count
+                if currentDigitCount < bestDigitCount {
+                    return
+                }
+            }
+
+            bestCandidate = trimmedCandidate
+        }
+
+        for character in text {
+            if isAmountCharacter(character) {
+                currentCandidate.append(character)
+            } else {
+                commitCurrentCandidate()
+            }
+        }
+
+        commitCurrentCandidate()
+        return bestCandidate
+    }
+
+    private static func normalizeDecimalSeparators(in text: String) -> String {
+        let commaCount = text.filter { $0 == "," }.count
+        let dotCount = text.filter { $0 == "." }.count
+
+        if commaCount > 0 && dotCount > 0 {
+            let decimalSeparator = lastSeparator(in: text)
+            return normalizeMixedSeparators(in: text, decimalSeparator: decimalSeparator)
+        }
+
+        if commaCount > 0 {
+            return normalizeSingleSeparator(in: text, separator: ",")
+        }
+
+        if dotCount > 0 {
+            return normalizeSingleSeparator(in: text, separator: ".")
+        }
+
+        return text
+    }
+
+    private static func normalizeMixedSeparators(in text: String, decimalSeparator: Character) -> String {
+        var result = ""
+        for character in text {
+            if character == decimalSeparator {
+                result.append(".")
+            } else if character == "," || character == "." {
+                continue
+            } else {
+                result.append(character)
+            }
+        }
+        return result
+    }
+
+    private static func normalizeSingleSeparator(in text: String, separator: Character) -> String {
+        let parts = text.split(separator: separator, omittingEmptySubsequences: false).map(String.init)
+
+        guard parts.count > 2 else {
+            return text.replacingOccurrences(of: String(separator), with: ".")
+        }
+
+        let middleGroupsAreThousands = parts.dropFirst().allSatisfy { $0.count == 3 && $0.allSatisfy(\.isNumber) }
+        if middleGroupsAreThousands {
+            return text.replacingOccurrences(of: String(separator), with: "")
+        }
+
+        let prefix = parts.dropLast().joined()
+        let suffix = parts.last ?? ""
+        return "\(prefix).\(suffix)"
+    }
+
+    private static func lastSeparator(in text: String) -> Character {
+        let lastComma = text.lastIndex(of: ",")
+        let lastDot = text.lastIndex(of: ".")
+
+        switch (lastComma, lastDot) {
+        case let (comma?, dot?):
+            return comma > dot ? "," : "."
+        case (_?, nil):
+            return ","
+        case (nil, _?):
+            return "."
+        case (nil, nil):
+            return "."
+        }
+    }
+
+    private static func isAmountCharacter(_ character: Character) -> Bool {
+        if character.isNumber {
+            return true
+        }
+
+        return " +-.,'’".contains(character)
+    }
+}
+
+nonisolated struct CurrencyConversionGraph: Sendable {
+    private let edges: [String: [String: Double]]
+
+    init(snapshots: [CurrencySnapshot]) {
+        var edges: [String: [String: Double]] = [:]
+
+        for snapshot in snapshots where snapshot.rate > 0 {
+            let pair = snapshot.pair
+            let unitRate = snapshot.rate / Double(max(pair.baseAmount, 1))
+            guard unitRate > 0, unitRate.isFinite else {
+                continue
+            }
+
+            edges[pair.baseCode, default: [:]][pair.quoteCode] = unitRate
+            edges[pair.quoteCode, default: [:]][pair.baseCode] = 1 / unitRate
+        }
+
+        self.edges = edges
+    }
+
+    func conversionMultipliers(from sourceCode: String) -> [String: Double] {
+        var multipliers = [sourceCode: 1.0]
+        var queue = [sourceCode]
+        var index = 0
+
+        while index < queue.count {
+            let current = queue[index]
+            index += 1
+
+            guard let currentMultiplier = multipliers[current],
+                  let targets = edges[current] else {
+                continue
+            }
+
+            for (target, edgeRate) in targets where multipliers[target] == nil {
+                let multiplier = currentMultiplier * edgeRate
+                guard multiplier.isFinite, multiplier > 0 else {
+                    continue
+                }
+                multipliers[target] = multiplier
+                queue.append(target)
+            }
+        }
+
+        return multipliers
+    }
+
+    static func orderedCurrencyCodes(from pairs: [CurrencyPair]) -> [String] {
+        var seen = Set<String>()
+        var codes: [String] = []
+
+        for pair in pairs {
+            for code in [pair.baseCode, pair.quoteCode] where seen.insert(code).inserted {
+                codes.append(code)
+            }
+        }
+
+        return codes
+    }
+}
+
 nonisolated enum RateAlertDirection: String, Codable, CaseIterable, Identifiable, Sendable {
     case above
     case below
@@ -317,11 +580,15 @@ nonisolated struct SettingsProfile: Identifiable, Codable, Hashable, Sendable {
     var id: UUID
     var name: String
     var selectedPairIDs: [String]
+    var converterCurrenciesFollowSelectedPairs: Bool
+    var converterCurrencyCodes: [String]
     var baseCurrencyCode: String
     var autoRefreshMinutes: Int
     var menuBarOpenRefreshEnabled: Bool
     var showsFlags: Bool
     var trendPointLimit: Int
+    var rateDisplayBaseAmount: Int
+    var conversionFractionDigits: Int
     var createdAt: Date
     var updatedAt: Date
 
@@ -329,24 +596,94 @@ nonisolated struct SettingsProfile: Identifiable, Codable, Hashable, Sendable {
         id: UUID = UUID(),
         name: String,
         selectedPairIDs: [String],
+        converterCurrenciesFollowSelectedPairs: Bool = true,
+        converterCurrencyCodes: [String] = [],
         baseCurrencyCode: String,
         autoRefreshMinutes: Int,
         menuBarOpenRefreshEnabled: Bool,
         showsFlags: Bool,
         trendPointLimit: Int,
+        rateDisplayBaseAmount: Int = 1,
+        conversionFractionDigits: Int = 4,
         createdAt: Date = .now,
         updatedAt: Date = .now
     ) {
         self.id = id
         self.name = name
         self.selectedPairIDs = selectedPairIDs
+        self.converterCurrenciesFollowSelectedPairs = converterCurrenciesFollowSelectedPairs
+        self.converterCurrencyCodes = PreferencesStore.normalizedCurrencyCodes(converterCurrencyCodes)
         self.baseCurrencyCode = baseCurrencyCode
         self.autoRefreshMinutes = autoRefreshMinutes
         self.menuBarOpenRefreshEnabled = menuBarOpenRefreshEnabled
         self.showsFlags = showsFlags
         self.trendPointLimit = trendPointLimit
+        self.rateDisplayBaseAmount = CurrencyDisplayFormatting.normalizedDisplayBaseAmount(rateDisplayBaseAmount)
+        self.conversionFractionDigits = CurrencyDisplayFormatting.normalizedFractionDigits(conversionFractionDigits)
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case selectedPairIDs
+        case converterCurrenciesFollowSelectedPairs
+        case converterCurrencyCodes
+        case baseCurrencyCode
+        case autoRefreshMinutes
+        case menuBarOpenRefreshEnabled
+        case showsFlags
+        case trendPointLimit
+        case rateDisplayBaseAmount
+        case conversionFractionDigits
+        case createdAt
+        case updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        selectedPairIDs = try container.decode([String].self, forKey: .selectedPairIDs)
+        converterCurrenciesFollowSelectedPairs = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .converterCurrenciesFollowSelectedPairs
+        ) ?? true
+        converterCurrencyCodes = PreferencesStore.normalizedCurrencyCodes(
+            try container.decodeIfPresent([String].self, forKey: .converterCurrencyCodes) ?? []
+        )
+        baseCurrencyCode = try container.decode(String.self, forKey: .baseCurrencyCode)
+        autoRefreshMinutes = try container.decode(Int.self, forKey: .autoRefreshMinutes)
+        menuBarOpenRefreshEnabled = try container.decode(Bool.self, forKey: .menuBarOpenRefreshEnabled)
+        showsFlags = try container.decode(Bool.self, forKey: .showsFlags)
+        trendPointLimit = try container.decode(Int.self, forKey: .trendPointLimit)
+        rateDisplayBaseAmount = CurrencyDisplayFormatting.normalizedDisplayBaseAmount(
+            try container.decodeIfPresent(Int.self, forKey: .rateDisplayBaseAmount) ?? 1
+        )
+        conversionFractionDigits = CurrencyDisplayFormatting.normalizedFractionDigits(
+            try container.decodeIfPresent(Int.self, forKey: .conversionFractionDigits) ?? 4
+        )
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(selectedPairIDs, forKey: .selectedPairIDs)
+        try container.encode(converterCurrenciesFollowSelectedPairs, forKey: .converterCurrenciesFollowSelectedPairs)
+        try container.encode(converterCurrencyCodes, forKey: .converterCurrencyCodes)
+        try container.encode(baseCurrencyCode, forKey: .baseCurrencyCode)
+        try container.encode(autoRefreshMinutes, forKey: .autoRefreshMinutes)
+        try container.encode(menuBarOpenRefreshEnabled, forKey: .menuBarOpenRefreshEnabled)
+        try container.encode(showsFlags, forKey: .showsFlags)
+        try container.encode(trendPointLimit, forKey: .trendPointLimit)
+        try container.encode(rateDisplayBaseAmount, forKey: .rateDisplayBaseAmount)
+        try container.encode(conversionFractionDigits, forKey: .conversionFractionDigits)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
     }
 }
 
@@ -604,13 +941,15 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
     let previousValue: Double?
     let state: CurrencyCardState
     let sampleLimit: Int
+    let displayBaseAmount: Int
+    let fractionDigits: Int
 
     var id: String {
         pair.id
     }
 
     var subtitle: String {
-        pair.subtitle
+        "\(displayBaseAmount) \(pair.baseCode) → \(pair.quoteCode)"
     }
 
     var compactPairLabel: String {
@@ -629,7 +968,12 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
             }
         }
 
-        return ExchangeFormatter.decimal.string(from: snapshot.rate as NSNumber) ?? String(format: "%.4f", snapshot.rate)
+        return CurrencyDisplayFormatting.rateText(
+            snapshotRate: snapshot.rate,
+            pairBaseAmount: pair.baseAmount,
+            displayBaseAmount: displayBaseAmount,
+            fractionDigits: fractionDigits
+        )
     }
 
     var valueColor: Color {
@@ -707,14 +1051,15 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
             return nil
         }
 
-        let currentRate = snapshot?.rate ?? 0
-        let delta = currentRate - previousValue
+        let currentRate = displayedRate(snapshot?.rate ?? 0)
+        let previousRate = displayedRate(previousValue)
+        let delta = currentRate - previousRate
         guard abs(delta) >= 0.000_1 else {
             return String(localized: "持平")
         }
 
         let prefix = delta > 0 ? "+" : ""
-        let formatted = ExchangeFormatter.compactChange.string(from: delta as NSNumber) ?? String(format: "%.4f", delta)
+        let formatted = CurrencyDisplayFormatting.localizedNumber(delta, fractionDigits: fractionDigits)
         return "\(prefix)\(formatted)"
     }
 
@@ -735,7 +1080,7 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
     }
 
     var sparklineColor: Color {
-        if let previousValue, let snapshot, snapshot.rate < previousValue {
+        if let previousValue, let snapshot, displayedRate(snapshot.rate) < displayedRate(previousValue) {
             return Color(red: 0.70, green: 0.25, blue: 0.22)
         }
 
@@ -744,7 +1089,17 @@ nonisolated struct CurrencyCardModel: Identifiable, Sendable {
 
     func chartPoints(for range: CardTrendRange) -> [TrendPoint] {
         let filtered = range.filter(points: historyPoints)
-        return TrendPointSampler.sample(filtered, maxPoints: sampleLimit)
+        return TrendPointSampler.sample(filtered, maxPoints: sampleLimit).map {
+            TrendPoint(timestamp: $0.timestamp, value: displayedRate($0.value))
+        }
+    }
+
+    private func displayedRate(_ value: Double?) -> Double {
+        guard let value else {
+            return 0
+        }
+
+        return (value / Double(max(pair.baseAmount, 1))) * Double(displayBaseAmount)
     }
 }
 
@@ -994,6 +1349,8 @@ nonisolated struct RefreshLogEntry: Codable, Hashable, Sendable, Identifiable {
 @Observable
 final class PreferencesStore {
     var selectedPairIDs: [String]
+    var converterCurrenciesFollowSelectedPairs: Bool
+    var converterCurrencyCodes: [String]
     var autoRefreshMinutes: Int
     var menuBarOpenRefreshEnabled: Bool
     var trendPointLimit: Int
@@ -1005,6 +1362,8 @@ final class PreferencesStore {
     var skippedUpdateVersion: String?
     var lastAutomaticUpdateCheckAt: Date?
     var menuBarDisplayMode: MenuBarDisplayMode
+    var rateDisplayBaseAmount: Int
+    var conversionFractionDigits: Int
     var rateAlerts: [RateAlert]
     var settingsProfiles: [SettingsProfile]
     var activeProfileID: UUID?
@@ -1013,6 +1372,8 @@ final class PreferencesStore {
     private let userDefaults: UserDefaults
     private let secretStore: any SecretStoring
     private let selectedPairsKey = "selectedPairIDs"
+    private let converterCurrenciesFollowSelectedPairsKey = "converterCurrenciesFollowSelectedPairs"
+    private let converterCurrencyCodesKey = "converterCurrencyCodes"
     private let autoRefreshKey = "autoRefreshMinutes"
     private let menuBarOpenRefreshKey = "menuBarOpenRefreshEnabled"
     private let trendPointLimitKey = "trendPointLimit"
@@ -1024,6 +1385,8 @@ final class PreferencesStore {
     private let skippedUpdateVersionKey = "skippedUpdateVersion"
     private let lastAutomaticUpdateCheckAtKey = "lastAutomaticUpdateCheckAt"
     private let menuBarDisplayModeKey = "menuBarDisplayMode"
+    private let rateDisplayBaseAmountKey = "rateDisplayBaseAmount"
+    private let conversionFractionDigitsKey = "conversionFractionDigits"
     private let rateAlertsKey = "rateAlerts"
     private let settingsProfilesKey = "settingsProfiles"
     private let activeProfileIDKey = "activeProfileID"
@@ -1037,6 +1400,14 @@ final class PreferencesStore {
         let storedPairIDs = userDefaults.stringArray(forKey: selectedPairsKey) ?? []
         let initialSelectedPairIDs = storedPairIDs.filter { Self.pair(for: $0) != nil }
         selectedPairIDs = initialSelectedPairIDs
+        if userDefaults.object(forKey: converterCurrenciesFollowSelectedPairsKey) == nil {
+            converterCurrenciesFollowSelectedPairs = true
+        } else {
+            converterCurrenciesFollowSelectedPairs = userDefaults.bool(forKey: converterCurrenciesFollowSelectedPairsKey)
+        }
+        converterCurrencyCodes = Self.normalizedCurrencyCodes(
+            userDefaults.stringArray(forKey: converterCurrencyCodesKey) ?? []
+        )
 
         if let storedRefresh = userDefaults.object(forKey: autoRefreshKey) as? Int,
            [0, 5, 10, 30, 60].contains(storedRefresh) {
@@ -1080,10 +1451,14 @@ final class PreferencesStore {
         skippedUpdateVersion = userDefaults.string(forKey: skippedUpdateVersionKey)
         lastAutomaticUpdateCheckAt = userDefaults.object(forKey: lastAutomaticUpdateCheckAtKey) as? Date
         menuBarDisplayMode = Self.decodeRawRepresentable(MenuBarDisplayMode.self, from: userDefaults.string(forKey: menuBarDisplayModeKey)) ?? .iconOnly
+        let storedDisplayBaseAmount = userDefaults.integer(forKey: rateDisplayBaseAmountKey)
+        rateDisplayBaseAmount = CurrencyDisplayFormatting.normalizedDisplayBaseAmount(storedDisplayBaseAmount)
+        let storedFractionDigits = userDefaults.integer(forKey: conversionFractionDigitsKey)
+        conversionFractionDigits = CurrencyDisplayFormatting.normalizedFractionDigits(storedFractionDigits)
         rateAlerts = Self.decodeArray(RateAlert.self, from: userDefaults.data(forKey: rateAlertsKey))
             .filter { Self.pair(for: $0.pairID) != nil && $0.threshold > 0 }
         settingsProfiles = Self.decodeArray(SettingsProfile.self, from: userDefaults.data(forKey: settingsProfilesKey))
-            .filter { !$0.selectedPairIDs.isEmpty }
+            .filter { !$0.selectedPairIDs.isEmpty || (!$0.converterCurrenciesFollowSelectedPairs && !$0.converterCurrencyCodes.isEmpty) }
         activeProfileID = Self.decodeUUID(from: userDefaults.string(forKey: activeProfileIDKey))
         let customProviderLoad = Self.loadCustomAPIProviders(
             from: userDefaults.data(forKey: customAPIProvidersKey),
@@ -1098,6 +1473,31 @@ final class PreferencesStore {
 
     var selectedPairs: [CurrencyPair] {
         selectedPairIDs.compactMap(Self.pair(for:))
+    }
+
+    var effectiveConverterCurrencyCodes: [String] {
+        converterCurrenciesFollowSelectedPairs
+            ? CurrencyConversionGraph.orderedCurrencyCodes(from: selectedPairs)
+            : converterCurrencyCodes
+    }
+
+    var converterRefreshPairs: [CurrencyPair] {
+        Self.converterRefreshPairs(
+            for: effectiveConverterCurrencyCodes,
+            baseCurrencyCode: baseCurrencyCode
+        )
+    }
+
+    var refreshPairs: [CurrencyPair] {
+        var seen = Set<String>()
+        var pairs: [CurrencyPair] = []
+
+        for pair in selectedPairs + (converterCurrenciesFollowSelectedPairs ? [] : converterRefreshPairs)
+            where seen.insert(pair.id).inserted {
+            pairs.append(pair)
+        }
+
+        return pairs
     }
 
     static func pairForDisplay(id: String) -> CurrencyPair? {
@@ -1116,6 +1516,14 @@ final class PreferencesStore {
         [0, 5, 10, 30, 60]
     }
 
+    var rateDisplayBaseAmountOptions: [Int] {
+        CurrencyDisplayFormatting.displayBaseAmountOptions
+    }
+
+    var conversionFractionDigitOptions: [Int] {
+        CurrencyDisplayFormatting.fractionDigitOptions
+    }
+
     var enabledCustomAPIProviders: [CustomAPIProvider] {
         customAPIProviders.filter { $0.isEnabled && $0.isUsable }
     }
@@ -1126,6 +1534,59 @@ final class PreferencesStore {
 
     func contains(_ pair: CurrencyPair) -> Bool {
         selectedPairIDs.contains(pair.id)
+    }
+
+    func setConverterCurrenciesFollowSelectedPairs(_ value: Bool) {
+        guard converterCurrenciesFollowSelectedPairs != value else {
+            return
+        }
+
+        if value == false && converterCurrencyCodes.isEmpty {
+            converterCurrencyCodes = CurrencyConversionGraph.orderedCurrencyCodes(from: selectedPairs)
+        }
+
+        converterCurrenciesFollowSelectedPairs = value
+        persist()
+    }
+
+    func addConverterCurrency(code: String) {
+        let normalized = code.uppercased()
+        guard CurrencyCatalog.info(for: normalized) != nil else {
+            return
+        }
+
+        guard !converterCurrencyCodes.contains(normalized) else {
+            return
+        }
+
+        converterCurrencyCodes.append(normalized)
+        persist()
+    }
+
+    func removeConverterCurrency(code: String) {
+        converterCurrencyCodes.removeAll { $0 == code.uppercased() }
+        persist()
+    }
+
+    func moveConverterCurrencyUp(code: String) {
+        let normalized = code.uppercased()
+        guard let index = converterCurrencyCodes.firstIndex(of: normalized), index > 0 else {
+            return
+        }
+
+        converterCurrencyCodes.swapAt(index, index - 1)
+        persist()
+    }
+
+    func moveConverterCurrencyDown(code: String) {
+        let normalized = code.uppercased()
+        guard let index = converterCurrencyCodes.firstIndex(of: normalized),
+              index < converterCurrencyCodes.count - 1 else {
+            return
+        }
+
+        converterCurrencyCodes.swapAt(index, index + 1)
+        persist()
     }
 
     func addPair(baseCode: String, quoteCode: String) {
@@ -1241,6 +1702,26 @@ final class PreferencesStore {
         persist()
     }
 
+    func setRateDisplayBaseAmount(_ value: Int) {
+        let normalized = CurrencyDisplayFormatting.normalizedDisplayBaseAmount(value)
+        guard normalized != rateDisplayBaseAmount else {
+            return
+        }
+
+        rateDisplayBaseAmount = normalized
+        persist()
+    }
+
+    func setConversionFractionDigits(_ value: Int) {
+        let normalized = CurrencyDisplayFormatting.normalizedFractionDigits(value)
+        guard normalized != conversionFractionDigits else {
+            return
+        }
+
+        conversionFractionDigits = normalized
+        persist()
+    }
+
     func setAutomaticUpdateChecksEnabled(_ value: Bool) {
         automaticUpdateChecksEnabled = value
         persist()
@@ -1296,11 +1777,15 @@ final class PreferencesStore {
         let profile = SettingsProfile(
             name: resolvedName,
             selectedPairIDs: selectedPairIDs,
+            converterCurrenciesFollowSelectedPairs: converterCurrenciesFollowSelectedPairs,
+            converterCurrencyCodes: converterCurrencyCodes,
             baseCurrencyCode: baseCurrencyCode,
             autoRefreshMinutes: autoRefreshMinutes,
             menuBarOpenRefreshEnabled: menuBarOpenRefreshEnabled,
             showsFlags: showsFlags,
-            trendPointLimit: trendPointLimit
+            trendPointLimit: trendPointLimit,
+            rateDisplayBaseAmount: rateDisplayBaseAmount,
+            conversionFractionDigits: conversionFractionDigits
         )
         settingsProfiles.append(profile)
         activeProfileID = profile.id
@@ -1313,11 +1798,15 @@ final class PreferencesStore {
         }
 
         selectedPairIDs = profile.selectedPairIDs.filter { Self.pair(for: $0) != nil }
+        converterCurrenciesFollowSelectedPairs = profile.converterCurrenciesFollowSelectedPairs
+        converterCurrencyCodes = Self.normalizedCurrencyCodes(profile.converterCurrencyCodes)
         baseCurrencyCode = CurrencyCatalog.info(for: profile.baseCurrencyCode) == nil ? baseCurrencyCode : profile.baseCurrencyCode
         autoRefreshMinutes = autoRefreshIntervalOptions.contains(profile.autoRefreshMinutes) ? profile.autoRefreshMinutes : autoRefreshMinutes
         menuBarOpenRefreshEnabled = profile.menuBarOpenRefreshEnabled
         showsFlags = profile.showsFlags
         trendPointLimit = [12, 20, 30, 50].contains(profile.trendPointLimit) ? profile.trendPointLimit : trendPointLimit
+        rateDisplayBaseAmount = CurrencyDisplayFormatting.normalizedDisplayBaseAmount(profile.rateDisplayBaseAmount)
+        conversionFractionDigits = CurrencyDisplayFormatting.normalizedFractionDigits(profile.conversionFractionDigits)
         featuredPairID = selectedPairIDs.contains(featuredPairID) ? featuredPairID : (selectedPairIDs.first ?? "")
         activeProfileID = id
         persist()
@@ -1377,6 +1866,8 @@ final class PreferencesStore {
 
     private func persist() {
         userDefaults.set(selectedPairIDs, forKey: selectedPairsKey)
+        userDefaults.set(converterCurrenciesFollowSelectedPairs, forKey: converterCurrenciesFollowSelectedPairsKey)
+        userDefaults.set(converterCurrencyCodes, forKey: converterCurrencyCodesKey)
         userDefaults.set(autoRefreshMinutes, forKey: autoRefreshKey)
         userDefaults.set(menuBarOpenRefreshEnabled, forKey: menuBarOpenRefreshKey)
         userDefaults.set(trendPointLimit, forKey: trendPointLimitKey)
@@ -1386,6 +1877,8 @@ final class PreferencesStore {
         userDefaults.set(Self.encodeShortcut(textConversionShortcut), forKey: textConversionShortcutKey)
         userDefaults.set(automaticUpdateChecksEnabled, forKey: automaticUpdateChecksKey)
         userDefaults.set(menuBarDisplayMode.rawValue, forKey: menuBarDisplayModeKey)
+        userDefaults.set(rateDisplayBaseAmount, forKey: rateDisplayBaseAmountKey)
+        userDefaults.set(conversionFractionDigits, forKey: conversionFractionDigitsKey)
         userDefaults.set(Self.encodeArray(rateAlerts), forKey: rateAlertsKey)
         userDefaults.set(Self.encodeArray(settingsProfiles), forKey: settingsProfilesKey)
         userDefaults.set(Self.encodeArray(customAPIProvidersForPreferences()), forKey: customAPIProvidersKey)
@@ -1407,6 +1900,61 @@ final class PreferencesStore {
         } else {
             userDefaults.removeObject(forKey: lastAutomaticUpdateCheckAtKey)
         }
+    }
+
+    nonisolated static func normalizedCurrencyCodes(_ codes: [String]) -> [String] {
+        var seen = Set<String>()
+        var normalizedCodes: [String] = []
+
+        for code in codes.map({ $0.uppercased() }) {
+            guard CurrencyCatalog.info(for: code) != nil,
+                  seen.insert(code).inserted else {
+                continue
+            }
+
+            normalizedCodes.append(code)
+        }
+
+        return normalizedCodes
+    }
+
+    nonisolated static func converterRefreshPairs(
+        for currencyCodes: [String],
+        baseCurrencyCode: String
+    ) -> [CurrencyPair] {
+        let codes = normalizedCurrencyCodes(currencyCodes)
+        guard codes.count > 1 else {
+            return []
+        }
+
+        let normalizedBaseCurrencyCode = baseCurrencyCode.uppercased()
+        let anchorCode: String
+        if normalizedBaseCurrencyCode != "RUB",
+           CurrencyCatalog.info(for: normalizedBaseCurrencyCode) != nil {
+            anchorCode = normalizedBaseCurrencyCode
+        } else if let firstNonRUBCode = codes.first(where: { $0 != "RUB" }) {
+            anchorCode = firstNonRUBCode
+        } else {
+            return []
+        }
+
+        var seen = Set<String>()
+        var pairs: [CurrencyPair] = []
+
+        for code in codes where code != anchorCode {
+            let pair: CurrencyPair?
+            if code == "RUB" {
+                pair = CurrencyCatalog.supportedPair(baseCode: anchorCode, quoteCode: code)
+            } else {
+                pair = CurrencyCatalog.supportedPair(baseCode: code, quoteCode: anchorCode)
+            }
+
+            if let pair, seen.insert(pair.id).inserted {
+                pairs.append(pair)
+            }
+        }
+
+        return pairs
     }
 
     private static func pair(for id: String) -> CurrencyPair? {

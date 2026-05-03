@@ -8,6 +8,11 @@
 import AppKit
 import SwiftUI
 
+private enum PanelContentMode: Equatable {
+    case rates
+    case converter
+}
+
 struct ContentView: View {
     let viewModel: ExchangePanelViewModel
     let preferences: PreferencesStore
@@ -20,13 +25,14 @@ struct ContentView: View {
     @State private var currentWindow: NSWindow?
     @State private var isShowingQuickAddPanel = false
     @State private var windowContentSize: CGSize?
+    @State private var panelContentMode: PanelContentMode = .rates
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 12) {
             panelHeader
             compactStatusBanner
-            cardList
+            panelContent
             footer
         }
         .padding(16)
@@ -81,6 +87,21 @@ struct ContentView: View {
                 self.expandedCardID = nil
             }
         }
+        .onChange(of: preferences.selectedPairIDs) { _, newValue in
+            if preferences.converterCurrenciesFollowSelectedPairs, newValue.isEmpty {
+                panelContentMode = .rates
+            }
+        }
+        .onChange(of: preferences.converterCurrenciesFollowSelectedPairs) { _, _ in
+            if !canOpenConverter {
+                panelContentMode = .rates
+            }
+        }
+        .onChange(of: preferences.converterCurrencyCodes) { _, _ in
+            if !canOpenConverter {
+                panelContentMode = .rates
+            }
+        }
         .onChange(of: panelHeight) { _, _ in
             resizePinnedWindowIfNeeded()
         }
@@ -112,13 +133,21 @@ struct ContentView: View {
                 toolbarButtonLabel(systemName: "plus")
             }
             .buttonStyle(.plain)
-            .help("快速添加货币对")
+            .help(quickAddHelpText)
             .popover(isPresented: $isShowingQuickAddPanel, arrowEdge: .top) {
-                QuickAddPairPopover(
-                    preferences: preferences,
-                    viewModel: viewModel,
-                    onClose: { isShowingQuickAddPanel = false }
-                )
+                if usesConverterQuickAdd {
+                    QuickAddConverterCurrencyPopover(
+                        preferences: preferences,
+                        viewModel: viewModel,
+                        onClose: { isShowingQuickAddPanel = false }
+                    )
+                } else {
+                    QuickAddPairPopover(
+                        preferences: preferences,
+                        viewModel: viewModel,
+                        onClose: { isShowingQuickAddPanel = false }
+                    )
+                }
             }
 
             Button {
@@ -181,6 +210,42 @@ struct ContentView: View {
                     }
                 }
 
+                Section("货币显示") {
+                    Menu("显示基数") {
+                        ForEach(preferences.rateDisplayBaseAmountOptions, id: \.self) { value in
+                            Button {
+                                preferences.setRateDisplayBaseAmount(value)
+                                viewModel.presentationDidChange()
+                            } label: {
+                                HStack {
+                                    Text("\(value)")
+                                    if preferences.rateDisplayBaseAmount == value {
+                                        Spacer()
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Menu("小数位") {
+                        ForEach(preferences.conversionFractionDigitOptions, id: \.self) { value in
+                            Button {
+                                preferences.setConversionFractionDigits(value)
+                                viewModel.presentationDidChange()
+                            } label: {
+                                HStack {
+                                    Text("\(value) 位")
+                                    if preferences.conversionFractionDigits == value {
+                                        Spacer()
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Section("设置与行为") {
                     Button("API 设置…") {
                         settingsWindowController.show(section: .dataSources)
@@ -188,6 +253,10 @@ struct ContentView: View {
 
                     Button("基准货币设置…") {
                         settingsWindowController.show(section: .general)
+                    }
+
+                    Button("汇率与换算页设置…") {
+                        settingsWindowController.show(section: .rates)
                     }
 
                     Button("文本换算快捷键设置…") {
@@ -269,6 +338,16 @@ struct ContentView: View {
     }
 
     @ViewBuilder
+    private var panelContent: some View {
+        switch panelContentMode {
+        case .rates:
+            cardList
+        case .converter:
+            converterList
+        }
+    }
+
+    @ViewBuilder
     private var cardList: some View {
         if preferences.selectedPairs.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
@@ -315,6 +394,34 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
+    private var converterList: some View {
+        let converterView = PanelCurrencyConverterView(
+            snapshots: viewModel.converterSnapshots,
+            currencyCodes: converterCurrencyCodes,
+            displayBaseAmount: preferences.rateDisplayBaseAmount,
+            fractionDigits: preferences.conversionFractionDigits,
+            showsFlags: preferences.showsFlags
+        )
+
+        if shouldScrollConverter {
+            NativePanelScrollView {
+                converterView
+                    .padding(.trailing, nativeScrollBarGutterWidth)
+            }
+            .padding(.trailing, -nativeScrollBarGutterWidth)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: converterListMinimumHeight,
+                maxHeight: converterAreaHeight,
+                alignment: .top
+            )
+        } else {
+            converterView
+                .frame(maxWidth: .infinity, minHeight: converterListMinimumHeight, maxHeight: converterAreaHeight, alignment: .top)
+        }
+    }
+
     private var cardStack: some View {
         VStack(spacing: 12) {
             ForEach(viewModel.cards) { card in
@@ -343,6 +450,19 @@ struct ContentView: View {
                 .lineLimit(1)
 
             Spacer()
+
+            Button {
+                panelContentMode = panelContentMode == .rates ? .converter : .rates
+                expandedCardID = nil
+            } label: {
+                Image(systemName: panelContentMode == .rates ? "arrow.left.arrow.right" : "list.bullet")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 24, height: 24)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canOpenConverter)
+            .help(panelContentMode == .rates ? "打开换算界面" : "返回汇率列表")
         }
         .foregroundStyle(.secondary)
         .padding(.horizontal, 10)
@@ -375,7 +495,7 @@ struct ContentView: View {
         return viewModel.statusSymbolName.contains("exclamationmark") || viewModel.cards.contains { $0.state != .ready }
     }
 
-    private var maximumCardAreaHeight: CGFloat {
+    private var maximumContentAreaHeight: CGFloat {
         max(112, panelHeightLimit - chromeHeight)
     }
 
@@ -388,7 +508,7 @@ struct ContentView: View {
     }
 
     private var shouldScrollCards: Bool {
-        estimatedCardsHeight > maximumCardAreaHeight
+        estimatedCardsHeight > maximumContentAreaHeight
     }
 
     private var cardAreaHeight: CGFloat {
@@ -396,11 +516,48 @@ struct ContentView: View {
             return 112
         }
 
-        return shouldScrollCards ? maximumCardAreaHeight : estimatedCardsHeight
+        return shouldScrollCards ? maximumContentAreaHeight : estimatedCardsHeight
+    }
+
+    private var converterCurrencyCodes: [String] {
+        preferences.effectiveConverterCurrencyCodes
+    }
+
+    private var estimatedConverterHeight: CGFloat {
+        if converterCurrencyCodes.isEmpty {
+            return 112
+        }
+
+        return 12 + CGFloat(converterCurrencyCodes.count) * 62 + CGFloat(max(0, converterCurrencyCodes.count - 1)) * 10 + 34
+    }
+
+    private var shouldScrollConverter: Bool {
+        estimatedConverterHeight > maximumContentAreaHeight
+    }
+
+    private var converterAreaHeight: CGFloat {
+        if converterCurrencyCodes.isEmpty {
+            return 112
+        }
+
+        return shouldScrollConverter ? maximumContentAreaHeight : estimatedConverterHeight
+    }
+
+    private var converterListMinimumHeight: CGFloat {
+        presentationMode == .pinned ? 160 : min(converterAreaHeight, maximumContentAreaHeight)
+    }
+
+    private var contentAreaHeight: CGFloat {
+        switch panelContentMode {
+        case .rates:
+            cardAreaHeight
+        case .converter:
+            converterAreaHeight
+        }
     }
 
     private var panelHeight: CGFloat {
-        chromeHeight + cardAreaHeight
+        chromeHeight + contentAreaHeight
     }
 
     private var maximumPanelHeight: CGFloat {
@@ -442,6 +599,20 @@ struct ContentView: View {
 
     private var pinnedMinimumPanelHeight: CGFloat {
         320
+    }
+
+    private var canOpenConverter: Bool {
+        preferences.converterCurrenciesFollowSelectedPairs
+            ? !preferences.selectedPairs.isEmpty
+            : true
+    }
+
+    private var usesConverterQuickAdd: Bool {
+        panelContentMode == .converter && preferences.converterCurrenciesFollowSelectedPairs == false
+    }
+
+    private var quickAddHelpText: String {
+        usesConverterQuickAdd ? String(localized: "快速添加换算币种") : String(localized: "快速添加货币对")
     }
 
     private var nativeScrollBarGutterWidth: CGFloat {
@@ -587,6 +758,329 @@ private struct NativePanelScrollView<Content: View>: NSViewRepresentable {
 
     final class Coordinator {
         var hostingView: NSHostingView<Content>?
+    }
+}
+
+private struct PanelCurrencyConverterView: View {
+    let snapshots: [CurrencySnapshot]
+    let currencyCodes: [String]
+    let displayBaseAmount: Int
+    let fractionDigits: Int
+    let showsFlags: Bool
+
+    @State private var inputTexts: [String: String] = [:]
+    @State private var userEnteredTexts: [String: String] = [:]
+    @State private var activeCode: String?
+    @State private var isSynchronizing = false
+    @FocusState private var focusedCode: String?
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if currencyCodes.isEmpty {
+                emptyState
+            } else {
+                ForEach(currencyCodes, id: \.self) { code in
+                    converterRow(for: code)
+                }
+
+                if !unreachableCodes.isEmpty {
+                    HStack(spacing: 7) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text(String(format: String(localized: "缺少 %@ 的汇率路径"), unreachableCodes.joined(separator: "、")))
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .foregroundStyle(Color(red: 0.70, green: 0.35, blue: 0.05))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color(red: 0.98, green: 0.93, blue: 0.84))
+                    )
+                }
+            }
+        }
+        .onAppear {
+            initializeIfNeeded()
+        }
+        .onChange(of: currencyCodes) { _, _ in
+            reconcileInputs()
+        }
+        .onChange(of: rateSignature) { _, _ in
+            recalculateFromActive()
+        }
+        .onChange(of: fractionDigits) { _, _ in
+            recalculateFromActive()
+        }
+        .onChange(of: displayBaseAmount) { _, _ in
+            if activeCode == nil || activeTextIsEmpty {
+                initializeWithDefaultAmount()
+            } else {
+                recalculateFromActive()
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("还没有可换算的货币")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+            Text("点击右上角 + 添加换算币种，或在设置里维护换算页列表。")
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
+        .background(rowBackground(isActive: false))
+    }
+
+    private var graph: CurrencyConversionGraph {
+        CurrencyConversionGraph(snapshots: snapshots)
+    }
+
+    private var rateSignature: String {
+        snapshots.map { snapshot in
+            "\(snapshot.id):\(snapshot.rate):\(snapshot.updatedAt.timeIntervalSince1970)"
+        }
+        .joined(separator: "|")
+    }
+
+    private var activeTextIsEmpty: Bool {
+        guard let activeCode else {
+            return true
+        }
+
+        return (inputTexts[activeCode] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var unreachableCodes: [String] {
+        guard let activeCode,
+              let sourceText = inputTexts[activeCode],
+              AmountInputParsing.parseDecimal(sourceText) != nil else {
+            return []
+        }
+
+        let multipliers = graph.conversionMultipliers(from: activeCode)
+        return currencyCodes.filter { $0 != activeCode && multipliers[$0] == nil }
+    }
+
+    private func converterRow(for code: String) -> some View {
+        HStack(spacing: 12) {
+            if showsFlags {
+                Text(CurrencyCatalog.flag(for: code))
+                    .font(.system(size: 22))
+                    .frame(width: 32, height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(nsColor: .underPageBackgroundColor).opacity(0.70))
+                    )
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(code)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                Text(CurrencyCatalog.name(for: code))
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 10)
+
+            TextField("0", text: binding(for: code))
+                .textFieldStyle(.plain)
+                .font(.system(size: 21, weight: .semibold, design: .rounded))
+                .multilineTextAlignment(.trailing)
+                .focused($focusedCode, equals: code)
+                .onTapGesture {
+                    activate(code)
+                }
+                .frame(minWidth: 116, maxWidth: 190, alignment: .trailing)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+        .background(rowBackground(isActive: isRowActive(code)))
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onTapGesture {
+            activate(code)
+            focusedCode = code
+        }
+    }
+
+    private func rowBackground(isActive: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(rowFillColor(isActive: isActive))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(isActive ? Color.accentColor.opacity(0.34) : rowBorderColor, lineWidth: 1)
+            )
+    }
+
+    private func rowFillColor(isActive: Bool) -> Color {
+        if colorScheme == .dark {
+            return isActive ? Color(red: 0.175, green: 0.190, blue: 0.230) : Color(red: 0.138, green: 0.148, blue: 0.172)
+        }
+
+        return isActive ? Color(red: 0.972, green: 0.982, blue: 1.0) : Color.white
+    }
+
+    private var rowBorderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.075)
+    }
+
+    private func binding(for code: String) -> Binding<String> {
+        Binding(
+            get: {
+                inputTexts[code] ?? ""
+            },
+            set: { newValue in
+                handleInputChange(newValue, sourceCode: code)
+            }
+        )
+    }
+
+    private func initializeIfNeeded() {
+        guard activeCode == nil || currencyCodes.contains(activeCode ?? "") == false else {
+            recalculateFromActive()
+            return
+        }
+
+        initializeWithDefaultAmount()
+    }
+
+    private func initializeWithDefaultAmount() {
+        guard let firstCode = currencyCodes.first else {
+            inputTexts = [:]
+            userEnteredTexts = [:]
+            activeCode = nil
+            return
+        }
+
+        let defaultText = "\(CurrencyDisplayFormatting.normalizedDisplayBaseAmount(displayBaseAmount))"
+        inputTexts[firstCode] = defaultText
+        userEnteredTexts[firstCode] = defaultText
+        activeCode = firstCode
+        focusedCode = firstCode
+        synchronize(sourceCode: firstCode, sourceText: defaultText)
+    }
+
+    private func reconcileInputs() {
+        let validCodes = Set(currencyCodes)
+        inputTexts = inputTexts.filter { validCodes.contains($0.key) }
+        userEnteredTexts = userEnteredTexts.filter { validCodes.contains($0.key) }
+
+        if let activeCode, validCodes.contains(activeCode) {
+            recalculateFromActive()
+        } else {
+            initializeWithDefaultAmount()
+        }
+    }
+
+    private func recalculateFromActive() {
+        guard let activeCode else {
+            initializeWithDefaultAmount()
+            return
+        }
+
+        let sourceText = inputTexts[activeCode] ?? ""
+        synchronize(sourceCode: activeCode, sourceText: sourceText)
+    }
+
+    private func activate(_ code: String) {
+        guard (inputTexts[code] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return
+        }
+
+        let defaultText = "\(CurrencyDisplayFormatting.normalizedDisplayBaseAmount(displayBaseAmount))"
+        inputTexts[code] = defaultText
+        userEnteredTexts[code] = defaultText
+        activeCode = code
+        synchronize(sourceCode: code, sourceText: defaultText)
+    }
+
+    private func handleInputChange(_ newValue: String, sourceCode: String) {
+        inputTexts[sourceCode] = newValue
+        guard !isSynchronizing else {
+            return
+        }
+
+        if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            userEnteredTexts.removeValue(forKey: sourceCode)
+        } else {
+            userEnteredTexts[sourceCode] = newValue
+        }
+        activeCode = sourceCode
+        synchronize(sourceCode: sourceCode, sourceText: newValue)
+    }
+
+    private func synchronize(sourceCode: String, sourceText: String) {
+        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            clearCounterpartTexts(sourceCode: sourceCode)
+            return
+        }
+
+        guard let amount = AmountInputParsing.parseDecimal(trimmed) else {
+            clearCounterpartTexts(sourceCode: sourceCode)
+            return
+        }
+
+        let sourceAmount = NSDecimalNumber(decimal: amount).doubleValue
+        let multipliers = graph.conversionMultipliers(from: sourceCode)
+
+        isSynchronizing = true
+        for code in currencyCodes where code != sourceCode {
+            if let multiplier = multipliers[code] {
+                inputTexts[code] = displayText(for: code, amount: sourceAmount * multiplier)
+            } else {
+                inputTexts[code] = ""
+            }
+        }
+        isSynchronizing = false
+    }
+
+    private func clearCounterpartTexts(sourceCode: String) {
+        isSynchronizing = true
+        for code in currencyCodes where code != sourceCode {
+            inputTexts[code] = ""
+        }
+        isSynchronizing = false
+    }
+
+    private func isRowActive(_ code: String) -> Bool {
+        if let focusedCode {
+            return focusedCode == code
+        }
+
+        return activeCode == code
+    }
+
+    private func displayText(for code: String, amount: Double) -> String {
+        if let enteredText = userEnteredTexts[code],
+           shouldPreserveUserEnteredText(enteredText, for: amount) {
+            return enteredText
+        }
+
+        return CurrencyDisplayFormatting.plainNumber(amount, fractionDigits: fractionDigits)
+    }
+
+    private func shouldPreserveUserEnteredText(_ text: String, for amount: Double) -> Bool {
+        guard let enteredAmount = AmountInputParsing.parseDecimal(text) else {
+            return false
+        }
+
+        let enteredValue = NSDecimalNumber(decimal: enteredAmount).doubleValue
+        guard enteredValue.isFinite, amount.isFinite else {
+            return false
+        }
+
+        return abs(enteredValue - amount) < 0.000_000_5
     }
 }
 
@@ -741,7 +1235,7 @@ private struct CurrencyCardView: View {
                     .truncationMode(.tail)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .layoutPriority(1)
+            .layoutPriority(0)
 
             VStack(alignment: .trailing, spacing: 6) {
                 Text(card.valueText)
@@ -750,7 +1244,9 @@ private struct CurrencyCardView: View {
                     .foregroundStyle(card.valueColor)
                     .multilineTextAlignment(.trailing)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.74)
+                    .minimumScaleFactor(0.68)
+                    .allowsTightening(true)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
 
                 if let changeText = card.changeText {
                     valueChip(text: changeText, color: card.changeColor)
@@ -769,7 +1265,8 @@ private struct CurrencyCardView: View {
                     .controlSize(.small)
                 }
             }
-            .frame(minWidth: 104, alignment: .trailing)
+            .frame(minWidth: 150, idealWidth: 170, maxWidth: 190, alignment: .trailing)
+            .layoutPriority(2)
         }
     }
 
@@ -929,10 +1426,6 @@ private struct CurrencyCardView: View {
     }
 
     private var pairSecondaryText: String {
-        if card.pair.baseAmount == 1 {
-            return card.pair.displayName
-        }
-
         return "\(card.pair.displayName) · \(card.subtitle)"
     }
 
@@ -1142,7 +1635,7 @@ private struct CurrencyCardView: View {
         }
 
         lastEditedField = .base
-        synchronizeFromBase(Double(card.pair.baseAmount), snapshot: snapshot)
+        synchronizeFromBase(Double(card.displayBaseAmount), snapshot: snapshot)
     }
 
     private func handleConversionChange(_ newValue: String, editedField: ConversionField) {
@@ -1165,19 +1658,21 @@ private struct CurrencyCardView: View {
         }
 
         guard let value = parseAmount(trimmed) else {
+            setCounterpartText("", for: editedField)
             return
         }
 
         switch editedField {
         case .base:
-            let quoteAmount = (value / Double(card.pair.baseAmount)) * snapshot.rate
+            let quoteAmount = value * unitRate(from: snapshot)
             setCounterpartText(formattedAmount(quoteAmount), for: editedField)
         case .quote:
-            guard snapshot.rate > 0 else {
+            let unitRate = unitRate(from: snapshot)
+            guard unitRate > 0 else {
                 return
             }
 
-            let baseAmount = (value / snapshot.rate) * Double(card.pair.baseAmount)
+            let baseAmount = value / unitRate
             setCounterpartText(formattedAmount(baseAmount), for: editedField)
         }
     }
@@ -1201,20 +1696,21 @@ private struct CurrencyCardView: View {
     }
 
     private func synchronizeFromBase(_ baseAmount: Double, snapshot: CurrencySnapshot) {
-        let quoteAmount = (baseAmount / Double(card.pair.baseAmount)) * snapshot.rate
+        let quoteAmount = baseAmount * unitRate(from: snapshot)
 
         isSynchronizingConversion = true
-        baseAmountText = formattedAmount(baseAmount)
+        baseAmountText = wholeAmountTextIfPossible(baseAmount)
         quoteAmountText = formattedAmount(quoteAmount)
         isSynchronizingConversion = false
     }
 
     private func synchronizeFromQuote(_ quoteAmount: Double, snapshot: CurrencySnapshot) {
-        guard snapshot.rate > 0 else {
+        let unitRate = unitRate(from: snapshot)
+        guard unitRate > 0 else {
             return
         }
 
-        let baseAmount = (quoteAmount / snapshot.rate) * Double(card.pair.baseAmount)
+        let baseAmount = quoteAmount / unitRate
 
         isSynchronizingConversion = true
         quoteAmountText = formattedAmount(quoteAmount)
@@ -1238,22 +1734,11 @@ private struct CurrencyCardView: View {
     }
 
     private func parseAmount(_ text: String) -> Double? {
-        guard let parsed = MoneyParsing.parse(text) else {
+        guard let amount = AmountInputParsing.parseDecimal(text) else {
             return nil
         }
 
-        let resolvedAmount: Decimal
-        switch parsed.amount {
-        case .resolved(let value):
-            resolvedAmount = value
-        case .ambiguous(_, let options):
-            guard let preferredValue = options.first?.value else {
-                return nil
-            }
-            resolvedAmount = preferredValue
-        }
-
-        return NSDecimalNumber(decimal: resolvedAmount).doubleValue
+        return NSDecimalNumber(decimal: amount).doubleValue
     }
 
     private func setText(_ value: String, for field: ConversionField) {
@@ -1277,7 +1762,19 @@ private struct CurrencyCardView: View {
     }
 
     private func formattedAmount(_ value: Double) -> String {
-        Self.converterFormatter.string(from: value as NSNumber) ?? String(format: "%.4f", value)
+        CurrencyDisplayFormatting.plainNumber(value, fractionDigits: card.fractionDigits)
+    }
+
+    private func wholeAmountTextIfPossible(_ value: Double) -> String {
+        if value.rounded() == value {
+            return String(Int(value))
+        }
+
+        return formattedAmount(value)
+    }
+
+    private func unitRate(from snapshot: CurrencySnapshot) -> Double {
+        snapshot.rate / Double(max(card.pair.baseAmount, 1))
     }
 
     private func copyText(_ text: String) {
@@ -1285,15 +1782,6 @@ private struct CurrencyCardView: View {
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
     }
-
-    private static let converterFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 6
-        return formatter
-    }()
 
     private static let fullDateFormatter: DateFormatter = {
         let formatter = DateFormatter()

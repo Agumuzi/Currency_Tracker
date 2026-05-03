@@ -170,7 +170,8 @@ final class ConversionCoordinator {
             sourceAmount: sourceAmount,
             sourceCurrencyCode: sourceCurrencyCode,
             targetAmount: resultAmount,
-            targetCurrencyCode: targetCurrencyCode
+            targetCurrencyCode: targetCurrencyCode,
+            fractionDigits: preferences.conversionFractionDigits
         )
 
         log(.info, "换算完成，结果已生成")

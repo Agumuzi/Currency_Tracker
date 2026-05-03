@@ -173,6 +173,116 @@ struct QuickAddPairPopover: View {
     }
 }
 
+struct QuickAddConverterCurrencyPopover: View {
+    let preferences: PreferencesStore
+    let viewModel: ExchangePanelViewModel
+    let onClose: () -> Void
+
+    @State private var searchText = ""
+    @State private var selectedCode = "USD"
+    @State private var feedbackMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("快速添加换算币种")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+
+            TextField("搜索代码、中文名或英文名", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                LazyVStack(spacing: 8) {
+                    ForEach(filteredCurrencies.prefix(10)) { currency in
+                        Button {
+                            selectedCode = currency.code
+                        } label: {
+                            QuickAddCurrencyRow(
+                                currency: currency,
+                                isSelected: selectedCode == currency.code
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.trailing, 8)
+            }
+            .scrollIndicators(.visible)
+            .frame(height: 240)
+
+            if let feedbackMessage {
+                Text(feedbackMessage)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack {
+                Button("关闭") {
+                    onClose()
+                }
+                .buttonStyle(.borderless)
+
+                Spacer()
+
+                Button("加入换算") {
+                    addCurrency()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedCurrency == nil)
+            }
+        }
+        .padding(18)
+        .frame(width: 360)
+        .onAppear {
+            syncSelection()
+        }
+        .onChange(of: searchText) { _, _ in
+            syncSelection()
+        }
+    }
+
+    private var filteredCurrencies: [CurrencyInfo] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            return CurrencyCatalog.all
+        }
+
+        return CurrencyCatalog.all.filter { currency in
+            CurrencyCatalog.matchesSearch(currency, query: query)
+        }
+    }
+
+    private var selectedCurrency: CurrencyInfo? {
+        filteredCurrencies.first { $0.code == selectedCode }
+    }
+
+    private func syncSelection() {
+        if filteredCurrencies.contains(where: { $0.code == selectedCode }) == false,
+           let first = filteredCurrencies.first {
+            selectedCode = first.code
+        }
+    }
+
+    private func addCurrency() {
+        guard let selectedCurrency else {
+            return
+        }
+
+        if preferences.converterCurrencyCodes.contains(selectedCurrency.code) {
+            feedbackMessage = "这个币种已经在换算页里。"
+            return
+        }
+
+        preferences.addConverterCurrency(code: selectedCurrency.code)
+        feedbackMessage = nil
+        Task {
+            await viewModel.selectedPairsDidChange()
+            await MainActor.run {
+                onClose()
+            }
+        }
+    }
+}
+
 private struct QuickAddCurrencyRow: View {
     let currency: CurrencyInfo
     let isSelected: Bool

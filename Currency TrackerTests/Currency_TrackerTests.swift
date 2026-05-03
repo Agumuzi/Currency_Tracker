@@ -186,6 +186,11 @@ struct Currency_TrackerTests {
         store.setBaseCurrencyCode("EUR")
         store.setAutoRefreshMinutes(30)
         store.setMenuBarDisplayMode(.compactPair)
+        store.setRateDisplayBaseAmount(100)
+        store.setConversionFractionDigits(6)
+        store.setConverterCurrenciesFollowSelectedPairs(false)
+        store.addConverterCurrency(code: "USD")
+        store.addConverterCurrency(code: "JPY")
         store.addRateAlert(pairID: pairID, direction: .above, threshold: 80)
         store.saveCurrentProfile(named: "Travel")
         store.addCustomAPIProvider()
@@ -205,15 +210,46 @@ struct Currency_TrackerTests {
         let reloaded = PreferencesStore(userDefaults: defaults, secretStore: secretStore)
 
         #expect(reloaded.menuBarDisplayMode == .compactPair)
+        #expect(reloaded.rateDisplayBaseAmount == 100)
+        #expect(reloaded.conversionFractionDigits == 6)
+        #expect(reloaded.converterCurrenciesFollowSelectedPairs == false)
+        #expect(reloaded.converterCurrencyCodes == ["USD", "RUB", "JPY"])
         #expect(reloaded.rateAlerts.count == 1)
         #expect(reloaded.rateAlerts.first?.pairID == pairID)
         #expect(reloaded.rateAlerts.first?.isTriggered(by: 80.1) == true)
         #expect(reloaded.settingsProfiles.first?.name == "Travel")
         #expect(reloaded.settingsProfiles.first?.baseCurrencyCode == "EUR")
+        #expect(reloaded.settingsProfiles.first?.rateDisplayBaseAmount == 100)
+        #expect(reloaded.settingsProfiles.first?.conversionFractionDigits == 6)
+        #expect(reloaded.settingsProfiles.first?.converterCurrenciesFollowSelectedPairs == false)
+        #expect(reloaded.settingsProfiles.first?.converterCurrencyCodes == ["USD", "RUB", "JPY"])
         #expect(reloaded.activeProfileID == reloaded.settingsProfiles.first?.id)
         #expect(reloaded.enabledCustomAPIProviders.first?.name == "Workspace FX")
         #expect(reloaded.enabledCustomAPIProviders.first?.apiKey == "demo-key")
         #expect(reloaded.enabledCustomAPIProviders.first?.ratePath == "data.rate")
+    }
+
+    @MainActor
+    @Test
+    func preferencesStoreBuildsIndependentConverterRefreshPairs() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+
+        let store = PreferencesStore(userDefaults: defaults)
+        store.setBaseCurrencyCode("CNY")
+        store.setConverterCurrenciesFollowSelectedPairs(false)
+        store.addConverterCurrency(code: "USD")
+        store.addConverterCurrency(code: "CNY")
+        store.addConverterCurrency(code: "RUB")
+        store.addConverterCurrency(code: "USD")
+
+        #expect(store.effectiveConverterCurrencyCodes == ["USD", "CNY", "RUB"])
+        #expect(store.converterRefreshPairs.map(\.id) == ["USD-CNY-1", "CNY-RUB-1"])
+        #expect(store.refreshPairs.map(\.id) == ["USD-CNY-1", "CNY-RUB-1"])
+
+        store.addPair(baseCode: "EUR", quoteCode: "CNY")
+
+        #expect(store.refreshPairs.map(\.id) == ["EUR-CNY-1", "USD-CNY-1", "CNY-RUB-1"])
     }
 
     @MainActor
@@ -1194,6 +1230,92 @@ struct Currency_TrackerTests {
         #expect(distant?.currency == .missing)
     }
 
+    @Test
+    func amountInputParserTreatsThreeDigitFractionAsDecimal() {
+        #expect(AmountInputParsing.parseDecimal("7493.499") == decimal("7493.499"))
+        #expect(AmountInputParsing.parseDecimal("7493,499") == decimal("7493.499"))
+        #expect(AmountInputParsing.parseDecimal("7,493.499") == decimal("7493.499"))
+        #expect(AmountInputParsing.parseDecimal("7 493,499") == decimal("7493.499"))
+        #expect(AmountInputParsing.parseDecimal("100USD") == decimal("100"))
+        #expect(AmountInputParsing.parseDecimal("7493.499RUB") == decimal("7493.499"))
+    }
+
+    @Test
+    func currencyDisplayFormattingAppliesGlobalBaseAndFixedDigits() {
+        let pair = CurrencyPair(baseCode: "USD", quoteCode: "CNY", baseAmount: 1)
+        let snapshot = CurrencySnapshot(
+            pair: pair,
+            rate: 7.25,
+            updatedAt: .now,
+            effectiveDateText: nil,
+            source: .ecb,
+            isCached: false
+        )
+        let singleUnit = CurrencyCardModel(
+            pair: pair,
+            snapshot: snapshot,
+            historyPoints: [],
+            previousValue: nil,
+            state: .ready,
+            sampleLimit: 36,
+            displayBaseAmount: 1,
+            fractionDigits: 2
+        )
+        let hundredUnit = CurrencyCardModel(
+            pair: pair,
+            snapshot: snapshot,
+            historyPoints: [],
+            previousValue: nil,
+            state: .ready,
+            sampleLimit: 36,
+            displayBaseAmount: 100,
+            fractionDigits: 4
+        )
+
+        #expect(singleUnit.valueText == "7.25")
+        #expect(singleUnit.subtitle == "1 USD → CNY")
+        #expect(hundredUnit.valueText == "725.0000")
+        #expect(hundredUnit.subtitle == "100 USD → CNY")
+        #expect(CurrencyDisplayFormatting.plainNumber(Decimal(12), fractionDigits: 6) == "12.000000")
+    }
+
+    @Test
+    func currencyConversionGraphBuildsDirectReverseAndCrossRates() {
+        let usdCny = CurrencySnapshot(
+            pair: CurrencyPair(baseCode: "USD", quoteCode: "CNY", baseAmount: 1),
+            rate: 7,
+            updatedAt: .now,
+            effectiveDateText: nil,
+            source: .ecb,
+            isCached: false
+        )
+        let cnyRub = CurrencySnapshot(
+            pair: CurrencyPair(baseCode: "CNY", quoteCode: "RUB", baseAmount: 1),
+            rate: 12,
+            updatedAt: .now,
+            effectiveDateText: nil,
+            source: .cbr,
+            isCached: false
+        )
+        let eurJpy = CurrencySnapshot(
+            pair: CurrencyPair(baseCode: "EUR", quoteCode: "JPY", baseAmount: 1),
+            rate: 160,
+            updatedAt: .now,
+            effectiveDateText: nil,
+            source: .ecb,
+            isCached: false
+        )
+        let graph = CurrencyConversionGraph(snapshots: [usdCny, cnyRub, eurJpy])
+        let usdRates = graph.conversionMultipliers(from: "USD")
+        let cnyRates = graph.conversionMultipliers(from: "CNY")
+
+        #expect(usdRates["USD"] == 1)
+        #expect(usdRates["CNY"] == 7)
+        #expect(usdRates["RUB"] == 84)
+        #expect(usdRates["EUR"] == nil)
+        #expect(abs((cnyRates["USD"] ?? 0) - (1.0 / 7.0)) < 0.000_001)
+    }
+
     @MainActor
     @Test
     func conversionCoordinatorUsesFreshCacheWithoutRefreshing() async {
@@ -1201,6 +1323,7 @@ struct Currency_TrackerTests {
         defaults.removePersistentDomain(forName: #function)
         let preferences = PreferencesStore(userDefaults: defaults)
         preferences.setBaseCurrencyCode("CNY")
+        preferences.setConversionFractionDigits(2)
         let credentialStore = EnhancedSourceCredentialStore(secretStore: InMemorySecretStore(), userDefaults: defaults)
 
         let pair = CurrencyPair(baseCode: "USD", quoteCode: "CNY", baseAmount: 1)
@@ -1279,7 +1402,7 @@ struct Currency_TrackerTests {
         await coordinator.handleSelectedText("₽5000")
 
         #expect(promptPanel.resultPresentations.count == 1)
-        #expect(promptPanel.resultPresentations.first?.expressionText == "5000 RUB ≈ 400.00 CNY")
+        #expect(promptPanel.resultPresentations.first?.expressionText == "5000 RUB ≈ 400.0000 CNY")
     }
 
     @MainActor
@@ -1328,7 +1451,7 @@ struct Currency_TrackerTests {
 
         #expect(await service.fetchCallCount == 1)
         #expect(promptPanel.resultPresentations.count == 1)
-        #expect(promptPanel.resultPresentations.first?.expressionText == "100 USD ≈ 710.00 CNY")
+        #expect(promptPanel.resultPresentations.first?.expressionText == "100 USD ≈ 710.0000 CNY")
     }
 
     @MainActor
@@ -1370,8 +1493,8 @@ struct Currency_TrackerTests {
         #expect(promptPanel.ambiguousPromptCount == 1)
         #expect(promptPanel.manualPromptCount == 1)
         #expect(promptPanel.resultPresentations.count == 2)
-        #expect(promptPanel.resultPresentations.first?.expressionText == "128 USD ≈ 921.60 CNY")
-        #expect(promptPanel.resultPresentations.last?.expressionText == "500 JPY ≈ 25.00 CNY")
+        #expect(promptPanel.resultPresentations.first?.expressionText == "128 USD ≈ 921.6000 CNY")
+        #expect(promptPanel.resultPresentations.last?.expressionText == "500 JPY ≈ 25.0000 CNY")
     }
 
     @MainActor

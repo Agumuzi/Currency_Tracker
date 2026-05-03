@@ -22,6 +22,7 @@ final class ExchangePanelViewModel {
     var lastRefreshAttempt: Date?
     var sourceStatuses: [SourceStatus] = []
     var refreshLog: [RefreshLogEntry] = []
+    var converterSnapshots: [CurrencySnapshot] = []
 
     @ObservationIgnored private let service: ExchangeRateService
     @ObservationIgnored private let store: ExchangeRateStore
@@ -134,7 +135,7 @@ final class ExchangePanelViewModel {
             refreshLog = cachedState.refreshLog
 
             let cachedSnapshotIDs = Set(cachedState.snapshots.map(\.id))
-            pendingPairIDs = Set(preferences.selectedPairs.map(\.id)).subtracting(cachedSnapshotIDs)
+            pendingPairIDs = Set(preferences.refreshPairs.map(\.id)).subtracting(cachedSnapshotIDs)
             unavailablePairIDs = []
 
             updateCards()
@@ -145,7 +146,7 @@ final class ExchangePanelViewModel {
                 background: Color.gray.opacity(0.08)
             )
         } else {
-            pendingPairIDs = Set(preferences.selectedPairs.map(\.id))
+            pendingPairIDs = Set(preferences.refreshPairs.map(\.id))
             unavailablePairIDs = []
             updateCards()
 
@@ -194,9 +195,11 @@ final class ExchangePanelViewModel {
         }
 
         let selectedPairs = preferences.selectedPairs
+        let refreshPairs = preferences.refreshPairs
         let selectedPairIDs = Set(selectedPairs.map(\.id))
+        let refreshPairIDs = Set(refreshPairs.map(\.id))
 
-        guard !selectedPairs.isEmpty else {
+        guard !refreshPairs.isEmpty else {
             pendingPairIDs = []
             unavailablePairIDs = []
             updateCards()
@@ -212,9 +215,9 @@ final class ExchangePanelViewModel {
         }
 
         let existingSnapshotIDs = Set(cachedState.snapshots.map(\.id))
-        let unresolvedBeforeRefresh = selectedPairIDs.subtracting(existingSnapshotIDs)
+        let unresolvedBeforeRefresh = refreshPairIDs.subtracting(existingSnapshotIDs)
         pendingPairIDs.formUnion(unresolvedBeforeRefresh)
-        unavailablePairIDs.subtract(selectedPairIDs)
+        unavailablePairIDs.subtract(refreshPairIDs)
         updateCards()
 
         isRefreshing = true
@@ -241,7 +244,7 @@ final class ExchangePanelViewModel {
             now: refreshMoment
         ) == .refresh
 
-        async let latestSnapshots = service.fetchSnapshots(for: selectedPairs, configuration: sourceConfiguration)
+        async let latestSnapshots = service.fetchSnapshots(for: refreshPairs, configuration: sourceConfiguration)
 
         let result = await latestSnapshots
         let historyResult = shouldRefreshHistory
@@ -275,8 +278,8 @@ final class ExchangePanelViewModel {
             appendLog(level: .warning, message: historyResult.errors.joined(separator: "；"))
         }
 
-        pendingPairIDs.subtract(selectedPairIDs)
-        unavailablePairIDs = selectedPairIDs.subtracting(Set(mergedSnapshots.keys))
+        pendingPairIDs.subtract(refreshPairIDs)
+        unavailablePairIDs = refreshPairIDs.subtracting(Set(mergedSnapshots.keys))
 
         cachedState = CachedExchangeState(
             snapshots: Array(mergedSnapshots.values),
@@ -310,7 +313,8 @@ final class ExchangePanelViewModel {
                 background: Color(red: 0.87, green: 0.95, blue: 0.90)
             )
         } else {
-            let unresolvedText = unavailablePairIDs.isEmpty ? nil : "仍有 \(unavailablePairIDs.count) 个货币对没有可展示数据"
+            let selectedUnavailableCount = unavailablePairIDs.intersection(selectedPairIDs).count
+            let unresolvedText = selectedUnavailableCount == 0 ? nil : "仍有 \(selectedUnavailableCount) 个货币对没有可展示数据"
             let errorSegments = (result.errors + [unresolvedText].compactMap { $0 })
             appendLog(level: .warning, message: errorSegments.joined(separator: "；"))
             configureStatus(
@@ -326,14 +330,14 @@ final class ExchangePanelViewModel {
     }
 
     func selectedPairsDidChange() async {
-        let selectedPairIDs = Set(preferences.selectedPairs.map(\.id))
-        pendingPairIDs = pendingPairIDs.intersection(selectedPairIDs)
-        unavailablePairIDs = unavailablePairIDs.intersection(selectedPairIDs)
+        let refreshPairIDs = Set(preferences.refreshPairs.map(\.id))
+        pendingPairIDs = pendingPairIDs.intersection(refreshPairIDs)
+        unavailablePairIDs = unavailablePairIDs.intersection(refreshPairIDs)
 
         updateCards()
         restartAutomaticRefresh()
 
-        guard !preferences.selectedPairs.isEmpty else {
+        guard !preferences.refreshPairs.isEmpty else {
             pendingPairIDs = []
             unavailablePairIDs = []
             configureStatus(
@@ -346,7 +350,7 @@ final class ExchangePanelViewModel {
         }
 
         let snapshotIDs = Set(cachedState.snapshots.map(\.id))
-        let missingPairIDs = selectedPairIDs.subtracting(snapshotIDs)
+        let missingPairIDs = refreshPairIDs.subtracting(snapshotIDs)
         guard !missingPairIDs.isEmpty else {
             return
         }
@@ -378,6 +382,10 @@ final class ExchangePanelViewModel {
 
     private func updateCards() {
         let snapshotsByID = Dictionary(uniqueKeysWithValues: cachedState.snapshots.map { ($0.id, $0) })
+        let converterSnapshotPairs = preferences.converterCurrenciesFollowSelectedPairs
+            ? preferences.selectedPairs
+            : preferences.converterRefreshPairs
+        converterSnapshots = converterSnapshotPairs.compactMap { snapshotsByID[$0.id] }
         cards = preferences.selectedPairs.map { pair in
             let snapshot = snapshotsByID[pair.id]
             let historyPoints = cachedState.history[pair.id] ?? []
@@ -400,7 +408,9 @@ final class ExchangePanelViewModel {
                 historyPoints: historyPoints,
                 previousValue: previousValue,
                 state: state,
-                sampleLimit: max(preferences.trendPointLimit, 36)
+                sampleLimit: max(preferences.trendPointLimit, 36),
+                displayBaseAmount: preferences.rateDisplayBaseAmount,
+                fractionDigits: preferences.conversionFractionDigits
             )
         }
     }

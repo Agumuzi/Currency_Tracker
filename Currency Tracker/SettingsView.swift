@@ -142,6 +142,8 @@ struct SettingsView: View {
     @State private var draftBaseCode = "USD"
     @State private var draftQuoteCode = "RUB"
     @State private var currencySearch = ""
+    @State private var converterCurrencySearch = ""
+    @State private var draftConverterCurrencyCode = "USD"
     @State private var draggedPairID: String?
     @State private var selectedSection: SettingsSection = .welcome
     @State private var isShowingAPIPrivacyDetails = false
@@ -189,11 +191,15 @@ struct SettingsView: View {
         .background(windowBackground)
         .onAppear {
             syncDraftSelectionToSearchResults()
+            syncConverterCurrencySelectionToSearchResults()
             apiConfigurationViewModel.reloadFromStore()
             applyFocusedSection()
         }
         .onChange(of: currencySearch) { _, _ in
             syncDraftSelectionToSearchResults()
+        }
+        .onChange(of: converterCurrencySearch) { _, _ in
+            syncConverterCurrencySelectionToSearchResults()
         }
         .onChange(of: focusSection) { _, _ in
             applyFocusedSection()
@@ -249,6 +255,7 @@ struct SettingsView: View {
             welcomeSection
         case .general:
             baseCurrencySection
+            currencyDisplaySection
             menuBarDisplaySection
             textConversionShortcutSection
         case .language:
@@ -256,6 +263,7 @@ struct SettingsView: View {
         case .rates:
             selectedPairsSection
             addPairSection
+            converterCurrenciesSection
         case .profiles:
             profilesSection
         case .alerts:
@@ -528,6 +536,55 @@ struct SettingsView: View {
         }
     }
 
+    private var currencyDisplaySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("货币显示")
+
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("统一控制汇率基数和小数位")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    Text("菜单栏、汇率卡片、换算器和选中文本换算结果会使用同一套显示规则。")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 16) {
+                    displayPreferencePicker(
+                        title: "显示基数",
+                        selection: Binding(
+                            get: { preferences.rateDisplayBaseAmount },
+                            set: {
+                                preferences.setRateDisplayBaseAmount($0)
+                                viewModel.presentationDidChange()
+                            }
+                        ),
+                        options: preferences.rateDisplayBaseAmountOptions,
+                        label: { "\($0)" }
+                    )
+
+                    displayPreferencePicker(
+                        title: "小数位",
+                        selection: Binding(
+                            get: { preferences.conversionFractionDigits },
+                            set: {
+                                preferences.setConversionFractionDigits($0)
+                                viewModel.presentationDidChange()
+                            }
+                        ),
+                        options: preferences.conversionFractionDigitOptions,
+                        label: { "\($0) 位" }
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(sectionCardBackground)
+        }
+    }
+
     private var profilesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("配置 Profile")
@@ -543,7 +600,7 @@ struct SettingsView: View {
                         viewModel.refreshPolicyDidChange()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(preferences.selectedPairIDs.isEmpty)
+                    .disabled(preferences.selectedPairIDs.isEmpty && preferences.effectiveConverterCurrencyCodes.isEmpty)
                 }
 
                 if preferences.settingsProfiles.isEmpty {
@@ -784,7 +841,7 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(pair.displayName)
                                     .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                Text(pair.subtitle)
+                                Text(pairSubtitle(for: pair))
                                     .font(.system(size: 11, weight: .medium, design: .rounded))
                                     .foregroundStyle(.secondary)
                             }
@@ -896,6 +953,136 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
             .background(sectionCardBackground)
+        }
+    }
+
+    private var converterCurrenciesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                sectionTitle("换算页币种")
+                Spacer()
+                countBadge(preferences.effectiveConverterCurrencyCodes.count)
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                Toggle("跟随汇率列表", isOn: Binding(
+                    get: { preferences.converterCurrenciesFollowSelectedPairs },
+                    set: { isEnabled in
+                        preferences.setConverterCurrenciesFollowSelectedPairs(isEnabled)
+                        Task {
+                            await viewModel.selectedPairsDidChange()
+                        }
+                    }
+                ))
+                .toggleStyle(.checkbox)
+
+                Text("勾选后换算页继续从已添加货币对中自动提取币种；取消勾选后可以单独维护换算页列表。")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if preferences.converterCurrenciesFollowSelectedPairs {
+                    linkedConverterCurrencyList
+                } else {
+                    independentConverterCurrencyList
+                    addConverterCurrencyControls
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(sectionCardBackground)
+        }
+    }
+
+    private var linkedConverterCurrencyList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("当前联动币种")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            if preferences.effectiveConverterCurrencyCodes.isEmpty {
+                Text("暂无联动币种")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            } else {
+                currencyCodeWrap(preferences.effectiveConverterCurrencyCodes)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+    }
+
+    private var independentConverterCurrencyList: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("已添加换算币种")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            if preferences.converterCurrencyCodes.isEmpty {
+                Text("还没有添加换算币种")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color(nsColor: .windowBackgroundColor))
+                    )
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(preferences.converterCurrencyCodes, id: \.self) { code in
+                        converterCurrencyRow(for: code)
+                    }
+                }
+            }
+        }
+    }
+
+    private var addConverterCurrencyControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("添加换算币种")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            TextField("搜索币种代码、中文名或英文名", text: $converterCurrencySearch)
+                .textFieldStyle(.roundedBorder)
+
+            if filteredConverterCurrencies.isEmpty {
+                searchEmptyState
+            } else {
+                HStack(spacing: 10) {
+                    Picker("换算币种", selection: Binding(
+                        get: { resolvedDraftConverterCurrencyCode },
+                        set: { draftConverterCurrencyCode = $0 }
+                    )) {
+                        ForEach(filteredConverterCurrencies) { currency in
+                            Text("\(CurrencyCatalog.name(for: currency.code)) · \(currency.code)")
+                                .tag(currency.code)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 280)
+
+                    Button("加入换算") {
+                        preferences.addConverterCurrency(code: resolvedDraftConverterCurrencyCode)
+                        Task {
+                            await viewModel.selectedPairsDidChange()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(converterCurrencyAlreadySelected)
+
+                    if converterCurrencyAlreadySelected {
+                        Text("这个币种已经存在")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
     }
 
@@ -1375,12 +1562,35 @@ struct SettingsView: View {
         filter(currencies: preferences.availableQuoteCurrencies(for: draftBaseCode))
     }
 
+    private var filteredConverterCurrencies: [CurrencyInfo] {
+        let query = converterCurrencySearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            return CurrencyCatalog.all
+        }
+
+        return CurrencyCatalog.all.filter { currency in
+            CurrencyCatalog.matchesSearch(currency, query: query)
+        }
+    }
+
     private var currentDraftAlreadySelected: Bool {
         guard let currentDraftPair else {
             return false
         }
 
         return preferences.contains(currentDraftPair)
+    }
+
+    private var resolvedDraftConverterCurrencyCode: String {
+        if filteredConverterCurrencies.contains(where: { $0.code == draftConverterCurrencyCode }) {
+            return draftConverterCurrencyCode
+        }
+
+        return filteredConverterCurrencies.first?.code ?? "USD"
+    }
+
+    private var converterCurrencyAlreadySelected: Bool {
+        preferences.converterCurrencyCodes.contains(resolvedDraftConverterCurrencyCode)
     }
 
     private var resolvedAlertPairID: String {
@@ -1414,6 +1624,28 @@ struct SettingsView: View {
                 Capsule(style: .continuous)
                     .fill(Color(nsColor: .windowBackgroundColor))
             )
+    }
+
+    private func displayPreferencePicker(
+        title: LocalizedStringKey,
+        selection: Binding<Int>,
+        options: [Int],
+        label: @escaping (Int) -> String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            Picker(title, selection: selection) {
+                ForEach(options, id: \.self) { value in
+                    Text(label(value)).tag(value)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var dragHandle: some View {
@@ -1459,6 +1691,96 @@ struct SettingsView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color(nsColor: .windowBackgroundColor))
         )
+    }
+
+    private func converterCurrencyRow(for code: String) -> some View {
+        HStack(spacing: 12) {
+            Text(CurrencyCatalog.flag(for: code))
+                .font(.system(size: 18))
+                .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(code)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                Text(CurrencyCatalog.name(for: code))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            converterCurrencyOrderControls(for: code)
+
+            Button("移除") {
+                preferences.removeConverterCurrency(code: code)
+                Task {
+                    await viewModel.selectedPairsDidChange()
+                }
+            }
+            .buttonStyle(.borderless)
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+    }
+
+    private func converterCurrencyOrderControls(for code: String) -> some View {
+        HStack(spacing: 2) {
+            Button {
+                preferences.moveConverterCurrencyUp(code: code)
+                viewModel.presentationDidChange()
+            } label: {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .disabled(preferences.converterCurrencyCodes.first == code)
+            .help("上移")
+
+            Button {
+                preferences.moveConverterCurrencyDown(code: code)
+                viewModel.presentationDidChange()
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .disabled(preferences.converterCurrencyCodes.last == code)
+            .help("下移")
+        }
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+    }
+
+    private func currencyCodeWrap(_ codes: [String]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], alignment: .leading, spacing: 8) {
+            ForEach(codes, id: \.self) { code in
+                HStack(spacing: 6) {
+                    Text(CurrencyCatalog.flag(for: code))
+                    Text(code)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                )
+            }
+        }
     }
 
     private func currencyPickerColumn(
@@ -1584,6 +1906,7 @@ struct SettingsView: View {
         let version = SoftwareUpdateChecker.currentVersion(bundle: bundle)
         let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
         let selectedPairs = preferences.selectedPairs.map(\.compactLabel).joined(separator: ", ")
+        let converterCurrencies = preferences.effectiveConverterCurrencyCodes.joined(separator: ", ")
         let sourceStatuses = viewModel.sourceStatuses.map {
             "- \($0.source.displayName): \($0.state.rawValue) · \($0.message) · \(ExchangeFormatter.time.string(from: $0.timestamp))"
         }.joined(separator: "\n")
@@ -1603,9 +1926,13 @@ struct SettingsView: View {
         Preferences
         - Base currency: \(preferences.baseCurrencyCode)
         - Selected pairs: \(selectedPairs.isEmpty ? "none" : selectedPairs)
+        - Converter linked to pairs: \(preferences.converterCurrenciesFollowSelectedPairs)
+        - Converter currencies: \(converterCurrencies.isEmpty ? "none" : converterCurrencies)
         - Auto refresh: \(refreshIntervalTitle(for: preferences.autoRefreshMinutes))
         - Refresh on menu open: \(preferences.menuBarOpenRefreshEnabled)
         - Menu bar display: \(preferences.menuBarDisplayMode.rawValue)
+        - Rate display base amount: \(preferences.rateDisplayBaseAmount)
+        - Conversion fraction digits: \(preferences.conversionFractionDigits)
         - Profiles: \(preferences.settingsProfiles.count)
         - Rate alerts: \(preferences.rateAlerts.count)
         - Custom API providers: \(preferences.customAPIProviders.count)
@@ -1645,6 +1972,13 @@ struct SettingsView: View {
         }
     }
 
+    private func syncConverterCurrencySelectionToSearchResults() {
+        if let firstCurrency = filteredConverterCurrencies.first,
+           filteredConverterCurrencies.contains(where: { $0.code == draftConverterCurrencyCode }) == false {
+            draftConverterCurrencyCode = firstCurrency.code
+        }
+    }
+
     private var canSwapDraftCurrencies: Bool {
         CurrencyCatalog.supportedPair(baseCode: draftQuoteCode, quoteCode: draftBaseCode) != nil
     }
@@ -1677,12 +2011,22 @@ struct SettingsView: View {
     }
 
     private func profileSummaryText(for profile: SettingsProfile) -> String {
-        String(
-            format: String(localized: "%d 个汇率 · 基准 %@ · %@"),
+        let converterText = profile.converterCurrenciesFollowSelectedPairs
+            ? String(localized: "换算联动")
+            : String(format: String(localized: "%d 个换算币种"), profile.converterCurrencyCodes.count)
+        return String(
+            format: String(localized: "%d 个汇率 · %@ · 基准 %@ · %@ · %d 基数 · %d 位"),
             profile.selectedPairIDs.count,
+            converterText,
             profile.baseCurrencyCode,
-            refreshIntervalTitle(for: profile.autoRefreshMinutes)
+            refreshIntervalTitle(for: profile.autoRefreshMinutes),
+            profile.rateDisplayBaseAmount,
+            profile.conversionFractionDigits
         )
+    }
+
+    private func pairSubtitle(for pair: CurrencyPair) -> String {
+        "\(preferences.rateDisplayBaseAmount) \(pair.baseCode) → \(pair.quoteCode)"
     }
 
     private func refreshIntervalTitle(for value: Int) -> String {
