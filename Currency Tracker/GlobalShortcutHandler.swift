@@ -37,6 +37,13 @@ nonisolated struct GlobalShortcutDescriptor: Codable, Hashable, Sendable {
         self.displayKey = displayKey
     }
 
+    func matches(event: NSEvent) -> Bool {
+        UInt32(event.keyCode) == keyCode
+            && event.modifierFlags
+                .intersection([.command, .option, .control, .shift])
+                .carbonHotKeyModifiers == carbonModifiers
+    }
+
     private var modifierSymbols: String {
         var symbols = ""
         if carbonModifiers & UInt32(controlKey) != 0 {
@@ -65,6 +72,8 @@ final class GlobalShortcutHandler {
 
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
+    private var globalKeyMonitor: Any?
+    private var activationObserver: NSObjectProtocol?
     private var isHandlingHotKey = false
 
     init(
@@ -78,6 +87,7 @@ final class GlobalShortcutHandler {
         self.popupPresenter = popupPresenter
         self.logHandler = logHandler
         installEventHandlerIfNeeded()
+        observeApplicationActivation()
         refreshRegistration()
     }
 
@@ -88,12 +98,19 @@ final class GlobalShortcutHandler {
         if let eventHandlerRef {
             RemoveEventHandler(eventHandlerRef)
         }
+        if let globalKeyMonitor {
+            NSEvent.removeMonitor(globalKeyMonitor)
+        }
+        if let activationObserver {
+            NotificationCenter.default.removeObserver(activationObserver)
+        }
     }
 
     func refreshRegistration() {
         unregisterShortcut()
 
         guard let shortcut = preferences.textConversionShortcut else {
+            removeGlobalKeyMonitor()
             logHandler(.info, "全局文本换算快捷键未设置")
             return
         }
@@ -114,6 +131,8 @@ final class GlobalShortcutHandler {
             hotKeyRef = nil
             logHandler(.warning, "全局文本换算快捷键注册失败：\(status)")
         }
+
+        refreshGlobalKeyMonitor()
     }
 
     private func unregisterShortcut() {
@@ -136,7 +155,7 @@ final class GlobalShortcutHandler {
         )
 
         let userData = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        InstallEventHandler(
+        let status = InstallEventHandler(
             GetEventDispatcherTarget(),
             { _, event, userData in
                 guard let event, let userData else {
@@ -152,6 +171,11 @@ final class GlobalShortcutHandler {
             userData,
             &eventHandlerRef
         )
+
+        if status != noErr {
+            eventHandlerRef = nil
+            logHandler(.warning, "全局文本换算快捷键事件监听安装失败：\(status)")
+        }
     }
 
     private func handle(event: EventRef) {
@@ -174,6 +198,19 @@ final class GlobalShortcutHandler {
             return
         }
 
+        handleShortcutPress(shortcut)
+    }
+
+    private func handleGlobalKeyDown(_ event: NSEvent) {
+        guard let shortcut = preferences.textConversionShortcut,
+              shortcut.matches(event: event) else {
+            return
+        }
+
+        handleShortcutPress(shortcut)
+    }
+
+    private func handleShortcutPress(_ shortcut: GlobalShortcutDescriptor) {
         if isHandlingHotKey {
             return
         }
@@ -183,6 +220,50 @@ final class GlobalShortcutHandler {
             defer { self.isHandlingHotKey = false }
             await triggerConversion(using: shortcut)
         }
+    }
+
+    private func observeApplicationActivation() {
+        activationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshGlobalKeyMonitor()
+            }
+        }
+    }
+
+    private func refreshGlobalKeyMonitor() {
+        removeGlobalKeyMonitor()
+
+        guard preferences.textConversionShortcut != nil else {
+            return
+        }
+
+        guard AXIsProcessTrusted() else {
+            logHandler(.warning, "辅助功能权限未授予，备用快捷键监听暂不可用")
+            return
+        }
+
+        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            Task { @MainActor [weak self] in
+                self?.handleGlobalKeyDown(event)
+            }
+        }
+
+        if globalKeyMonitor != nil {
+            logHandler(.info, "全局文本换算快捷键备用监听已启用")
+        }
+    }
+
+    private func removeGlobalKeyMonitor() {
+        guard let globalKeyMonitor else {
+            return
+        }
+
+        NSEvent.removeMonitor(globalKeyMonitor)
+        self.globalKeyMonitor = nil
     }
 
     private func triggerConversion(using shortcut: GlobalShortcutDescriptor) async {
@@ -271,6 +352,11 @@ private extension NSEvent.ModifierFlags {
 @MainActor
 private final class FocusedSelectionReader {
     func readSelectedText(log: @MainActor (RefreshLogEntry.Level, String) -> Void) async -> String? {
+        guard AXIsProcessTrusted() else {
+            requestAccessibilityPromptIfNeeded(log: log)
+            return nil
+        }
+
         if let selectedText = selectedTextViaAccessibility(), !selectedText.isEmpty {
             log(.info, "全局快捷键通过辅助功能接口读取了选中文本")
             return selectedText
@@ -322,34 +408,50 @@ private final class FocusedSelectionReader {
         let previousSnapshot = PasteboardSnapshot.capture(from: pasteboard)
         let previousChangeCount = pasteboard.changeCount
 
-        sendCopyShortcut()
-        try? await Task.sleep(nanoseconds: 180_000_000)
-
-        guard pasteboard.changeCount != previousChangeCount,
-              let copiedText = pasteboard.string(forType: .string)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-              !copiedText.isEmpty else {
+        guard await sendCopyShortcut() else {
             previousSnapshot?.restore(to: pasteboard)
-            requestAccessibilityPromptIfNeeded(log: log)
+            log(.warning, "全局快捷键复制回退失败：无法发送复制按键")
             return nil
         }
 
-        log(.info, "全局快捷键通过复制动作读取了选中文本")
+        let maxAttempts = 15
+        for _ in 0..<maxAttempts {
+            try? await Task.sleep(nanoseconds: 60_000_000)
+
+            guard pasteboard.changeCount != previousChangeCount else {
+                continue
+            }
+
+            if let copiedText = pasteboard.string(forType: .string)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                !copiedText.isEmpty {
+                log(.info, "全局快捷键通过复制动作读取了选中文本")
+                previousSnapshot?.restore(to: pasteboard)
+                return copiedText
+            }
+        }
+
         previousSnapshot?.restore(to: pasteboard)
-        return copiedText
+        log(.warning, "全局快捷键复制回退未读取到选中文本")
+        return nil
     }
 
-    private func sendCopyShortcut() {
-        guard let source = CGEventSource(stateID: .hidSystemState),
+    private func sendCopyShortcut() async -> Bool {
+        let source = CGEventSource(stateID: .combinedSessionState)
+            ?? CGEventSource(stateID: .hidSystemState)
+
+        guard let source,
               let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 8, keyDown: true),
               let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 8, keyDown: false) else {
-            return
+            return false
         }
 
         keyDown.flags = .maskCommand
         keyUp.flags = .maskCommand
         keyDown.post(tap: .cghidEventTap)
+        try? await Task.sleep(nanoseconds: 25_000_000)
         keyUp.post(tap: .cghidEventTap)
+        return true
     }
 
     private func requestAccessibilityPromptIfNeeded(

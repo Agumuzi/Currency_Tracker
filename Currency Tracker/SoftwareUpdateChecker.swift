@@ -21,8 +21,8 @@ nonisolated struct SoftwareUpdateInfo: Equatable, Sendable {
 }
 
 nonisolated enum SoftwareUpdateChecker {
-    static let releasesURL = URL(string: "https://github.com/Agumuzi/Currency_Tracker/releases")!
-    static let latestReleaseAPIURL = URL(string: "https://api.github.com/repos/Agumuzi/Currency_Tracker/releases/latest")!
+    static let releasesURL = URL(string: "https://github.com/Agumuzi/Currency-Tracker/releases")!
+    static let latestReleaseAPIURL = URL(string: "https://api.github.com/repos/Agumuzi/Currency-Tracker/releases/latest")!
 
     static func currentVersion(bundle: Bundle = .main) -> String {
         bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"

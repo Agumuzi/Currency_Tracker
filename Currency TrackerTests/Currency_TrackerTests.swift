@@ -419,15 +419,15 @@ struct Currency_TrackerTests {
               "tag_name": "v1.2",
               "name": "Currency Tracker 1.2",
               "body": "Improved update window.",
-              "html_url": "https://github.com/Agumuzi/Currency_Tracker/releases/tag/v1.2",
+              "html_url": "https://github.com/Agumuzi/Currency-Tracker/releases/tag/v1.2",
               "assets": [
                 {
                   "name": "Currency-Tracker-1.2.zip",
-                  "browser_download_url": "https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.2/Currency-Tracker-1.2.zip"
+                  "browser_download_url": "https://github.com/Agumuzi/Currency-Tracker/releases/download/v1.2/Currency-Tracker-1.2.zip"
                 },
                 {
                   "name": "Currency-Tracker-1.2.zip.sha256",
-                  "browser_download_url": "https://github.com/Agumuzi/Currency_Tracker/releases/download/v1.2/Currency-Tracker-1.2.zip.sha256"
+                  "browser_download_url": "https://github.com/Agumuzi/Currency-Tracker/releases/download/v1.2/Currency-Tracker-1.2.zip.sha256"
                 }
               ]
             }
@@ -1238,6 +1238,17 @@ struct Currency_TrackerTests {
         #expect(AmountInputParsing.parseDecimal("7 493,499") == decimal("7493.499"))
         #expect(AmountInputParsing.parseDecimal("100USD") == decimal("100"))
         #expect(AmountInputParsing.parseDecimal("7493.499RUB") == decimal("7493.499"))
+    }
+
+    @Test
+    func amountInputParserEvaluatesBasicCalculations() {
+        #expect(AmountInputParsing.parseDecimal("100+20") == decimal("120"))
+        #expect(AmountInputParsing.parseDecimal("100 - 25=") == decimal("75"))
+        #expect(AmountInputParsing.parseDecimal("12*3") == decimal("36"))
+        #expect(AmountInputParsing.parseDecimal("10/4") == decimal("2.5"))
+        #expect(AmountInputParsing.parseDecimal("2*(3+4)") == decimal("14"))
+        #expect(AmountInputParsing.parseDecimal("1/0") == nil)
+        #expect(AmountInputParsing.parseDecimal("12+") == nil)
     }
 
     @Test

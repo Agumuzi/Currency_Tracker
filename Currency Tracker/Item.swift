@@ -311,16 +311,33 @@ nonisolated enum CurrencyDisplayFormatting {
 
 nonisolated enum AmountInputParsing {
     static func parseDecimal(_ text: String) -> Decimal? {
-        let normalizedText = text
-            .replacingOccurrences(of: "\u{00A0}", with: " ")
-            .replacingOccurrences(of: "\u{202F}", with: " ")
-            .replacingOccurrences(of: "\u{3000}", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedText = normalizedInputText(text)
+
+        switch parseArithmeticExpression(normalizedText) {
+        case .value(let value):
+            return value
+        case .invalid:
+            return nil
+        case .notExpression:
+            break
+        }
 
         guard let amountText = extractAmountCandidate(from: normalizedText) else {
             return nil
         }
 
+        return parseDecimalCandidate(amountText)
+    }
+
+    private static func normalizedInputText(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
+            .replacingOccurrences(of: "\u{202F}", with: " ")
+            .replacingOccurrences(of: "\u{3000}", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func parseDecimalCandidate(_ amountText: String) -> Decimal? {
         let compact = amountText
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: "'", with: "")
@@ -347,6 +364,233 @@ nonisolated enum AmountInputParsing {
         }
 
         return Decimal(string: decimalText, locale: Locale(identifier: "en_US_POSIX"))
+    }
+
+    private enum ArithmeticExpressionParseResult {
+        case notExpression
+        case invalid
+        case value(Decimal)
+    }
+
+    private static func parseArithmeticExpression(_ text: String) -> ArithmeticExpressionParseResult {
+        var expression = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var hasTrailingEquals = false
+
+        while expression.last == "=" {
+            hasTrailingEquals = true
+            expression = String(expression.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        let hasOperator = containsArithmeticOperator(in: expression)
+        guard hasTrailingEquals || hasOperator else {
+            return .notExpression
+        }
+
+        guard !expression.isEmpty,
+              expression.contains(where: \.isNumber),
+              expression.allSatisfy(isArithmeticExpressionCharacter) else {
+            return .invalid
+        }
+
+        var parser = ArithmeticExpressionParser(text: expression)
+        guard let value = parser.parse() else {
+            return .invalid
+        }
+
+        return .value(value)
+    }
+
+    private static func containsArithmeticOperator(in text: String) -> Bool {
+        var index = text.startIndex
+
+        while index < text.endIndex, text[index].isWhitespace {
+            index = text.index(after: index)
+        }
+
+        if index < text.endIndex, text[index] == "+" || text[index] == "-" {
+            index = text.index(after: index)
+        }
+
+        while index < text.endIndex {
+            if "+-*/".contains(text[index]) {
+                return true
+            }
+            index = text.index(after: index)
+        }
+
+        return false
+    }
+
+    private static func isArithmeticExpressionCharacter(_ character: Character) -> Bool {
+        character.isNumber
+            || character.isWhitespace
+            || ".,'’+-*/()".contains(character)
+    }
+
+    private struct ArithmeticExpressionParser {
+        private let characters: [Character]
+        private var index = 0
+
+        init(text: String) {
+            characters = Array(text)
+        }
+
+        mutating func parse() -> Decimal? {
+            guard let value = parseExpression() else {
+                return nil
+            }
+
+            skipWhitespace()
+            return index == characters.count ? value : nil
+        }
+
+        private mutating func parseExpression() -> Decimal? {
+            guard var value = parseTerm() else {
+                return nil
+            }
+
+            while true {
+                skipWhitespace()
+
+                if match("+") {
+                    guard let rhs = parseTerm(),
+                          let result = Self.apply("+", lhs: value, rhs: rhs) else {
+                        return nil
+                    }
+                    value = result
+                } else if match("-") {
+                    guard let rhs = parseTerm(),
+                          let result = Self.apply("-", lhs: value, rhs: rhs) else {
+                        return nil
+                    }
+                    value = result
+                } else {
+                    return value
+                }
+            }
+        }
+
+        private mutating func parseTerm() -> Decimal? {
+            guard var value = parseFactor() else {
+                return nil
+            }
+
+            while true {
+                skipWhitespace()
+
+                if match("*") {
+                    guard let rhs = parseFactor(),
+                          let result = Self.apply("*", lhs: value, rhs: rhs) else {
+                        return nil
+                    }
+                    value = result
+                } else if match("/") {
+                    guard let rhs = parseFactor(),
+                          let result = Self.apply("/", lhs: value, rhs: rhs) else {
+                        return nil
+                    }
+                    value = result
+                } else {
+                    return value
+                }
+            }
+        }
+
+        private mutating func parseFactor() -> Decimal? {
+            skipWhitespace()
+
+            if match("+") {
+                return parseFactor()
+            }
+
+            if match("-") {
+                guard let value = parseFactor() else {
+                    return nil
+                }
+                return Self.apply("*", lhs: Decimal(-1), rhs: value)
+            }
+
+            if match("(") {
+                guard let value = parseExpression(), match(")") else {
+                    return nil
+                }
+                return value
+            }
+
+            return parseNumber()
+        }
+
+        private mutating func parseNumber() -> Decimal? {
+            skipWhitespace()
+
+            let startIndex = index
+            var token = ""
+            var hasDigit = false
+
+            while index < characters.count {
+                let character = characters[index]
+                if character.isNumber {
+                    hasDigit = true
+                    token.append(character)
+                    index += 1
+                } else if character.isWhitespace || ".,'’".contains(character) {
+                    token.append(character)
+                    index += 1
+                } else {
+                    break
+                }
+            }
+
+            guard hasDigit, let value = AmountInputParsing.parseDecimalCandidate(token) else {
+                index = startIndex
+                return nil
+            }
+
+            return value
+        }
+
+        private mutating func skipWhitespace() {
+            while index < characters.count, characters[index].isWhitespace {
+                index += 1
+            }
+        }
+
+        private mutating func match(_ character: Character) -> Bool {
+            guard index < characters.count, characters[index] == character else {
+                return false
+            }
+
+            index += 1
+            return true
+        }
+
+        private static func apply(_ operation: Character, lhs: Decimal, rhs: Decimal) -> Decimal? {
+            let left = NSDecimalNumber(decimal: lhs)
+            let right = NSDecimalNumber(decimal: rhs)
+            let result: NSDecimalNumber
+
+            switch operation {
+            case "+":
+                result = left.adding(right)
+            case "-":
+                result = left.subtracting(right)
+            case "*":
+                result = left.multiplying(by: right)
+            case "/":
+                guard right.compare(NSDecimalNumber.zero) != .orderedSame else {
+                    return nil
+                }
+                result = left.dividing(by: right)
+            default:
+                return nil
+            }
+
+            guard result.doubleValue.isFinite else {
+                return nil
+            }
+
+            return result.decimalValue
+        }
     }
 
     private static func extractAmountCandidate(from text: String) -> String? {
