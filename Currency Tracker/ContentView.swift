@@ -270,7 +270,7 @@ struct ContentView: View {
 
                 Section("应用动作") {
                     Button("退出应用") {
-                        NSApplication.shared.terminate(nil)
+                        ApplicationTerminationController.terminate(nil)
                     }
                 }
             } label: {

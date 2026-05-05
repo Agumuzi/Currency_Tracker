@@ -10,6 +10,8 @@ import SwiftUI
 
 @main
 struct Currency_TrackerApp: App {
+    @NSApplicationDelegateAdaptor(ApplicationTerminationController.self) private var terminationController
+
     private let userDefaults: UserDefaults
     private let preferences: PreferencesStore
     private let credentialStore: EnhancedSourceCredentialStore
@@ -117,6 +119,7 @@ struct Currency_TrackerApp: App {
         self.initialLaunchCoordinator = initialLaunchCoordinator
         _viewModel = State(initialValue: viewModel)
         NSApplication.shared.setActivationPolicy(isRunningUITests ? .regular : .accessory)
+        ProcessInfo.processInfo.disableAutomaticTermination("Currency Tracker menu bar app remains active")
         serviceActionHandler.register()
     }
 
@@ -201,6 +204,26 @@ struct Currency_TrackerApp: App {
         }
 
         return LocalSecretStore(service: "com.thomas.currency-tracker")
+    }
+}
+
+@MainActor
+final class ApplicationTerminationController: NSObject, NSApplicationDelegate {
+    private static weak var current: ApplicationTerminationController?
+    private var allowsTermination = false
+
+    override init() {
+        super.init()
+        Self.current = self
+    }
+
+    static func terminate(_ sender: Any? = nil) {
+        current?.allowsTermination = true
+        NSApplication.shared.terminate(sender)
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        allowsTermination ? .terminateNow : .terminateCancel
     }
 }
 

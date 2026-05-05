@@ -85,23 +85,23 @@ The app can check GitHub Releases from Settings. Update packages are downloaded,
 
 ## Current Release
 
-Version `1.5.5` includes:
+Version `1.5.6` includes:
 
-- Fixes global text-conversion shortcut reliability after Accessibility permission changes.
-- Adds an Accessibility-backed global key monitor fallback alongside the Carbon hot key registration.
-- Improves selected-text copy fallback timing and restores the previous clipboard contents after reading.
-- Allows converter inputs to evaluate basic calculations such as `100+20`, `100 - 25=`, `12*3`, `10/4`, and `(2+3)*4`.
-- Updates the in-app update checker to use the public `Agumuzi/Currency-Tracker` GitHub repository.
+- Fixes the GitHub release build quitting immediately after launch on macOS.
+- Keeps the menu bar app resident when macOS sends status item visibility changes.
+- Preserves explicit Quit and in-app update relaunch flows.
+- Rebuilds the release zip from a clean app bundle with no local user data, logs, caches, or credentials.
+- Documents the first-launch approval flow for non-notarized GitHub downloads.
 
 ## Installation
 
-Download `Currency-Tracker-1.5.5.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder. The published SHA256 checksum is `ef4b0cad8ad0f43f3a8d524b2c56e177bb94460329e15a76dcdc44aee68647c5`.
+Download `Currency-Tracker-1.5.6.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder. The published SHA256 checksum is `af302623ebb274b62fa30e90235071482f2eb1ccfa1b03cc6acc671832585f7e`.
 
-The app is distributed through GitHub Releases and is not notarized through Apple. On first launch, macOS may block it. Open:
+The app is distributed through GitHub Releases. It is ad-hoc signed for bundle integrity, but it is not signed with an Apple Developer ID and is not notarized by Apple. On first launch, macOS may block it. Open:
 
 `System Settings` -> `Privacy & Security` -> `Open Anyway`
 
-After you approve it once, future launches should work normally. Because the app is still unsigned and not notarized, macOS may still ask for approval when replacing the application during an in-app update.
+Approve `Currency Tracker`, then confirm `Open`. After you approve it once, future launches should work normally. Replacing the app during a manual or in-app update preserves your existing Application Support data, but macOS may ask for approval again because the new app bundle is still not Developer ID signed or notarized.
 
 ## Requirements
 

@@ -100,7 +100,7 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
     private static func installAndRelaunch(_ preparedUpdate: PreparedSoftwareUpdate) -> String? {
         do {
             try SoftwareUpdateInstaller.installAndRelaunch(preparedUpdate: preparedUpdate)
-            NSApplication.shared.terminate(nil)
+            ApplicationTerminationController.terminate(nil)
             return nil
         } catch {
             return String(localized: "无法启动安装器，请稍后重试")

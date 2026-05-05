@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.6 - 2026-05-05
+
+- Fixes the GitHub release build quitting immediately after launch on macOS.
+- Keeps the menu bar app resident when macOS sends status item visibility changes, while preserving explicit Quit and update-relaunch flows.
+- Repackages the macOS app for GitHub distribution as a clean, non-notarized release that users can manually approve in System Settings.
+
 ## 1.5.5 - 2026-05-04
 
 - Fixes global text-conversion shortcut reliability after Accessibility permission changes.
