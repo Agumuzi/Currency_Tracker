@@ -1134,13 +1134,14 @@ struct Currency_TrackerTests {
     @Test
     @MainActor
     func exchangeRateServiceUsesCustomProviderBeforeFallbackSources() async {
-        CustomProviderURLProtocol.lastURL = nil
+        let requestIdentifier = "custom-provider-service.example"
+        CustomProviderURLProtocol.resetLastURL(for: requestIdentifier)
         let session = URLSession(configuration: .customProviderSessionConfiguration)
         let service = ExchangeRateService(urlSession: session)
         let pair = CurrencyPair(baseCode: "USD", quoteCode: "CNY", baseAmount: 1)
         let provider = CustomAPIProvider(
             name: "Workspace FX",
-            urlTemplate: "https://custom.example/latest?base={base}&quote={quote}&key={key}",
+            urlTemplate: "https://\(requestIdentifier)/latest?base={base}&quote={quote}&key={key}",
             apiKey: "demo key",
             ratePath: "data.0.rate"
         )
@@ -1148,9 +1149,9 @@ struct Currency_TrackerTests {
 
         let result = await service.fetchSnapshots(for: [pair], configuration: configuration)
 
-        #expect(CustomProviderURLProtocol.lastURL?.absoluteString.contains("base=USD") == true)
-        #expect(CustomProviderURLProtocol.lastURL?.absoluteString.contains("quote=CNY") == true)
-        #expect(CustomProviderURLProtocol.lastURL?.absoluteString.contains("key=demo%20key") == true)
+        #expect(CustomProviderURLProtocol.lastURL(for: requestIdentifier)?.absoluteString.contains("base=USD") == true)
+        #expect(CustomProviderURLProtocol.lastURL(for: requestIdentifier)?.absoluteString.contains("quote=CNY") == true)
+        #expect(CustomProviderURLProtocol.lastURL(for: requestIdentifier)?.absoluteString.contains("key=demo%20key") == true)
         #expect(result.snapshots.count == 1)
         #expect(result.snapshots.first?.source == .custom)
         #expect(result.snapshots.first?.rate == 6.91)
@@ -1161,18 +1162,19 @@ struct Currency_TrackerTests {
 
     @Test
     func customAPIProviderValidatorParsesSuccessfulTestResponse() async {
-        CustomProviderURLProtocol.lastURL = nil
+        let requestIdentifier = "custom-provider-validator.example"
+        CustomProviderURLProtocol.resetLastURL(for: requestIdentifier)
         let session = URLSession(configuration: .customProviderSessionConfiguration)
         let provider = CustomAPIProvider(
             name: "Workspace FX",
-            urlTemplate: "https://custom.example/latest?base={base}&quote={quote}&key={key}",
+            urlTemplate: "https://\(requestIdentifier)/latest?base={base}&quote={quote}&key={key}",
             apiKey: "demo key",
             ratePath: "data.0.rate"
         )
 
         let result = await CustomAPIProviderValidator.validate(provider: provider, session: session)
 
-        #expect(CustomProviderURLProtocol.lastURL?.absoluteString.contains("key=demo%20key") == true)
+        #expect(CustomProviderURLProtocol.lastURL(for: requestIdentifier)?.absoluteString.contains("key=demo%20key") == true)
         if case .success(let validationResult) = result {
             #expect(validationResult.rate == 6.91)
         } else {
@@ -1890,7 +1892,20 @@ private final class TwelveDataStatusCodeURLProtocol: URLProtocol {
 }
 
 private final class CustomProviderURLProtocol: URLProtocol {
-    nonisolated(unsafe) static var lastURL: URL?
+    private static let lock = NSLock()
+    private nonisolated(unsafe) static var lastURLsByIdentifier: [String: URL] = [:]
+
+    static func resetLastURL(for identifier: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        lastURLsByIdentifier[identifier] = nil
+    }
+
+    static func lastURL(for identifier: String) -> URL? {
+        lock.lock()
+        defer { lock.unlock() }
+        return lastURLsByIdentifier[identifier]
+    }
 
     override class func canInit(with request: URLRequest) -> Bool {
         true
@@ -1906,7 +1921,7 @@ private final class CustomProviderURLProtocol: URLProtocol {
             return
         }
 
-        Self.lastURL = url
+        Self.record(url)
         let response = HTTPURLResponse(
             url: url,
             statusCode: 200,
@@ -1929,6 +1944,13 @@ private final class CustomProviderURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+
+    private static func record(_ url: URL) {
+        let identifier = url.host ?? "default"
+        lock.lock()
+        defer { lock.unlock() }
+        lastURLsByIdentifier[identifier] = url
+    }
 }
 
 private extension URLSessionConfiguration {
