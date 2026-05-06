@@ -85,17 +85,15 @@ The app can check GitHub Releases from Settings. Update packages are downloaded,
 
 ## Current Release
 
-Version `1.5.6` includes:
+Version `1.5.7` includes:
 
-- Fixes the GitHub release build quitting immediately after launch on macOS.
-- Keeps the menu bar app resident when macOS sends status item visibility changes.
-- Preserves explicit Quit and in-app update relaunch flows.
-- Rebuilds the release zip from a clean app bundle with no local user data, logs, caches, or credentials.
-- Documents the first-launch approval flow for non-notarized GitHub downloads.
+- Reopens the settings window when clicking the Dock icon while Currency Tracker is already running.
+- Handles macOS reopen events without leaving the app feeling stuck when no menu bar window is visible.
+- Preserves explicit Quit and in-app update relaunch flows while keeping lifecycle handling centralized.
 
 ## Installation
 
-Download `Currency-Tracker-1.5.6.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder. The published SHA256 checksum is `af302623ebb274b62fa30e90235071482f2eb1ccfa1b03cc6acc671832585f7e`.
+Download `Currency-Tracker-1.5.7.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
 The app is distributed through GitHub Releases. It is ad-hoc signed for bundle integrity, but it is not signed with an Apple Developer ID and is not notarized by Apple. On first launch, macOS may block it. Open:
 

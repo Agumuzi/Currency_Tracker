@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.7 - 2026-05-06
+
+- Fixes app lifecycle handling so clicking the Dock icon reopens the settings window when the app is running but no menu bar window is visible.
+- Keeps the app responsive when macOS sends a reopen event, reducing the perceived "stuck" state if the menu bar item fails to appear.
+
 ## 1.5.6 - 2026-05-05
 
 - Fixes the GitHub release build quitting immediately after launch on macOS.

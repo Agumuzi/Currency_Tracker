@@ -1,23 +1,60 @@
 name: Release Build
 
 on:
+  workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   package:
-    name: Package unsigned app
+    name: Package and publish unsigned app
     runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Resolve release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          else
+            VERSION="$(awk -F= '/MARKETING_VERSION =/ { gsub(/[ ;]/, "", $2); print $2; exit }' "Currency Tracker.xcodeproj/project.pbxproj")"
+            TAG="v${VERSION}"
+          fi
+
+          if [[ -z "${VERSION}" || "${VERSION}" == "${TAG}" ]]; then
+            echo "Unable to resolve release version" >&2
+            exit 1
+          fi
+
+          SKIP_RELEASE=false
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF_TYPE}" != "tag" ]] && gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; skipping package on branch push."
+            SKIP_RELEASE=true
+          fi
+
+          {
+            echo "VERSION=${VERSION}"
+            echo "TAG=${TAG}"
+            echo "SKIP_RELEASE=${SKIP_RELEASE}"
+          } >> "${GITHUB_ENV}"
+
       - name: Check localizations
+        if: env.SKIP_RELEASE != 'true'
         run: python3 scripts/check-localizations.py
 
       - name: Archive
+        if: env.SKIP_RELEASE != 'true'
         run: |
           xcodebuild archive \
             -scheme "Currency Tracker" \
@@ -31,13 +68,46 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
 
       - name: Zip app
+        if: env.SKIP_RELEASE != 'true'
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p build/release
           COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "build/Currency Tracker.xcarchive/Products/Applications/Currency Tracker.app" "build/release/Currency-Tracker-${VERSION}.zip"
           shasum -a 256 "build/release/Currency-Tracker-${VERSION}.zip" > "build/release/Currency-Tracker-${VERSION}.zip.sha256"
 
+      - name: Write release notes
+        if: env.SKIP_RELEASE != 'true'
+        run: |
+          awk -v version="${VERSION}" '
+            $0 ~ "^## " version "([[:space:]]|-|$)" { in_section = 1; next }
+            in_section && /^## / { exit }
+            in_section { print }
+          ' CHANGELOG.md > build/release/release-notes.md
+
+          if ! grep -q '[^[:space:]]' build/release/release-notes.md; then
+            printf 'Currency Tracker %s\n' "${VERSION}" > build/release/release-notes.md
+          fi
+
+          {
+            printf '\nThis build is ad-hoc signed for bundle integrity, but it is not signed with an Apple Developer ID and is not notarized by Apple. On first launch, macOS may require approval in System Settings -> Privacy & Security -> Open Anyway.\n'
+            printf '\nSHA256:\n\n```text\n'
+            cat "build/release/Currency-Tracker-${VERSION}.zip.sha256"
+            printf '```\n'
+          } >> build/release/release-notes.md
+
+      - name: Publish GitHub release
+        if: env.SKIP_RELEASE != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --title "Currency Tracker ${VERSION}" --notes-file build/release/release-notes.md
+            gh release upload "${TAG}" "build/release/Currency-Tracker-${VERSION}.zip" "build/release/Currency-Tracker-${VERSION}.zip.sha256" --repo "${GITHUB_REPOSITORY}" --clobber
+          else
+            gh release create "${TAG}" "build/release/Currency-Tracker-${VERSION}.zip" "build/release/Currency-Tracker-${VERSION}.zip.sha256" --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" --title "Currency Tracker ${VERSION}" --notes-file build/release/release-notes.md
+          fi
+
       - name: Upload artifact
+        if: env.SKIP_RELEASE != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Currency-Tracker

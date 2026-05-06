@@ -10,7 +10,7 @@ import SwiftUI
 
 @main
 struct Currency_TrackerApp: App {
-    @NSApplicationDelegateAdaptor(ApplicationTerminationController.self) private var terminationController
+    @NSApplicationDelegateAdaptor(ApplicationLifecycleController.self) private var lifecycleController
 
     private let userDefaults: UserDefaults
     private let preferences: PreferencesStore
@@ -120,6 +120,9 @@ struct Currency_TrackerApp: App {
         _viewModel = State(initialValue: viewModel)
         NSApplication.shared.setActivationPolicy(isRunningUITests ? .regular : .accessory)
         ProcessInfo.processInfo.disableAutomaticTermination("Currency Tracker menu bar app remains active")
+        lifecycleController.configure { [weak settingsWindowController] in
+            settingsWindowController?.show()
+        }
         serviceActionHandler.register()
     }
 
@@ -208,13 +211,18 @@ struct Currency_TrackerApp: App {
 }
 
 @MainActor
-final class ApplicationTerminationController: NSObject, NSApplicationDelegate {
-    private static weak var current: ApplicationTerminationController?
+final class ApplicationLifecycleController: NSObject, NSApplicationDelegate {
+    private static weak var current: ApplicationLifecycleController?
+    private var reopenHandler: (() -> Void)?
     private var allowsTermination = false
 
     override init() {
         super.init()
         Self.current = self
+    }
+
+    func configure(reopenHandler: @escaping () -> Void) {
+        self.reopenHandler = reopenHandler
     }
 
     static func terminate(_ sender: Any? = nil) {
@@ -225,6 +233,11 @@ final class ApplicationTerminationController: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         allowsTermination ? .terminateNow : .terminateCancel
     }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        reopenHandler?()
+        return false
+    }
+
 }
 
 private final class EphemeralSecretStore: SecretStoring {
