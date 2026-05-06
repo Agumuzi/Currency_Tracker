@@ -86,7 +86,7 @@ The app can check GitHub Releases from Settings. Update packages are downloaded,
 
 ## Current Release
 
-Version `1.6` includes:
+Version `1.6.1` includes:
 
 - Adds Settings controls for showing or hiding the menu bar icon and pausing background activity.
 - Uses an AppKit status item for menu bar visibility so the app avoids launch hangs from dynamic SwiftUI menu bar scene changes.
@@ -96,7 +96,7 @@ Version `1.6` includes:
 
 ## Installation
 
-Download `Currency-Tracker-1.6.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
+Download `Currency-Tracker-1.6.1.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
 The app is distributed through GitHub Releases. It is ad-hoc signed for bundle integrity, but it is not signed with an Apple Developer ID and is not notarized by Apple. On first launch, macOS may block it. Open:
 
