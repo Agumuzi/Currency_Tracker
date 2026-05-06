@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Observation
 import SwiftUI
 
 @main
@@ -23,6 +24,7 @@ struct Currency_TrackerApp: App {
     private let serviceActionHandler: ServiceActionHandler
     private let globalShortcutHandler: GlobalShortcutHandler
     private let initialLaunchCoordinator: InitialLaunchCoordinator
+    private let statusItemController: StatusItemController
     private let isRunningUITests: Bool
     @State private var viewModel: ExchangePanelViewModel
 
@@ -106,6 +108,13 @@ struct Currency_TrackerApp: App {
             automaticUpdateCoordinator: automaticUpdateCoordinator,
             isRunningUITests: isRunningUITests
         )
+        let statusItemController = StatusItemController(
+            preferences: preferences,
+            viewModel: viewModel,
+            settingsWindowController: settingsWindowController,
+            panelWindowController: panelWindowController,
+            isRunningUITests: isRunningUITests
+        )
         self.isRunningUITests = isRunningUITests
         self.userDefaults = userDefaults
         self.preferences = preferences
@@ -118,6 +127,7 @@ struct Currency_TrackerApp: App {
         self.serviceActionHandler = serviceActionHandler
         self.globalShortcutHandler = globalShortcutHandler
         self.initialLaunchCoordinator = initialLaunchCoordinator
+        self.statusItemController = statusItemController
         _viewModel = State(initialValue: viewModel)
         NSApplication.shared.setActivationPolicy(isRunningUITests || !preferences.menuBarItemEnabled ? .regular : .accessory)
         ProcessInfo.processInfo.disableAutomaticTermination("Currency Tracker menu bar app remains active")
@@ -128,54 +138,15 @@ struct Currency_TrackerApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra(isInserted: Binding(
-            get: { preferences.menuBarItemEnabled },
-            set: { preferences.setMenuBarItemEnabled($0) }
-        )) {
-            ContentView(
-                viewModel: viewModel,
-                preferences: preferences,
-                settingsWindowController: settingsWindowController,
-                panelWindowController: panelWindowController,
-                autoBootstrap: !isRunningUITests,
-                presentationMode: .menuBar
-            )
-        } label: {
-            menuBarLabel
-                .help(viewModel.menuBarHelpText)
+        Settings {
+            EmptyView()
         }
-        .menuBarExtraStyle(.window)
-    }
-
-    @ViewBuilder
-    private var menuBarLabel: some View {
-        let featuredCard = viewModel.cards.first { $0.id == viewModel.featuredPairID } ?? viewModel.cards.first
-        switch preferences.menuBarDisplayMode {
-        case .iconOnly:
-            Image(systemName: "banknote.fill")
-                .font(.system(size: 15, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-        case .featuredRate:
-            if let featuredCard, featuredCard.snapshot != nil {
-                Text(featuredCard.valueText)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-            } else {
-                Image(systemName: "banknote.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-            }
-        case .compactPair:
-            if let featuredCard, featuredCard.snapshot != nil {
-                HStack(spacing: 4) {
-                    Image(systemName: "banknote.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text("\(featuredCard.compactPairLabel) \(featuredCard.valueText)")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings...") {
+                    settingsWindowController.show()
                 }
-            } else {
-                Image(systemName: "banknote.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
+                .keyboardShortcut(",", modifiers: .command)
             }
         }
     }
@@ -211,6 +182,141 @@ struct Currency_TrackerApp: App {
         }
 
         return LocalSecretStore(service: "com.thomas.currency-tracker")
+    }
+}
+
+@MainActor
+final class StatusItemController: NSObject {
+    private let preferences: PreferencesStore
+    private let viewModel: ExchangePanelViewModel
+    private let settingsWindowController: SettingsWindowController
+    private let panelWindowController: PanelWindowController
+    private let isRunningUITests: Bool
+    private var statusItem: NSStatusItem?
+    private var popover: NSPopover?
+
+    init(
+        preferences: PreferencesStore,
+        viewModel: ExchangePanelViewModel,
+        settingsWindowController: SettingsWindowController,
+        panelWindowController: PanelWindowController,
+        isRunningUITests: Bool
+    ) {
+        self.preferences = preferences
+        self.viewModel = viewModel
+        self.settingsWindowController = settingsWindowController
+        self.panelWindowController = panelWindowController
+        self.isRunningUITests = isRunningUITests
+        super.init()
+        applyState()
+        observeState()
+    }
+
+    private func observeState() {
+        withObservationTracking {
+            _ = preferences.menuBarItemEnabled
+            _ = preferences.menuBarDisplayMode
+            _ = viewModel.cards
+            _ = viewModel.featuredPairID
+            _ = viewModel.menuBarHelpText
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.applyState()
+                self?.observeState()
+            }
+        }
+    }
+
+    private func applyState() {
+        if preferences.menuBarItemEnabled {
+            ensureStatusItem()
+            updateButton()
+        } else {
+            popover?.performClose(nil)
+            popover = nil
+            if let statusItem {
+                NSStatusBar.system.removeStatusItem(statusItem)
+                self.statusItem = nil
+            }
+        }
+    }
+
+    private func ensureStatusItem() {
+        guard statusItem == nil else {
+            return
+        }
+
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.button?.target = self
+        item.button?.action = #selector(togglePopover(_:))
+        item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        statusItem = item
+    }
+
+    private func updateButton() {
+        guard let button = statusItem?.button else {
+            return
+        }
+
+        let featuredCard = viewModel.cards.first { $0.id == viewModel.featuredPairID } ?? viewModel.cards.first
+        let symbolImage = NSImage(systemSymbolName: "banknote.fill", accessibilityDescription: "Currency Tracker")
+        symbolImage?.isTemplate = true
+        button.toolTip = viewModel.menuBarHelpText
+
+        switch preferences.menuBarDisplayMode {
+        case .iconOnly:
+            statusItem?.length = NSStatusItem.squareLength
+            button.image = symbolImage
+            button.title = ""
+        case .featuredRate:
+            statusItem?.length = NSStatusItem.variableLength
+            if let featuredCard, featuredCard.snapshot != nil {
+                button.image = nil
+                button.title = featuredCard.valueText
+            } else {
+                button.image = symbolImage
+                button.title = ""
+            }
+        case .compactPair:
+            statusItem?.length = NSStatusItem.variableLength
+            if let featuredCard, featuredCard.snapshot != nil {
+                button.image = symbolImage
+                button.imagePosition = .imageLeading
+                button.title = " \(featuredCard.compactPairLabel) \(featuredCard.valueText)"
+            } else {
+                button.image = symbolImage
+                button.title = ""
+            }
+        }
+    }
+
+    @objc private func togglePopover(_ sender: NSStatusBarButton) {
+        guard preferences.menuBarItemEnabled else {
+            return
+        }
+
+        if let popover, popover.isShown {
+            popover.performClose(sender)
+            return
+        }
+
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = false
+        popover.contentSize = NSSize(width: 408, height: 620)
+        popover.contentViewController = NSHostingController(
+            rootView: ContentView(
+                viewModel: viewModel,
+                preferences: preferences,
+                settingsWindowController: settingsWindowController,
+                panelWindowController: panelWindowController,
+                autoBootstrap: !isRunningUITests,
+                presentationMode: .menuBar
+            )
+        )
+        self.popover = popover
+        popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKey()
     }
 }
 

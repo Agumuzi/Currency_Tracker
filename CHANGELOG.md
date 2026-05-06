@@ -3,6 +3,7 @@
 ## 1.6 - 2026-05-06
 
 - Adds Settings controls for showing or hiding the menu bar icon and for pausing background activity.
+- Replaces the dynamic SwiftUI menu bar scene with an AppKit status item to avoid launch hangs when the menu bar icon lifecycle changes.
 - Pauses scheduled refresh, automatic update checks, and global shortcut listening when background activity is disabled, while keeping manual refresh available.
 - Detects when an in-app update may require reviewing previously granted system permissions and opens the Permissions settings page after relaunch.
 - Signs the full app bundle ad-hoc before packaging so release zips have sealed resources and bound bundle metadata.

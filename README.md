@@ -89,6 +89,7 @@ The app can check GitHub Releases from Settings. Update packages are downloaded,
 Version `1.6` includes:
 
 - Adds Settings controls for showing or hiding the menu bar icon and pausing background activity.
+- Uses an AppKit status item for menu bar visibility so the app avoids launch hangs from dynamic SwiftUI menu bar scene changes.
 - Pauses scheduled refresh, automatic update checks, and global shortcut listening when background activity is disabled.
 - Opens the Permissions settings page after an in-app update if previously granted system permissions need review.
 - Signs the full app bundle ad-hoc before zipping so release assets have sealed resources and bound bundle metadata.
