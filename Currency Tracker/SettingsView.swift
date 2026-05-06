@@ -560,6 +560,30 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("菜单栏显示")
 
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("显示菜单栏图标")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    Text("关闭后应用会保留 Dock 图标，方便重新打开设置。")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { preferences.menuBarItemEnabled },
+                    set: { setMenuBarItemEnabled($0) }
+                ))
+                .toggleStyle(.switch)
+                .labelsHidden()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(sectionCardBackground)
+
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("选择菜单栏中显示的信息密度")
@@ -584,6 +608,8 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .disabled(!preferences.menuBarItemEnabled)
+            .opacity(preferences.menuBarItemEnabled ? 1 : 0.55)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
             .background(sectionCardBackground)
@@ -1456,6 +1482,30 @@ struct SettingsView: View {
 
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
+                    Text("允许后台活动")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    Text("关闭后会暂停定时刷新、自动检查更新和全局快捷键监听。手动刷新仍可使用。")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { preferences.backgroundActivityEnabled },
+                    set: { setBackgroundActivityEnabled($0) }
+                ))
+                .toggleStyle(.switch)
+                .labelsHidden()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(sectionCardBackground)
+
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("开机自动启动")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
 
@@ -1544,6 +1594,17 @@ struct SettingsView: View {
         return launchController.isEnabled
             ? String(localized: "已启用开机启动。")
             : String(localized: "未启用开机启动。")
+    }
+
+    private func setMenuBarItemEnabled(_ value: Bool) {
+        preferences.setMenuBarItemEnabled(value)
+        NSApplication.shared.setActivationPolicy(.regular)
+    }
+
+    private func setBackgroundActivityEnabled(_ value: Bool) {
+        preferences.setBackgroundActivityEnabled(value)
+        viewModel.refreshPolicyDidChange()
+        globalShortcutHandler.refreshRegistration()
     }
 
     private var updateStatusText: String {
@@ -2053,7 +2114,9 @@ struct SettingsView: View {
         - Converter currencies: \(converterCurrencies.isEmpty ? "none" : converterCurrencies)
         - Auto refresh: \(refreshIntervalTitle(for: preferences.autoRefreshMinutes))
         - Refresh on menu open: \(preferences.menuBarOpenRefreshEnabled)
+        - Menu bar item enabled: \(preferences.menuBarItemEnabled)
         - Menu bar display: \(preferences.menuBarDisplayMode.rawValue)
+        - Background activity: \(preferences.backgroundActivityEnabled)
         - Rate display base amount: \(preferences.rateDisplayBaseAmount)
         - Conversion fraction digits: \(preferences.conversionFractionDigits)
         - Profiles: \(preferences.settingsProfiles.count)

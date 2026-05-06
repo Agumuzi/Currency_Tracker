@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6 - 2026-05-06
+
+- Adds Settings controls for showing or hiding the menu bar icon and for pausing background activity.
+- Pauses scheduled refresh, automatic update checks, and global shortcut listening when background activity is disabled, while keeping manual refresh available.
+- Detects when an in-app update may require reviewing previously granted system permissions and opens the Permissions settings page after relaunch.
+- Signs the full app bundle ad-hoc before packaging so release zips have sealed resources and bound bundle metadata.
+
 ## 1.5.7 - 2026-05-06
 
 - Fixes app lifecycle handling so clicking the Dock icon reopens the settings window when the app is running but no menu bar window is visible.

@@ -321,3 +321,7 @@
 "在系统设置中为 Currency Tracker 添加语言覆盖，或调整首选语言顺序。" = "Add a language override for Currency Tracker in System Settings, or adjust your preferred language order.";
 "语言设置已打开" = "Language settings opened.";
 "无法打开语言设置" = "Could not open language settings.";
+"显示菜单栏图标" = "Show menu bar icon";
+"关闭后应用会保留 Dock 图标，方便重新打开设置。" = "When off, the app keeps its Dock icon visible so Settings can be reopened.";
+"允许后台活动" = "Allow background activity";
+"关闭后会暂停定时刷新、自动检查更新和全局快捷键监听。手动刷新仍可使用。" = "When off, scheduled refreshes, automatic update checks, and global shortcut listening are paused. Manual refresh still works.";

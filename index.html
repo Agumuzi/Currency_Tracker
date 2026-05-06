@@ -1245,7 +1245,7 @@
             <button class="language-option" type="button" role="menuitemradio" data-lang="pt-BR"><span class="flag flag-br" aria-hidden="true"></span><span>Português do Brasil</span></button>
           </div>
         </div>
-        <a class="nav-cta" href="https://github.com/Agumuzi/Currency-Tracker/releases/download/v1.5.7/Currency-Tracker-1.5.7.zip">Download</a>
+        <a class="nav-cta" href="https://github.com/Agumuzi/Currency-Tracker/releases/download/v1.6/Currency-Tracker-1.6.zip">Download</a>
       </div>
     </nav>
   </header>
@@ -1278,11 +1278,11 @@
       </div>
       <div class="hero-inner">
         <div class="hero-copy">
-          <p class="eyebrow">Current release v1.5.7</p>
+          <p class="eyebrow">Current release v1.6</p>
           <h1>Exchange rates that stay where your work happens.</h1>
           <p class="lede">Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.</p>
           <div class="actions">
-            <a class="button primary" href="https://github.com/Agumuzi/Currency-Tracker/releases/download/v1.5.7/Currency-Tracker-1.5.7.zip">Download for macOS</a>
+            <a class="button primary" href="https://github.com/Agumuzi/Currency-Tracker/releases/download/v1.6/Currency-Tracker-1.6.zip">Download for macOS</a>
             <a class="button" href="https://github.com/Agumuzi/Currency-Tracker">View source</a>
           </div>
           <ul class="meta-row" aria-label="Product facts">
@@ -1383,7 +1383,7 @@
           <p class="section-kicker">Settings</p>
           <h2>A control room instead of a crowded settings page.</h2>
         </div>
-        <p>Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, and launch behavior.</p>
+        <p>Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.</p>
       </div>
 
       <div class="surface-grid">
@@ -1402,7 +1402,7 @@
             <img src="assets/screenshots/settings-updates.png" alt="Software update settings.">
             <div>
               <h3>In-app update flow</h3>
-              <p>Check GitHub Releases, download packages, verify SHA256 checksums, and install after confirmation.</p>
+              <p>Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.</p>
             </div>
           </div>
           <div class="mini-shot">
@@ -1487,18 +1487,19 @@
       <div class="release-panel" data-reveal>
         <div>
           <p class="section-kicker">Release</p>
-          <h2>Version 1.5.7</h2>
-          <p>Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.</p>
+          <h2>Version 1.6</h2>
+          <p>Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.</p>
           <div class="actions">
-            <a class="button primary" href="https://github.com/Agumuzi/Currency-Tracker/releases/download/v1.5.7/Currency-Tracker-1.5.7.zip">Download v1.5.7</a>
-            <a class="button" href="https://github.com/Agumuzi/Currency-Tracker/releases/tag/v1.5.7">Release notes</a>
+            <a class="button primary" href="https://github.com/Agumuzi/Currency-Tracker/releases/download/v1.6/Currency-Tracker-1.6.zip">Download v1.6</a>
+            <a class="button" href="https://github.com/Agumuzi/Currency-Tracker/releases/tag/v1.6">Release notes</a>
           </div>
-          <p class="release-checksum">SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.</p>
+          <p class="release-checksum">SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.</p>
         </div>
         <ul class="release-list">
-          <li>Clicking the Dock icon now reopens Settings when Currency Tracker is already running.</li>
-          <li>macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.</li>
-          <li>Explicit Quit and in-app update relaunch still terminate intentionally.</li>
+          <li>Show or hide the menu bar icon from Settings while keeping Dock access available.</li>
+          <li>Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.</li>
+          <li>After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.</li>
+          <li>Release bundles are now sealed with a full ad-hoc app signature before zipping.</li>
         </ul>
       </div>
     </section>
@@ -1577,7 +1578,7 @@
         "Data sources": "数据源",
         "Privacy": "隐私",
         "Download": "下载",
-        "Current release v1.5.7": "当前版本 v1.5.7",
+        "Current release v1.6": "当前版本 v1.6",
         "Exchange rates that stay where your work happens.": "始终待在工作场景里的汇率工具。",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker 把 macOS 菜单栏变成专注的汇率工作区，支持实时汇率、趋势图、换算、提醒、配置档和数据源管理。",
         "Download for macOS": "下载 macOS 版本",
@@ -1643,9 +1644,9 @@
         "Unsigned distribution": "未签名分发",
         "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "构建版本通过 GitHub Releases 分发。由于应用没有经过 Apple 公证，macOS 可能会在首次启动时要求确认。",
         "Release": "发布",
-        "Version 1.5.7": "版本 1.5.7",
+        "Version 1.6": "版本 1.6",
         "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "优化菜单栏面板、原生滚动反馈、更新截图，并更清晰地说明推荐免费数据源。",
-        "Download v1.5.7": "下载 v1.5.7",
+        "Download v1.6": "下载 v1.6",
         "Release notes": "发布说明",
         "Global text-conversion shortcuts recover after Accessibility permission changes.": "菜单栏面板保持锚定在状态栏图标上。",
         "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "使用 macOS 原生覆盖滚动条替代自定义滚动标记。",
@@ -1660,7 +1661,7 @@
         "Data sources": "資料源",
         "Privacy": "隱私",
         "Download": "下載",
-        "Current release v1.5.7": "目前版本 v1.5.7",
+        "Current release v1.6": "目前版本 v1.6",
         "Exchange rates that stay where your work happens.": "始終留在工作場景裡的匯率工具。",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker 將 macOS 選單列變成專注的匯率工作區，支援即時匯率、趨勢圖、換算、提醒、設定檔與資料源管理。",
         "Download for macOS": "下載 macOS 版本",
@@ -1724,9 +1725,9 @@
         "Unsigned distribution": "未簽名發佈",
         "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "建置版本透過 GitHub Releases 發佈。由於應用程式未經 Apple 公證，macOS 可能會在首次啟動時要求確認。",
         "Release": "發佈",
-        "Version 1.5.7": "版本 1.5.7",
+        "Version 1.6": "版本 1.6",
         "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "優化選單列面板、原生捲動回饋、更新截圖，並更清楚說明推薦免費資料源。",
-        "Download v1.5.7": "下載 v1.5.7",
+        "Download v1.6": "下載 v1.6",
         "Release notes": "發佈說明",
         "Global text-conversion shortcuts recover after Accessibility permission changes.": "選單列面板保持錨定在狀態列圖示上。",
         "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "使用 macOS 原生覆蓋捲動條取代自訂捲動標記。",
@@ -1741,7 +1742,7 @@
         "Data sources": "Источники",
         "Privacy": "Приватность",
         "Download": "Скачать",
-        "Current release v1.5.7": "Текущая версия v1.5.7",
+        "Current release v1.6": "Текущая версия v1.6",
         "Exchange rates that stay where your work happens.": "Курсы валют там, где вы работаете.",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker превращает строку меню macOS в рабочее пространство для курсов валют с текущими значениями, графиками, конвертацией, уведомлениями, профилями и управлением поставщиками.",
         "Download for macOS": "Скачать для macOS",
@@ -1805,9 +1806,9 @@
         "Unsigned distribution": "Распространение без подписи",
         "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "Сборки распространяются через GitHub Releases. Так как приложение не нотариализовано Apple, macOS может запросить подтверждение при первом запуске.",
         "Release": "Релиз",
-        "Version 1.5.7": "Версия 1.5.7",
+        "Version 1.6": "Версия 1.6",
         "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "Доработанная панель меню, нативная прокрутка, обновленные скриншоты и понятная документация по рекомендуемым бесплатным источникам.",
-        "Download v1.5.7": "Скачать v1.5.7",
+        "Download v1.6": "Скачать v1.6",
         "Release notes": "Заметки релиза",
         "Global text-conversion shortcuts recover after Accessibility permission changes.": "Панель меню остается привязанной к значку в строке меню.",
         "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "Нативный overlay-скроллер macOS заменяет пользовательский индикатор прокрутки.",
@@ -1822,7 +1823,7 @@
         "Data sources": "データソース",
         "Privacy": "プライバシー",
         "Download": "ダウンロード",
-        "Current release v1.5.7": "最新リリース v1.5.7",
+        "Current release v1.6": "最新リリース v1.6",
         "Exchange rates that stay where your work happens.": "作業場所に常駐する為替レート。",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker は macOS メニューバーを、リアルタイムレート、チャート、換算、アラート、プロファイル、プロバイダー管理を備えた為替ワークスペースにします。",
         "Download for macOS": "macOS 版をダウンロード",
@@ -1886,9 +1887,9 @@
         "Unsigned distribution": "未署名配布",
         "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "ビルドは GitHub Releases で配布されます。Apple 公証済みではないため、macOS が初回起動時に承認を求める場合があります。",
         "Release": "リリース",
-        "Version 1.5.7": "バージョン 1.5.7",
+        "Version 1.6": "バージョン 1.6",
         "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "メニューパネルの改善、ネイティブスクロール表示、更新されたスクリーンショット、推奨無料データソースの明確な説明を含みます。",
-        "Download v1.5.7": "v1.5.7 をダウンロード",
+        "Download v1.6": "v1.6 をダウンロード",
         "Release notes": "リリースノート",
         "Global text-conversion shortcuts recover after Accessibility permission changes.": "メニューバーパネルはステータス項目に固定されます。",
         "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "カスタムスクロールマーカーを macOS ネイティブのオーバーレイスクロールバーに置き換えました。",
@@ -1903,7 +1904,7 @@
         "Data sources": "데이터 소스",
         "Privacy": "개인정보",
         "Download": "다운로드",
-        "Current release v1.5.7": "현재 릴리스 v1.5.7",
+        "Current release v1.6": "현재 릴리스 v1.6",
         "Exchange rates that stay where your work happens.": "작업 공간에 머무는 환율 도구.",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker는 macOS 메뉴 막대를 실시간 환율, 추세 차트, 환산, 알림, 프로필, 공급자 관리가 있는 환율 작업 공간으로 바꿉니다.",
         "Download for macOS": "macOS용 다운로드",
@@ -1967,9 +1968,9 @@
         "Unsigned distribution": "서명되지 않은 배포",
         "Builds are distributed through GitHub Releases. Because the app is not Apple-notarized, macOS may ask for first-launch approval.": "빌드는 GitHub Releases를 통해 배포됩니다. Apple 공증을 받지 않았기 때문에 macOS가 첫 실행 승인을 요청할 수 있습니다.",
         "Release": "릴리스",
-        "Version 1.5.7": "버전 1.5.7",
+        "Version 1.6": "버전 1.6",
         "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "메뉴 패널 개선, 네이티브 스크롤 피드백, 최신 스크린샷, 추천 무료 데이터 소스 설명을 포함합니다.",
-        "Download v1.5.7": "v1.5.7 다운로드",
+        "Download v1.6": "v1.6 다운로드",
         "Release notes": "릴리스 노트",
         "Global text-conversion shortcuts recover after Accessibility permission changes.": "메뉴 막대 패널이 상태 항목에 고정됩니다.",
         "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "사용자 스크롤 표시 대신 macOS 네이티브 오버레이 스크롤러를 사용합니다.",
@@ -1987,7 +1988,7 @@
         "Data sources": "Datenquellen",
         "Privacy": "Datenschutz",
         "Download": "Download",
-        "Current release v1.5.7": "Aktuelle Version v1.5.7",
+        "Current release v1.6": "Aktuelle Version v1.6",
         "Exchange rates that stay where your work happens.": "Wechselkurse dort, wo Sie arbeiten.",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker macht die macOS-Menüleiste zu einem fokussierten Arbeitsbereich für Wechselkurse mit Live-Kursen, Diagrammen, Umrechnung, Warnungen, Profilen und Anbietersteuerung.",
         "Download for macOS": "Für macOS laden",
@@ -2005,8 +2006,8 @@
         "Small enough for the menu bar. Complete enough for real work.": "Klein genug für die Menüleiste. Vollständig genug für echte Arbeit.",
         "Works out of the box, improves with your own keys.": "Sofort nutzbar, besser mit eigenen Schlüsseln.",
         "Transparent behavior for an open-source Mac utility.": "Transparentes Verhalten für ein Open-Source-Mac-Werkzeug.",
-        "Version 1.5.7": "Version 1.5.7",
-        "Download v1.5.7": "v1.5.7 laden",
+        "Version 1.6": "Version 1.6",
+        "Download v1.6": "v1.6 laden",
         "Release notes": "Versionshinweise"
       },
       fr: {
@@ -2015,7 +2016,7 @@
         "Data sources": "Sources",
         "Privacy": "Confidentialité",
         "Download": "Télécharger",
-        "Current release v1.5.7": "Version actuelle v1.5.7",
+        "Current release v1.6": "Version actuelle v1.6",
         "Exchange rates that stay where your work happens.": "Les taux de change restent là où vous travaillez.",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker transforme la barre des menus macOS en espace de travail pour les taux de change avec cours en direct, graphiques, conversion, alertes, profils et contrôle des fournisseurs.",
         "Download for macOS": "Télécharger pour macOS",
@@ -2033,8 +2034,8 @@
         "Small enough for the menu bar. Complete enough for real work.": "Assez petite pour la barre des menus. Assez complète pour le vrai travail.",
         "Works out of the box, improves with your own keys.": "Utilisable immédiatement, meilleure avec vos propres clés.",
         "Transparent behavior for an open-source Mac utility.": "Un comportement transparent pour un utilitaire Mac open source.",
-        "Version 1.5.7": "Version 1.5.7",
-        "Download v1.5.7": "Télécharger v1.5.7",
+        "Version 1.6": "Version 1.6",
+        "Download v1.6": "Télécharger v1.6",
         "Release notes": "Notes de version"
       },
       es: {
@@ -2043,7 +2044,7 @@
         "Data sources": "Fuentes",
         "Privacy": "Privacidad",
         "Download": "Descargar",
-        "Current release v1.5.7": "Versión actual v1.5.7",
+        "Current release v1.6": "Versión actual v1.6",
         "Exchange rates that stay where your work happens.": "Tipos de cambio donde ocurre tu trabajo.",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker convierte la barra de menús de macOS en un espacio de trabajo para tipos de cambio con valores en vivo, gráficos, conversión, alertas, perfiles y control de proveedores.",
         "Download for macOS": "Descargar para macOS",
@@ -2061,8 +2062,8 @@
         "Small enough for the menu bar. Complete enough for real work.": "Lo bastante pequeña para la barra de menús. Lo bastante completa para trabajar.",
         "Works out of the box, improves with your own keys.": "Funciona al instante y mejora con tus propias claves.",
         "Transparent behavior for an open-source Mac utility.": "Comportamiento transparente para una utilidad Mac de código abierto.",
-        "Version 1.5.7": "Versión 1.5.7",
-        "Download v1.5.7": "Descargar v1.5.7",
+        "Version 1.6": "Versión 1.6",
+        "Download v1.6": "Descargar v1.6",
         "Release notes": "Notas de version"
       },
       it: {
@@ -2071,7 +2072,7 @@
         "Data sources": "Fonti dati",
         "Privacy": "Privacy",
         "Download": "Scarica",
-        "Current release v1.5.7": "Versione attuale v1.5.7",
+        "Current release v1.6": "Versione attuale v1.6",
         "Exchange rates that stay where your work happens.": "Tassi di cambio dove lavori.",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker trasforma la barra dei menu di macOS in uno spazio per i tassi di cambio con valori live, grafici, conversione, avvisi, profili e gestione dei provider.",
         "Download for macOS": "Scarica per macOS",
@@ -2089,8 +2090,8 @@
         "Small enough for the menu bar. Complete enough for real work.": "Abbastanza piccola per la barra dei menu. Abbastanza completa per lavorare davvero.",
         "Works out of the box, improves with your own keys.": "Funziona subito e migliora con le tue chiavi.",
         "Transparent behavior for an open-source Mac utility.": "Comportamento trasparente per un'utilità Mac open source.",
-        "Version 1.5.7": "Versione 1.5.7",
-        "Download v1.5.7": "Scarica v1.5.7",
+        "Version 1.6": "Versione 1.6",
+        "Download v1.6": "Scarica v1.6",
         "Release notes": "Note di rilascio"
       },
       "pt-BR": {
@@ -2099,7 +2100,7 @@
         "Data sources": "Fontes",
         "Privacy": "Privacidade",
         "Download": "Baixar",
-        "Current release v1.5.7": "Versão atual v1.5.7",
+        "Current release v1.6": "Versão atual v1.6",
         "Exchange rates that stay where your work happens.": "Cotações no lugar onde você trabalha.",
         "Currency Tracker turns the macOS menu bar into a focused exchange-rate workspace with live rates, trend charts, conversion, alerts, profiles, and provider controls.": "Currency Tracker transforma a barra de menus do macOS em um espaço de trabalho para câmbio com cotações ao vivo, gráficos, conversão, alertas, perfis e controle de provedores.",
         "Download for macOS": "Baixar para macOS",
@@ -2117,8 +2118,8 @@
         "Small enough for the menu bar. Complete enough for real work.": "Pequeno o bastante para a barra de menus. Completo o bastante para trabalho real.",
         "Works out of the box, improves with your own keys.": "Funciona de imediato e melhora com suas próprias chaves.",
         "Transparent behavior for an open-source Mac utility.": "Comportamento transparente para um utilitário Mac open source.",
-        "Version 1.5.7": "Versão 1.5.7",
-        "Download v1.5.7": "Baixar v1.5.7",
+        "Version 1.6": "Versão 1.6",
+        "Download v1.6": "Baixar v1.6",
         "Release notes": "Notas da versão"
       }
     };
@@ -2433,93 +2434,6 @@
       });
     });
 
-    const releaseTranslations = {
-      "zh-Hans": {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "修复快捷键可靠性，换算输入支持计算，复制回退更稳，并校正更新仓库链接。",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "全局文本换算快捷键会在辅助功能权限变更后恢复工作。",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "新增基于辅助功能的全局按键监听，作为 Carbon 快捷键注册的备用路径。",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "选中文本复制回退会等待响应较慢的应用，并恢复原有剪贴板内容。",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "换算输入框现在可计算 100+20、100 - 25=、12*3、10/4 和 (2+3)*4 等基础表达式。",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "应用内更新检查现在指向公开的 Agumuzi/Currency-Tracker 仓库。"
-      },
-      "zh-Hant": {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "修復快捷鍵可靠性，換算輸入支援計算，複製回退更穩，並校正更新倉庫連結。",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "全域文字換算快捷鍵會在輔助功能權限變更後恢復運作。",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "新增基於輔助功能的全域按鍵監聽，作為 Carbon 快捷鍵註冊的備用路徑。",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "選取文字複製回退會等待反應較慢的應用程式，並恢復原有剪貼簿內容。",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "換算輸入框現在可計算 100+20、100 - 25=、12*3、10/4 和 (2+3)*4 等基礎表達式。",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "應用程式內更新檢查現在指向公開的 Agumuzi/Currency-Tracker 倉庫。"
-      },
-      ru: {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "Исправлена надежность сочетаний клавиш, добавлены вычисления в конвертере, улучшен резервный способ копирования и исправлены ссылки на репозиторий обновлений.",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "Глобальные сочетания для конвертации текста восстанавливаются после изменений разрешения Accessibility.",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "Глобальный монитор клавиш через Accessibility теперь страхует регистрацию Carbon hot key.",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "Резервное копирование выделенного текста ждет более медленные приложения и восстанавливает прежнее содержимое буфера обмена.",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "Поля конвертера теперь считают выражения вроде 100+20, 100 - 25=, 12*3, 10/4 и (2+3)*4.",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "Проверка обновлений в приложении теперь использует публичный репозиторий Agumuzi/Currency-Tracker."
-      },
-      ja: {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "ショートカットの信頼性修正、計算対応の換算入力、より安全なコピー代替処理、更新リポジトリリンクの修正を含みます。",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "アクセシビリティ権限の変更後も、グローバルテキスト換算ショートカットが復帰します。",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "Accessibility ベースのグローバルキーモニターが Carbon ホットキー登録を補助します。",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "選択テキストのコピー代替処理は遅いアプリを待ち、以前のクリップボード内容を復元します。",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "換算入力は 100+20、100 - 25=、12*3、10/4、(2+3)*4 などの基本計算を評価します。",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "アプリ内更新チェックは公開リポジトリ Agumuzi/Currency-Tracker を参照します。"
-      },
-      ko: {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "단축키 안정성 수정, 계산 가능한 환산 입력, 더 안전한 복사 대체 처리, 업데이트 저장소 링크 수정을 포함합니다.",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "손쉬운 사용 권한이 변경된 뒤에도 전역 텍스트 환산 단축키가 복구됩니다.",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "손쉬운 사용 기반 전역 키 모니터가 Carbon 핫키 등록을 보조합니다.",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "선택 텍스트 복사 대체 처리는 느린 앱을 기다리고 이전 클립보드 내용을 복원합니다.",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "환산 입력은 100+20, 100 - 25=, 12*3, 10/4, (2+3)*4 같은 기본 계산을 처리합니다.",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "앱 내 업데이트 확인은 이제 공개 Agumuzi/Currency-Tracker 저장소를 대상으로 합니다."
-      },
-      de: {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "Zuverlässigere Tastenkürzel, rechnende Konverterfelder, sichererer Kopier-Fallback und korrigierte Update-Repository-Links.",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "Globale Textumrechnungs-Kürzel erholen sich nach Änderungen der Bedienungshilfen-Berechtigung.",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "Ein globaler Tastaturmonitor über Bedienungshilfen sichert die Carbon-Hotkey-Registrierung ab.",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "Der Kopier-Fallback für markierten Text wartet auf langsamere Apps und stellt die vorherige Zwischenablage wieder her.",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "Konverterfelder berechnen jetzt einfache Ausdrücke wie 100+20, 100 - 25=, 12*3, 10/4 und (2+3)*4.",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "Update-Prüfungen in der App nutzen jetzt das öffentliche Repository Agumuzi/Currency-Tracker."
-      },
-      fr: {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "Fiabilité des raccourcis corrigée, champs de conversion avec calcul, copie de secours plus sûre et liens de dépôt de mise à jour corrigés.",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "Les raccourcis globaux de conversion de texte se rétablissent après les changements d'autorisation Accessibilité.",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "Un moniteur global de touches via Accessibilité complète l'enregistrement Carbon des raccourcis.",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "La copie de secours du texte sélectionné attend les apps plus lentes et restaure le contenu précédent du presse-papiers.",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "Les champs de conversion évaluent maintenant 100+20, 100 - 25=, 12*3, 10/4 et (2+3)*4.",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "La recherche de mises à jour intégrée cible maintenant le dépôt public Agumuzi/Currency-Tracker."
-      },
-      es: {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "Correcciones de fiabilidad de atajos, entradas de conversor con cálculo, copia alternativa más segura y enlaces de repositorio de actualización corregidos.",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "Los atajos globales de conversión de texto se recuperan tras cambios en el permiso de Accesibilidad.",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "Un monitor global de teclas basado en Accesibilidad respalda el registro de hot keys de Carbon.",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "La copia alternativa de texto seleccionado espera a apps más lentas y restaura el contenido anterior del portapapeles.",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "Las entradas del conversor evalúan cálculos básicos como 100+20, 100 - 25=, 12*3, 10/4 y (2+3)*4.",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "La comprobación de actualizaciones integrada ahora apunta al repositorio público Agumuzi/Currency-Tracker."
-      },
-      it: {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "Correzioni all'affidabilità delle scorciatoie, campi convertitore con calcolo, copia di fallback più sicura e link del repository aggiornamenti corretti.",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "Le scorciatoie globali di conversione testo si ripristinano dopo modifiche ai permessi Accessibilità.",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "Un monitor globale dei tasti basato su Accessibilità affianca la registrazione hot key Carbon.",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "La copia di fallback del testo selezionato attende le app più lente e ripristina il contenuto precedente degli appunti.",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "I campi del convertitore valutano calcoli base come 100+20, 100 - 25=, 12*3, 10/4 e (2+3)*4.",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "Il controllo aggiornamenti integrato ora usa il repository pubblico Agumuzi/Currency-Tracker."
-      },
-      "pt-BR": {
-        "Shortcut reliability fixes, calculation-aware converter inputs, safer copy fallback, and corrected update repository links.": "Correções de confiabilidade dos atalhos, entradas do conversor com cálculo, fallback de cópia mais seguro e links do repositório de atualização corrigidos.",
-        "Global text-conversion shortcuts recover after Accessibility permission changes.": "Os atalhos globais de conversão de texto se recuperam após mudanças na permissão de Acessibilidade.",
-        "An Accessibility-backed global key monitor now backs up Carbon hot key registration.": "Um monitor global de teclas baseado em Acessibilidade agora reforça o registro de hot keys do Carbon.",
-        "Selected-text copy fallback waits for slower apps and restores the previous clipboard contents.": "O fallback de cópia do texto selecionado aguarda apps mais lentos e restaura o conteúdo anterior da área de transferência.",
-        "Converter inputs now evaluate basic calculations such as 100+20, 100 - 25=, 12*3, 10/4, and (2+3)*4.": "As entradas do conversor agora calculam expressões básicas como 100+20, 100 - 25=, 12*3, 10/4 e (2+3)*4.",
-        "In-app update checks now target the public Agumuzi/Currency-Tracker repository.": "A verificação de atualizações no app agora usa o repositório público Agumuzi/Currency-Tracker."
-      }
-    };
-
-    Object.entries(releaseTranslations).forEach(([language, entries]) => {
-      Object.assign(textTranslations[language], entries);
-    });
-
     const release156Translations = {
       "zh-Hans": {
         "Non-notarized distribution": "未公证分发",
@@ -2627,70 +2541,110 @@
       Object.assign(textTranslations[language], entries);
     });
 
-    const release157Translations = {
+    const release16Translations = {
       "zh-Hans": {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "改进 Dock 图标重新打开处理、应用生命周期响应，并在菜单栏界面不可见时更顺畅地回到设置。",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "SHA256 校验和已作为 Currency-Tracker-1.5.7.zip.sha256 发布在 release 资产中。",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "当 Currency Tracker 已在运行时，点击 Dock 图标现在会重新打开设置窗口。",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "即使没有可见的菜单栏窗口，macOS 重新打开事件也会被处理，不再让应用看起来卡住。"
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "设置被拆分到清晰的边栏目录中，包括汇率、数据源、更新、配置档、提醒、语言、权限、诊断、菜单栏显示、后台活动和启动行为。",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "检查 GitHub Releases、下载安装包、验证 SHA256 校验和、确认后安装，并在需要时重启后复查 macOS 权限。",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "菜单栏显示、后台活动控制、更新后权限复查，以及完整 ad-hoc 签名的发布包。",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "SHA256 校验和已作为 Currency-Tracker-1.6.zip.sha256 发布在 release 资产中。",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "可在设置中显示或隐藏菜单栏图标，同时保留 Dock 入口。",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "后台活动开关现在可以暂停定时刷新、自动检查更新和全局快捷键监听。",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "应用内更新后，如果之前授予的系统权限需要复查，Currency Tracker 会打开权限页面。",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "发布包现在会在压缩前使用完整的 app 级 ad-hoc 签名封装。"
       },
       "zh-Hant": {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "改進 Dock 圖示重新開啟處理、應用程式生命週期回應，並在選單列介面不可見時更順暢地回到設定。",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "SHA256 校驗和已作為 Currency-Tracker-1.5.7.zip.sha256 發佈在 release 資產中。",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "當 Currency Tracker 已在執行時，點擊 Dock 圖示現在會重新開啟設定視窗。",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "即使沒有可見的選單列視窗，macOS 重新開啟事件也會被處理，不再讓應用程式看起來卡住。"
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "設定被拆分到清楚的側邊欄目錄中，包括匯率、資料源、更新、設定檔、提醒、語言、權限、診斷、選單列顯示、背景活動與啟動行為。",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "檢查 GitHub Releases、下載安裝包、驗證 SHA256 校驗和、確認後安裝，並在需要時於重新啟動後複查 macOS 權限。",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "選單列顯示、背景活動控制、更新後權限複查，以及完整 ad-hoc 簽名的發佈包。",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "SHA256 校驗和已作為 Currency-Tracker-1.6.zip.sha256 發佈在 release 資產中。",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "可在設定中顯示或隱藏選單列圖示，同時保留 Dock 入口。",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "背景活動開關現在可以暫停定時刷新、自動檢查更新和全域快捷鍵監聽。",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "應用程式內更新後，如果先前授予的系統權限需要複查，Currency Tracker 會打開權限頁面。",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "發佈包現在會在壓縮前使用完整的 app 級 ad-hoc 簽名封裝。"
       },
       ru: {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "Обработка повторного открытия через Dock, отзывчивое поведение жизненного цикла и более понятный возврат к настройкам, когда интерфейс строки меню недоступен.",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "Контрольная сумма SHA256 опубликована в assets релиза как Currency-Tracker-1.5.7.zip.sha256.",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "Если Currency Tracker уже запущен, нажатие на значок Dock теперь снова открывает настройки.",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "События повторного открытия macOS обрабатываются даже без видимого окна строки меню, поэтому приложение не выглядит зависшим."
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "Настройки разделены на разделы для курсов, источников данных, обновлений, профилей, уведомлений, языка, разрешений, диагностики, видимости строки меню, фоновой активности и запуска.",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "Проверяйте GitHub Releases, скачивайте пакеты, сверяйте SHA256, устанавливайте после подтверждения и при необходимости проверяйте разрешения macOS после перезапуска.",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "Видимость строки меню, управление фоновой активностью, проверка разрешений после обновления и полностью ad-hoc подписанные релизные пакеты.",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "Контрольная сумма SHA256 опубликована в assets релиза как Currency-Tracker-1.6.zip.sha256.",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "Показывайте или скрывайте значок строки меню в настройках, сохраняя доступ через Dock.",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "Фоновая активность теперь может приостанавливать плановые обновления, автопроверку обновлений и глобальные горячие клавиши.",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "После обновления из приложения Currency Tracker открывает страницу разрешений, если ранее выданные системные разрешения требуют проверки.",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "Релизные пакеты теперь перед архивированием запечатываются полной ad-hoc подписью приложения."
       },
       ja: {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "Dock アイコンからの再表示処理、応答性の高いライフサイクル制御、メニューバー UI が使えない時に設定へ戻る導線を改善しました。",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "SHA256 チェックサムは release アセットの Currency-Tracker-1.5.7.zip.sha256 として公開されています。",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "Currency Tracker がすでに起動している時に Dock アイコンをクリックすると、設定が再び開きます。",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "メニューバーウィンドウが見えない場合でも macOS の再オープンイベントを処理し、アプリが止まったように見えないようにしました。"
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "設定はレート、データソース、更新、プロファイル、アラート、言語、権限、診断、メニューバー表示、バックグラウンド活動、起動動作のサイドバー項目に分かれています。",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "GitHub Releases を確認し、パッケージをダウンロードし、SHA256 を検証してからインストールし、必要に応じて再起動後に macOS 権限を確認します。",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "メニューバー表示、バックグラウンド活動の制御、更新後の権限確認、完全な ad-hoc 署名付きリリースバンドル。",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "SHA256 チェックサムは release アセットの Currency-Tracker-1.6.zip.sha256 として公開されています。",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "設定からメニューバーアイコンの表示/非表示を切り替え、Dock からのアクセスは維持できます。",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "バックグラウンド活動をオフにすると、定期更新、自動アップデート確認、グローバルショートカット監視を一時停止できます。",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "アプリ内更新後、以前許可されたシステム権限の確認が必要な場合は権限ページを開きます。",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "リリースバンドルは zip 化前に完全なアプリ単位の ad-hoc 署名で封印されます。"
       },
       ko: {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "Dock 아이콘 재열기 처리, 더 반응성 있는 앱 생명 주기 동작, 메뉴 막대 UI가 보이지 않을 때 설정으로 돌아가는 흐름을 개선했습니다.",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "SHA256 체크섬은 릴리스 자산의 Currency-Tracker-1.5.7.zip.sha256 파일로 게시됩니다.",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "Currency Tracker가 이미 실행 중일 때 Dock 아이콘을 클릭하면 이제 설정이 다시 열립니다.",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "메뉴 막대 창이 보이지 않아도 macOS 재열기 이벤트를 처리해 앱이 멈춘 것처럼 보이지 않습니다."
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "설정은 환율, 데이터 소스, 업데이트, 프로필, 알림, 언어, 권한, 진단, 메뉴 막대 표시, 백그라운드 활동, 실행 동작 섹션으로 나뉩니다.",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "GitHub Releases를 확인하고, 패키지를 다운로드하고, SHA256을 검증한 뒤 확인 후 설치하며, 필요한 경우 재실행 후 macOS 권한을 검토합니다.",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "메뉴 막대 표시, 백그라운드 활동 제어, 업데이트 후 권한 검토, 완전한 ad-hoc 서명 릴리스 번들.",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "SHA256 체크섬은 릴리스 자산의 Currency-Tracker-1.6.zip.sha256 파일로 게시됩니다.",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "설정에서 메뉴 막대 아이콘을 표시하거나 숨기면서 Dock 접근은 유지할 수 있습니다.",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "백그라운드 활동은 예약 새로고침, 자동 업데이트 확인, 전역 단축키 감지를 일시 중지할 수 있습니다.",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "앱 내 업데이트 후 이전에 허용한 시스템 권한 검토가 필요하면 권한 페이지를 엽니다.",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "릴리스 번들은 압축 전에 전체 앱 수준 ad-hoc 서명으로 봉인됩니다."
       },
       de: {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "Besseres Wiederöffnen über das Dock, reaktionssicheres App-Lifecycle-Verhalten und ein klarerer Weg zurück zu den Einstellungen, wenn die Menüleisten-UI nicht sichtbar ist.",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "Die SHA256-Prüfsumme wird als Currency-Tracker-1.5.7.zip.sha256 in den Release-Assets veröffentlicht.",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "Wenn Currency Tracker bereits läuft, öffnet ein Klick auf das Dock-Symbol jetzt wieder die Einstellungen.",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "macOS-Wiederöffnungsereignisse werden verarbeitet, auch wenn kein Menüleistenfenster sichtbar ist, sodass die App nicht hängen geblieben wirkt."
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "Einstellungen sind in Bereiche für Kurse, Datenquellen, Updates, Profile, Warnungen, Sprache, Berechtigungen, Diagnose, Menüleistensichtbarkeit, Hintergrundaktivität und Startverhalten aufgeteilt.",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "Prüfen Sie GitHub Releases, laden Sie Pakete, verifizieren Sie SHA256, installieren Sie nach Bestätigung und prüfen Sie macOS-Berechtigungen nach dem Neustart bei Bedarf.",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "Menüleistensichtbarkeit, Hintergrundaktivitätssteuerung, Berechtigungsprüfung nach Updates und vollständig ad-hoc-signierte Release-Bundles.",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "Die SHA256-Prüfsumme wird als Currency-Tracker-1.6.zip.sha256 in den Release-Assets veröffentlicht.",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "Blenden Sie das Menüleistensymbol in den Einstellungen ein oder aus, während der Dock-Zugriff erhalten bleibt.",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "Hintergrundaktivität kann geplante Aktualisierungen, automatische Update-Prüfungen und globale Tastenkürzel pausieren.",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "Nach In-App-Updates öffnet Currency Tracker die Berechtigungsseite, wenn zuvor gewährte Systemberechtigungen geprüft werden müssen.",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "Release-Bundles werden vor dem Zippen mit einer vollständigen ad-hoc App-Signatur versiegelt."
       },
       fr: {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "Réouverture depuis l'icône du Dock, cycle de vie plus réactif et retour plus clair vers les réglages quand l'interface de barre des menus est indisponible.",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "La somme SHA256 est publiée dans les assets de release sous le nom Currency-Tracker-1.5.7.zip.sha256.",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "Quand Currency Tracker est déjà lancé, cliquer sur l'icône du Dock rouvre maintenant les réglages.",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "Les événements de réouverture macOS sont traités même sans fenêtre de barre des menus visible, afin que l'app ne semble pas bloquée."
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "Les réglages sont divisés en sections pour les taux, sources, mises à jour, profils, alertes, langue, autorisations, diagnostics, visibilité de la barre des menus, activité en arrière-plan et lancement.",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "Vérifiez GitHub Releases, téléchargez les paquets, contrôlez SHA256, installez après confirmation et vérifiez les autorisations macOS après relance si nécessaire.",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "Visibilité de la barre des menus, contrôle d'activité en arrière-plan, vérification des autorisations après mise à jour et bundles de release entièrement signés ad-hoc.",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "La somme SHA256 est publiée dans les assets de release sous le nom Currency-Tracker-1.6.zip.sha256.",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "Affichez ou masquez l'icône de barre des menus depuis les réglages tout en gardant l'accès via le Dock.",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "L'activité en arrière-plan peut maintenant suspendre les actualisations planifiées, les recherches automatiques et l'écoute du raccourci global.",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "Après une mise à jour intégrée, Currency Tracker ouvre la page Autorisations si des autorisations système déjà accordées doivent être vérifiées.",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "Les bundles de release sont maintenant scellés avec une signature ad-hoc complète avant compression."
       },
       es: {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "Mejor reapertura desde el icono del Dock, ciclo de vida más ágil y una ruta más clara a Ajustes cuando la interfaz de la barra de menús no está disponible.",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "La suma SHA256 se publica como Currency-Tracker-1.5.7.zip.sha256 en los assets del release.",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "Si Currency Tracker ya está en ejecución, hacer clic en el icono del Dock ahora vuelve a abrir Ajustes.",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "Los eventos de reapertura de macOS se gestionan aunque no haya una ventana visible de la barra de menús, para que la app no parezca bloqueada."
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "Los ajustes se dividen en secciones para tipos, fuentes, actualizaciones, perfiles, alertas, idioma, permisos, diagnóstico, visibilidad de la barra de menús, actividad en segundo plano e inicio.",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "Consulta GitHub Releases, descarga paquetes, verifica SHA256, instala tras confirmar y revisa permisos de macOS tras reiniciar cuando sea necesario.",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "Visibilidad de barra de menús, controles de actividad en segundo plano, revisión de permisos tras actualizar y paquetes de release totalmente firmados ad-hoc.",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "La suma SHA256 se publica como Currency-Tracker-1.6.zip.sha256 en los assets del release.",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "Muestra u oculta el icono de la barra de menús desde Ajustes manteniendo el acceso por Dock.",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "La actividad en segundo plano puede pausar actualizaciones programadas, comprobaciones automáticas y el atajo global.",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "Tras actualizar desde la app, Currency Tracker abre Permisos si los permisos del sistema ya concedidos necesitan revisión.",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "Los paquetes de release ahora se sellan con una firma ad-hoc completa antes de comprimirse."
       },
       it: {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "Riapertura dal Dock migliorata, ciclo di vita dell'app più reattivo e percorso più chiaro verso le impostazioni quando l'interfaccia della barra dei menu non è disponibile.",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "Il checksum SHA256 è pubblicato negli asset della release come Currency-Tracker-1.5.7.zip.sha256.",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "Quando Currency Tracker è già in esecuzione, un clic sull'icona del Dock ora riapre le impostazioni.",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "Gli eventi di riapertura di macOS vengono gestiti anche senza finestre visibili della barra dei menu, così l'app non sembra bloccata."
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "Le impostazioni sono divise in sezioni per tassi, fonti dati, aggiornamenti, profili, avvisi, lingua, permessi, diagnostica, visibilità barra menu, attività in background e avvio.",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "Controlla GitHub Releases, scarica i pacchetti, verifica SHA256, installa dopo conferma e rivedi i permessi macOS dopo il riavvio quando necessario.",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "Visibilità barra menu, controlli attività in background, revisione permessi dopo aggiornamento e bundle release completamente firmati ad-hoc.",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "Il checksum SHA256 è pubblicato negli asset della release come Currency-Tracker-1.6.zip.sha256.",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "Mostra o nascondi l'icona della barra dei menu dalle impostazioni mantenendo l'accesso dal Dock.",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "L'attività in background può sospendere aggiornamenti programmati, controlli automatici e monitoraggio della scorciatoia globale.",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "Dopo gli aggiornamenti nell'app, Currency Tracker apre Permessi se i permessi di sistema già concessi devono essere rivisti.",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "I bundle di release ora vengono sigillati con una firma ad-hoc completa prima dello zip."
       },
       "pt-BR": {
-        "Dock-icon reopen handling, responsive app lifecycle behavior, and a cleaner route back to Settings when the menu bar UI is unavailable.": "Reabertura pelo ícone do Dock, ciclo de vida mais responsivo e um caminho mais claro de volta aos Ajustes quando a interface da barra de menus não está disponível.",
-        "SHA256 checksum is published as Currency-Tracker-1.5.7.zip.sha256 in the release assets.": "O checksum SHA256 é publicado nos assets da versão como Currency-Tracker-1.5.7.zip.sha256.",
-        "Clicking the Dock icon now reopens Settings when Currency Tracker is already running.": "Quando Currency Tracker já está em execução, clicar no ícone do Dock agora reabre os Ajustes.",
-        "macOS reopen events are handled without leaving the app feeling stuck if no menu bar window is visible.": "Eventos de reabertura do macOS são tratados mesmo sem janela visível da barra de menus, para que o app não pareça travado."
+        "Settings are split into focused sidebar sections for rates, data sources, updates, profiles, alerts, language, permissions, diagnostics, menu bar visibility, background activity, and launch behavior.": "Os ajustes são divididos em seções para cotações, fontes, atualizações, perfis, alertas, idioma, permissões, diagnóstico, visibilidade da barra de menus, atividade em segundo plano e inicialização.",
+        "Check GitHub Releases, download packages, verify SHA256 checksums, install after confirmation, and review macOS permissions after relaunch when needed.": "Verifique GitHub Releases, baixe pacotes, valide SHA256, instale após confirmar e revise permissões do macOS depois de reiniciar quando necessário.",
+        "Menu bar visibility, background activity controls, update permission review, and fully ad-hoc-signed release bundles.": "Visibilidade da barra de menus, controles de atividade em segundo plano, revisão de permissões após atualização e pacotes de release totalmente assinados ad-hoc.",
+        "SHA256 checksum is published as Currency-Tracker-1.6.zip.sha256 in the release assets.": "O checksum SHA256 é publicado nos assets da versão como Currency-Tracker-1.6.zip.sha256.",
+        "Show or hide the menu bar icon from Settings while keeping Dock access available.": "Mostre ou oculte o ícone da barra de menus nos Ajustes mantendo o acesso pelo Dock.",
+        "Background activity can now pause scheduled refreshes, automatic update checks, and global shortcut monitoring.": "A atividade em segundo plano agora pode pausar atualizações agendadas, verificações automáticas e monitoramento de atalhos globais.",
+        "After in-app updates, Currency Tracker opens the Permissions page if previously granted system permissions need review.": "Após atualizações no app, Currency Tracker abre Permissões se permissões do sistema concedidas anteriormente precisarem revisão.",
+        "Release bundles are now sealed with a full ad-hoc app signature before zipping.": "Os pacotes de release agora são selados com uma assinatura ad-hoc completa antes do zip."
       }
     };
 
-    Object.entries(release157Translations).forEach(([language, entries]) => {
+    Object.entries(release16Translations).forEach(([language, entries]) => {
       Object.assign(textTranslations[language], entries);
     });
 

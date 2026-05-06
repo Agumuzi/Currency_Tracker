@@ -109,6 +109,12 @@ final class GlobalShortcutHandler {
     func refreshRegistration() {
         unregisterShortcut()
 
+        guard preferences.backgroundActivityEnabled else {
+            removeGlobalKeyMonitor()
+            logHandler(.info, "后台活动已关闭，全局文本换算快捷键未注册")
+            return
+        }
+
         guard let shortcut = preferences.textConversionShortcut else {
             removeGlobalKeyMonitor()
             logHandler(.info, "全局文本换算快捷键未设置")

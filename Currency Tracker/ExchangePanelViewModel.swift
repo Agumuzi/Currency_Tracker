@@ -446,6 +446,10 @@ final class ExchangePanelViewModel {
             return
         }
 
+        guard preferences.backgroundActivityEnabled else {
+            return
+        }
+
         guard preferences.autoRefreshMinutes > 0 else {
             return
         }

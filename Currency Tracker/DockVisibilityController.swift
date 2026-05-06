@@ -48,14 +48,19 @@ final class DockVisibilityController {
         }
     }
 
-    func restoreMenuBarOnlyMode() {
-        let didChange = applicationController.activationPolicy() != .accessory
-        applicationController.setActivationPolicy(.accessory)
+    func restoreMenuBarOnlyMode(shouldHideDock: Bool = true) {
+        let targetPolicy: NSApplication.ActivationPolicy = shouldHideDock ? .accessory : .regular
+        let didChange = applicationController.activationPolicy() != targetPolicy
+        applicationController.setActivationPolicy(targetPolicy)
 
-        if didChange {
+        if shouldHideDock && didChange {
             logHandler(.info, "设置窗口已关闭，Dock 图标已隐藏")
-        } else {
+        } else if shouldHideDock {
             logHandler(.info, "设置窗口已关闭，Dock 图标保持隐藏")
+        } else if didChange {
+            logHandler(.info, "设置窗口已关闭，菜单栏图标已隐藏，Dock 图标保持显示")
+        } else {
+            logHandler(.info, "设置窗口已关闭，Dock 图标保持显示")
         }
     }
 }

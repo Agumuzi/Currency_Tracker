@@ -309,3 +309,7 @@
 "在系统设置中为 Currency Tracker 添加语言覆盖，或调整首选语言顺序。" = "Fügen Sie in den Systemeinstellungen eine Sprachüberschreibung für Currency Tracker hinzu oder passen Sie Ihre bevorzugte Sprachreihenfolge an.";
 "语言设置已打开" = "Spracheinstellungen geöffnet.";
 "无法打开语言设置" = "Spracheinstellungen konnten nicht geöffnet werden.";
+"显示菜单栏图标" = "Menüleistensymbol anzeigen";
+"关闭后应用会保留 Dock 图标，方便重新打开设置。" = "Wenn deaktiviert, bleibt das Dock-Symbol sichtbar, damit die Einstellungen erneut geöffnet werden können.";
+"允许后台活动" = "Hintergrundaktivität erlauben";
+"关闭后会暂停定时刷新、自动检查更新和全局快捷键监听。手动刷新仍可使用。" = "Wenn deaktiviert, werden geplante Aktualisierungen, automatische Update-Prüfungen und globale Tastenkürzel angehalten. Manuelle Aktualisierung bleibt verfügbar.";

@@ -101,6 +101,7 @@ struct Currency_TrackerApp: App {
         )
         let initialLaunchCoordinator = InitialLaunchCoordinator(
             userDefaults: userDefaults,
+            preferences: preferences,
             settingsWindowController: settingsWindowController,
             automaticUpdateCoordinator: automaticUpdateCoordinator,
             isRunningUITests: isRunningUITests
@@ -118,7 +119,7 @@ struct Currency_TrackerApp: App {
         self.globalShortcutHandler = globalShortcutHandler
         self.initialLaunchCoordinator = initialLaunchCoordinator
         _viewModel = State(initialValue: viewModel)
-        NSApplication.shared.setActivationPolicy(isRunningUITests ? .regular : .accessory)
+        NSApplication.shared.setActivationPolicy(isRunningUITests || !preferences.menuBarItemEnabled ? .regular : .accessory)
         ProcessInfo.processInfo.disableAutomaticTermination("Currency Tracker menu bar app remains active")
         lifecycleController.configure { [weak settingsWindowController] in
             settingsWindowController?.show()
@@ -127,7 +128,10 @@ struct Currency_TrackerApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra {
+        MenuBarExtra(isInserted: Binding(
+            get: { preferences.menuBarItemEnabled },
+            set: { preferences.setMenuBarItemEnabled($0) }
+        )) {
             ContentView(
                 viewModel: viewModel,
                 preferences: preferences,
@@ -331,7 +335,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             return
         }
 
-        dockVisibilityController.restoreMenuBarOnlyMode()
+        dockVisibilityController.restoreMenuBarOnlyMode(shouldHideDock: preferences.menuBarItemEnabled)
+        if preferences.menuBarItemEnabled == false && preferences.backgroundActivityEnabled == false {
+            ApplicationLifecycleController.terminate(nil)
+        }
     }
 
     private func makeRootView() -> SettingsView {

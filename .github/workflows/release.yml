@@ -67,6 +67,12 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
+      - name: Ad-hoc sign app bundle
+        if: env.SKIP_RELEASE != 'true'
+        run: |
+          /usr/bin/codesign --force --deep --sign - "build/Currency Tracker.xcarchive/Products/Applications/Currency Tracker.app"
+          /usr/bin/codesign --verify --deep --strict --verbose=2 "build/Currency Tracker.xcarchive/Products/Applications/Currency Tracker.app"
+
       - name: Zip app
         if: env.SKIP_RELEASE != 'true'
         run: |
@@ -88,7 +94,7 @@ jobs:
           fi
 
           {
-            printf '\nThis build is ad-hoc signed for bundle integrity, but it is not signed with an Apple Developer ID and is not notarized by Apple. On first launch, macOS may require approval in System Settings -> Privacy & Security -> Open Anyway.\n'
+            printf '\nThis build is ad-hoc signed for bundle integrity, but it is not signed with an Apple Developer ID and is not notarized by Apple. On first launch, macOS may require approval in System Settings -> Privacy & Security -> Open Anyway, then Open. macOS may ask for approval again after replacing the app with this release because the downloaded app bundle is still not Developer ID signed or notarized.\n'
             printf '\nSHA256:\n\n```text\n'
             cat "build/release/Currency-Tracker-${VERSION}.zip.sha256"
             printf '```\n'

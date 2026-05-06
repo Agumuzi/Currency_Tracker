@@ -1603,6 +1603,8 @@ final class PreferencesStore {
     var baseCurrencyCode: String
     var textConversionShortcut: GlobalShortcutDescriptor?
     var automaticUpdateChecksEnabled: Bool
+    var menuBarItemEnabled: Bool
+    var backgroundActivityEnabled: Bool
     var skippedUpdateVersion: String?
     var lastAutomaticUpdateCheckAt: Date?
     var menuBarDisplayMode: MenuBarDisplayMode
@@ -1626,6 +1628,8 @@ final class PreferencesStore {
     private let baseCurrencyKey = "baseCurrencyCode"
     private let textConversionShortcutKey = "textConversionShortcut"
     private let automaticUpdateChecksKey = "automaticUpdateChecksEnabled"
+    private let menuBarItemEnabledKey = "menuBarItemEnabled"
+    private let backgroundActivityEnabledKey = "backgroundActivityEnabled"
     private let skippedUpdateVersionKey = "skippedUpdateVersion"
     private let lastAutomaticUpdateCheckAtKey = "lastAutomaticUpdateCheckAt"
     private let menuBarDisplayModeKey = "menuBarDisplayMode"
@@ -1691,6 +1695,16 @@ final class PreferencesStore {
             automaticUpdateChecksEnabled = true
         } else {
             automaticUpdateChecksEnabled = userDefaults.bool(forKey: automaticUpdateChecksKey)
+        }
+        if userDefaults.object(forKey: menuBarItemEnabledKey) == nil {
+            menuBarItemEnabled = true
+        } else {
+            menuBarItemEnabled = userDefaults.bool(forKey: menuBarItemEnabledKey)
+        }
+        if userDefaults.object(forKey: backgroundActivityEnabledKey) == nil {
+            backgroundActivityEnabled = true
+        } else {
+            backgroundActivityEnabled = userDefaults.bool(forKey: backgroundActivityEnabledKey)
         }
         skippedUpdateVersion = userDefaults.string(forKey: skippedUpdateVersionKey)
         lastAutomaticUpdateCheckAt = userDefaults.object(forKey: lastAutomaticUpdateCheckAtKey) as? Date
@@ -1971,6 +1985,16 @@ final class PreferencesStore {
         persist()
     }
 
+    func setMenuBarItemEnabled(_ value: Bool) {
+        menuBarItemEnabled = value
+        persist()
+    }
+
+    func setBackgroundActivityEnabled(_ value: Bool) {
+        backgroundActivityEnabled = value
+        persist()
+    }
+
     func skipUpdate(version: String) {
         skippedUpdateVersion = version
         persist()
@@ -2120,6 +2144,8 @@ final class PreferencesStore {
         userDefaults.set(baseCurrencyCode, forKey: baseCurrencyKey)
         userDefaults.set(Self.encodeShortcut(textConversionShortcut), forKey: textConversionShortcutKey)
         userDefaults.set(automaticUpdateChecksEnabled, forKey: automaticUpdateChecksKey)
+        userDefaults.set(menuBarItemEnabled, forKey: menuBarItemEnabledKey)
+        userDefaults.set(backgroundActivityEnabled, forKey: backgroundActivityEnabledKey)
         userDefaults.set(menuBarDisplayMode.rawValue, forKey: menuBarDisplayModeKey)
         userDefaults.set(rateDisplayBaseAmount, forKey: rateDisplayBaseAmountKey)
         userDefaults.set(conversionFractionDigits, forKey: conversionFractionDigitsKey)

@@ -35,7 +35,7 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
                 ) ?? .failed(String(localized: "下载失败，请稍后重试"))
             },
             onInstallAndRelaunch: { preparedUpdate in
-                Self.installAndRelaunch(preparedUpdate)
+                await Self.installAndRelaunch(preparedUpdate)
             },
             onCleanup: { preparedUpdate in
                 SoftwareUpdateInstaller.cleanup(preparedUpdate)
@@ -97,12 +97,15 @@ final class SoftwareUpdateWindowController: NSObject, NSWindowDelegate {
     }
 
     @MainActor
-    private static func installAndRelaunch(_ preparedUpdate: PreparedSoftwareUpdate) -> String? {
+    private static func installAndRelaunch(_ preparedUpdate: PreparedSoftwareUpdate) async -> String? {
+        await SoftwareUpdatePermissionRecovery.captureBeforeInstalling(version: preparedUpdate.version)
+
         do {
             try SoftwareUpdateInstaller.installAndRelaunch(preparedUpdate: preparedUpdate)
             ApplicationLifecycleController.terminate(nil)
             return nil
         } catch {
+            SoftwareUpdatePermissionRecovery.clearPendingReview()
             return String(localized: "无法启动安装器，请稍后重试")
         }
     }
@@ -158,6 +161,7 @@ final class AutomaticSoftwareUpdateCoordinator {
     func checkIfNeeded() {
         guard !isRunningUITests,
               preferences.automaticUpdateChecksEnabled,
+              preferences.backgroundActivityEnabled,
               checkTask == nil else {
             return
         }

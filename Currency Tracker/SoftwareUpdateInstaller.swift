@@ -5,14 +5,38 @@
 //  Created by Codex on 4/27/26.
 //
 
+import ApplicationServices
 import CryptoKit
 import Foundation
+import ServiceManagement
+import UserNotifications
 
 nonisolated struct PreparedSoftwareUpdate: Equatable, Sendable {
     let version: String
     let downloadedArchiveURL: URL
     let extractedApplicationURL: URL
     let workingDirectoryURL: URL
+}
+
+nonisolated struct SoftwareUpdatePermissionState: Codable, Equatable, Sendable {
+    let accessibilityTrusted: Bool
+    let notificationsAuthorized: Bool
+    let launchAtLoginEnabled: Bool
+
+    func needsReview(comparedTo current: SoftwareUpdatePermissionState) -> Bool {
+        (accessibilityTrusted && !current.accessibilityTrusted)
+            || (notificationsAuthorized && !current.notificationsAuthorized)
+            || (launchAtLoginEnabled && !current.launchAtLoginEnabled)
+    }
+
+    var hasGrantedPermissions: Bool {
+        accessibilityTrusted || notificationsAuthorized || launchAtLoginEnabled
+    }
+}
+
+nonisolated struct PendingSoftwareUpdatePermissionReview: Codable, Equatable, Sendable {
+    let version: String
+    let previousState: SoftwareUpdatePermissionState
 }
 
 nonisolated enum SoftwareUpdatePreparationStep: Equatable, Sendable {
@@ -415,6 +439,62 @@ nonisolated enum SoftwareUpdateInstaller {
     }
 }
 
+@MainActor
+enum SoftwareUpdatePermissionRecovery {
+    private static let pendingReviewKey = "pendingSoftwareUpdatePermissionReview"
+
+    static func captureBeforeInstalling(
+        version: String,
+        userDefaults: UserDefaults = .standard
+    ) async {
+        let state = await currentPermissionState()
+        guard state.hasGrantedPermissions else {
+            userDefaults.removeObject(forKey: pendingReviewKey)
+            return
+        }
+
+        let review = PendingSoftwareUpdatePermissionReview(version: version, previousState: state)
+        if let data = try? JSONEncoder().encode(review) {
+            userDefaults.set(data, forKey: pendingReviewKey)
+        }
+    }
+
+    static func shouldPresentReviewAfterLaunch(
+        userDefaults: UserDefaults = .standard
+    ) async -> Bool {
+        guard let review = pendingReview(userDefaults: userDefaults) else {
+            return false
+        }
+
+        let current = await currentPermissionState()
+        userDefaults.removeObject(forKey: pendingReviewKey)
+        return review.previousState.needsReview(comparedTo: current)
+    }
+
+    static func clearPendingReview(userDefaults: UserDefaults = .standard) {
+        userDefaults.removeObject(forKey: pendingReviewKey)
+    }
+
+    static func currentPermissionState() async -> SoftwareUpdatePermissionState {
+        let notificationSettings = await UNUserNotificationCenter.current().notificationSettings()
+        let launchStatus = SMAppService.mainApp.status
+
+        return SoftwareUpdatePermissionState(
+            accessibilityTrusted: AXIsProcessTrusted(),
+            notificationsAuthorized: notificationSettings.authorizationStatus.isGrantedForCurrencyTracker,
+            launchAtLoginEnabled: launchStatus == .enabled || launchStatus == .requiresApproval
+        )
+    }
+
+    private static func pendingReview(userDefaults: UserDefaults) -> PendingSoftwareUpdatePermissionReview? {
+        guard let data = userDefaults.data(forKey: pendingReviewKey) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(PendingSoftwareUpdatePermissionReview.self, from: data)
+    }
+}
+
 private extension String {
     nonisolated var shellQuoted: String {
         "'" + replacingOccurrences(of: "'", with: "'\\''") + "'"
@@ -423,5 +503,18 @@ private extension String {
     nonisolated var appleScriptEscaped: String {
         replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+}
+
+private extension UNAuthorizationStatus {
+    var isGrantedForCurrencyTracker: Bool {
+        switch self {
+        case .authorized, .provisional, .ephemeral:
+            true
+        case .denied, .notDetermined:
+            false
+        @unknown default:
+            false
+        }
     }
 }

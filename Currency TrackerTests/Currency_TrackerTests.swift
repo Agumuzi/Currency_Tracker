@@ -163,12 +163,16 @@ struct Currency_TrackerTests {
 
         let store = PreferencesStore(userDefaults: defaults)
         store.setAutomaticUpdateChecksEnabled(false)
+        store.setMenuBarItemEnabled(false)
+        store.setBackgroundActivityEnabled(false)
         store.skipUpdate(version: "1.2")
         store.setLastAutomaticUpdateCheckAt(lastCheck)
 
         let reloaded = PreferencesStore(userDefaults: defaults)
 
         #expect(reloaded.automaticUpdateChecksEnabled == false)
+        #expect(reloaded.menuBarItemEnabled == false)
+        #expect(reloaded.backgroundActivityEnabled == false)
         #expect(reloaded.skippedUpdateVersion == "1.2")
         #expect(reloaded.lastAutomaticUpdateCheckAt == lastCheck)
     }
@@ -452,6 +456,24 @@ struct Currency_TrackerTests {
 
         #expect(SoftwareUpdateInstaller.expectedSHA256Checksum(from: checksumFile) == digest)
         #expect(digest == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    }
+
+    @Test
+    func softwareUpdatePermissionStateDetectsDroppedPermissions() {
+        let previous = SoftwareUpdatePermissionState(
+            accessibilityTrusted: true,
+            notificationsAuthorized: true,
+            launchAtLoginEnabled: false
+        )
+        let current = SoftwareUpdatePermissionState(
+            accessibilityTrusted: false,
+            notificationsAuthorized: true,
+            launchAtLoginEnabled: false
+        )
+
+        #expect(previous.needsReview(comparedTo: current))
+        #expect(!current.needsReview(comparedTo: previous))
+        #expect(previous.hasGrantedPermissions)
     }
 
     @Test

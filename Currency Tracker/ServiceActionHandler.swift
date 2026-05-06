@@ -48,6 +48,7 @@ final class ServiceActionHandler: NSObject {
 @MainActor
 final class InitialLaunchCoordinator {
     private let userDefaults: UserDefaults
+    private let preferences: PreferencesStore
     private let settingsWindowController: SettingsWindowController
     private let automaticUpdateCoordinator: AutomaticSoftwareUpdateCoordinator
     private let isRunningUITests: Bool
@@ -56,11 +57,13 @@ final class InitialLaunchCoordinator {
 
     init(
         userDefaults: UserDefaults,
+        preferences: PreferencesStore,
         settingsWindowController: SettingsWindowController,
         automaticUpdateCoordinator: AutomaticSoftwareUpdateCoordinator,
         isRunningUITests: Bool
     ) {
         self.userDefaults = userDefaults
+        self.preferences = preferences
         self.settingsWindowController = settingsWindowController
         self.automaticUpdateCoordinator = automaticUpdateCoordinator
         self.isRunningUITests = isRunningUITests
@@ -69,15 +72,15 @@ final class InitialLaunchCoordinator {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            MainActor.assumeIsolated { [weak self] in
-                self?.handleApplicationDidFinishLaunching(notification)
+            Task { @MainActor [weak self] in
+                await self?.handleApplicationDidFinishLaunching(notification)
             }
         }
 
         if Self.shouldShowSettingsForUITest {
             Task { @MainActor [self] in
                 try? await Task.sleep(nanoseconds: 200_000_000)
-                presentInitialSettingsIfNeeded(isDefaultLaunch: true, forceShowSettings: true)
+                await presentInitialSettingsIfNeeded(isDefaultLaunch: true, forceShowSettings: true)
             }
         }
     }
@@ -86,7 +89,7 @@ final class InitialLaunchCoordinator {
         observer.map(NotificationCenter.default.removeObserver)
     }
 
-    private func handleApplicationDidFinishLaunching(_ notification: Notification) {
+    private func handleApplicationDidFinishLaunching(_ notification: Notification) async {
         let shouldShowSettingsForUITest = Self.shouldShowSettingsForUITest
         if isRunningUITests && !shouldShowSettingsForUITest {
             return
@@ -97,10 +100,10 @@ final class InitialLaunchCoordinator {
             return
         }
 
-        presentInitialSettingsIfNeeded(isDefaultLaunch: isDefaultLaunch, forceShowSettings: shouldShowSettingsForUITest)
+        await presentInitialSettingsIfNeeded(isDefaultLaunch: isDefaultLaunch, forceShowSettings: shouldShowSettingsForUITest)
     }
 
-    private func presentInitialSettingsIfNeeded(isDefaultLaunch: Bool, forceShowSettings: Bool) {
+    private func presentInitialSettingsIfNeeded(isDefaultLaunch: Bool, forceShowSettings: Bool) async {
         guard didHandleInitialPresentation == false else {
             return
         }
@@ -114,9 +117,15 @@ final class InitialLaunchCoordinator {
             return
         }
 
+        if await SoftwareUpdatePermissionRecovery.shouldPresentReviewAfterLaunch(userDefaults: userDefaults) {
+            didHandleInitialPresentation = true
+            settingsWindowController.show(section: .permissions)
+            return
+        }
+
         let hasShownInitialSettingsWindow = userDefaults.bool(forKey: "hasShownInitialSettingsWindow")
         let isDebugLaunch = ProcessInfo.processInfo.arguments.contains("-NSDocumentRevisionsDebugMode")
-        let shouldPresent = forceShowSettings || !hasShownInitialSettingsWindow || isDebugLaunch
+        let shouldPresent = forceShowSettings || !hasShownInitialSettingsWindow || isDebugLaunch || !preferences.menuBarItemEnabled
         guard shouldPresent else {
             didHandleInitialPresentation = true
             automaticUpdateCoordinator.checkIfNeeded()

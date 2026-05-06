@@ -17,6 +17,7 @@ Currency Tracker is a macOS menu bar app for exchange rates, quick conversion, a
 ## What It Does
 
 - Keeps selected exchange-rate pairs one click away in the macOS menu bar.
+- Lets you show or hide the menu bar icon and pause background activity from Settings.
 - Shows compact cards with latest rates, source, refresh time, and positive or negative movement badges.
 - Expands any card into a history chart or a two-way converter.
 - Switches the menu bar panel between the rate list and a multi-currency converter.
@@ -48,7 +49,7 @@ Currency Tracker is a macOS menu bar app for exchange rates, quick conversion, a
 
 ### Menu Bar Rates
 
-Choose the pairs you care about and keep them in a compact menu bar panel. The panel supports scrolling when the list grows, a pinned always-on-top mode, manual refresh, and display modes for the menu bar item itself.
+Choose the pairs you care about and keep them in a compact menu bar panel. The panel supports scrolling when the list grows, a pinned always-on-top mode, manual refresh, display modes for the menu bar item itself, and a setting to hide the menu bar icon while keeping Dock access available.
 
 ### History And Conversion
 
@@ -56,7 +57,7 @@ Each card can expand into a recent trend chart or a converter without leaving th
 
 ### Pair Management
 
-The settings window includes a sidebar and dedicated pages for general behavior, language, rate pairs, converter currencies, profiles, alerts, refresh policy, data sources, permissions, updates, diagnostics, and system launch behavior. Converter currencies can follow the selected rate pairs or be managed separately.
+The settings window includes a sidebar and dedicated pages for general behavior, language, rate pairs, converter currencies, profiles, alerts, refresh policy, data sources, permissions, updates, diagnostics, and system launch behavior. Converter currencies can follow the selected rate pairs or be managed separately, and background activity can be paused without removing manual refresh.
 
 ### Language And Window Behavior
 
@@ -81,25 +82,26 @@ Save different pair lists and refresh settings as profiles, then switch between 
 
 ### Updates
 
-The app can check GitHub Releases from Settings. Update packages are downloaded, verified with SHA256 checksums, prepared, installed, relaunched, and cleaned up inside the app after user confirmation.
+The app can check GitHub Releases from Settings. Update packages are downloaded, verified with SHA256 checksums, prepared, installed, relaunched, and cleaned up inside the app after user confirmation. Because the app is not Developer ID signed or notarized, macOS privacy permissions such as Accessibility may need review after replacing the app; Currency Tracker opens the Permissions page after an in-app update when it detects that a previously granted permission no longer appears active.
 
 ## Current Release
 
-Version `1.5.7` includes:
+Version `1.6` includes:
 
-- Reopens the settings window when clicking the Dock icon while Currency Tracker is already running.
-- Handles macOS reopen events without leaving the app feeling stuck when no menu bar window is visible.
-- Preserves explicit Quit and in-app update relaunch flows while keeping lifecycle handling centralized.
+- Adds Settings controls for showing or hiding the menu bar icon and pausing background activity.
+- Pauses scheduled refresh, automatic update checks, and global shortcut listening when background activity is disabled.
+- Opens the Permissions settings page after an in-app update if previously granted system permissions need review.
+- Signs the full app bundle ad-hoc before zipping so release assets have sealed resources and bound bundle metadata.
 
 ## Installation
 
-Download `Currency-Tracker-1.5.7.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
+Download `Currency-Tracker-1.6.zip` from the latest GitHub release, unzip it, and move `Currency Tracker.app` to your Applications folder.
 
 The app is distributed through GitHub Releases. It is ad-hoc signed for bundle integrity, but it is not signed with an Apple Developer ID and is not notarized by Apple. On first launch, macOS may block it. Open:
 
 `System Settings` -> `Privacy & Security` -> `Open Anyway`
 
-Approve `Currency Tracker`, then confirm `Open`. After you approve it once, future launches should work normally. Replacing the app during a manual or in-app update preserves your existing Application Support data, but macOS may ask for approval again because the new app bundle is still not Developer ID signed or notarized.
+Approve `Currency Tracker`, then confirm `Open`. After you approve it once, future launches should work normally. Replacing the app during a manual or in-app update preserves your existing Application Support data, but macOS may ask for approval again because the new app bundle is still not Developer ID signed or notarized. System privacy permissions are controlled by macOS and cannot be silently restored by the app; review Settings -> Permissions if Accessibility, notifications, or launch-at-login approval changes after an update.
 
 ## Requirements
 
