@@ -228,16 +228,20 @@ final class StatusItemController: NSObject {
     }
 
     private func applyState() {
-        if preferences.menuBarItemEnabled {
+        if isRunningUITests || !preferences.menuBarItemEnabled {
+            removeStatusItem()
+        } else {
             ensureStatusItem()
             updateButton()
-        } else {
-            popover?.performClose(nil)
-            popover = nil
-            if let statusItem {
-                NSStatusBar.system.removeStatusItem(statusItem)
-                self.statusItem = nil
-            }
+        }
+    }
+
+    private func removeStatusItem() {
+        popover?.performClose(nil)
+        popover = nil
+        if let statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+            self.statusItem = nil
         }
     }
 
