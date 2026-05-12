@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.2 - 2026-05-13
+
+- Fixes the menu bar panel placement so it stays fully below the macOS menu bar instead of being clipped at the top of the screen.
+- Clamps the transient panel to the clicked status item's screen, including smaller or secondary displays.
+
 ## 1.6.1 - 2026-05-06
 
 - Replaces the dynamic SwiftUI menu bar scene with an AppKit status item to avoid launch hangs when the menu bar icon lifecycle changes.

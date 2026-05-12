@@ -20,6 +20,7 @@ struct ContentView: View {
     let panelWindowController: PanelWindowController
     let autoBootstrap: Bool
     let presentationMode: PanelPresentationMode
+    let menuBarMaximumPanelHeight: CGFloat?
 
     @State private var expandedCardID: String?
     @State private var currentWindow: NSWindow?
@@ -564,6 +565,12 @@ struct ContentView: View {
         let visibleHeight = currentWindow?.screen?.visibleFrame.height
             ?? NSScreen.main?.visibleFrame.height
             ?? 900
+        let screenLimit = max(320, visibleHeight - 16)
+
+        if presentationMode == .menuBar, let menuBarMaximumPanelHeight {
+            return max(320, min(menuBarMaximumPanelHeight, screenLimit))
+        }
+
         return max(320, min(760, visibleHeight - 120))
     }
 
@@ -2097,6 +2104,7 @@ private struct TrendAreaShape: Shape {
         settingsWindowController: settingsController,
         panelWindowController: panelController,
         autoBootstrap: false,
-        presentationMode: .menuBar
+        presentationMode: .menuBar,
+        menuBarMaximumPanelHeight: nil
     )
 }

@@ -92,7 +92,8 @@ struct Currency_TrackerApp: App {
                     settingsWindowController: settingsWindowController,
                     panelWindowController: controller,
                     autoBootstrap: false,
-                    presentationMode: .pinned
+                    presentationMode: .pinned,
+                    menuBarMaximumPanelHeight: nil
                 )
             )
         }
@@ -304,10 +305,11 @@ final class StatusItemController: NSObject {
             return
         }
 
+        let contentSize = resolvedMenuBarPopoverContentSize(for: sender)
         let popover = NSPopover()
         popover.behavior = .transient
         popover.animates = false
-        popover.contentSize = NSSize(width: 408, height: 620)
+        popover.contentSize = contentSize
         popover.contentViewController = NSHostingController(
             rootView: ContentView(
                 viewModel: viewModel,
@@ -315,13 +317,88 @@ final class StatusItemController: NSObject {
                 settingsWindowController: settingsWindowController,
                 panelWindowController: panelWindowController,
                 autoBootstrap: !isRunningUITests,
-                presentationMode: .menuBar
+                presentationMode: .menuBar,
+                menuBarMaximumPanelHeight: contentSize.height
             )
         )
         self.popover = popover
         popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
+        repositionMenuBarPopover(popover, from: sender)
+        Task { @MainActor [weak self, weak popover, weak sender] in
+            guard let popover, let sender else {
+                return
+            }
+
+            self?.repositionMenuBarPopover(popover, from: sender)
+        }
     }
+
+    private func resolvedMenuBarPopoverContentSize(for button: NSStatusBarButton) -> NSSize {
+        let visibleFrame = screen(for: button).visibleFrame
+        let maximumHeight = max(Self.menuBarPopoverMinimumHeight, visibleFrame.height - (Self.menuBarPopoverScreenInset * 2))
+        return NSSize(
+            width: Self.menuBarPopoverWidth,
+            height: min(Self.menuBarPopoverPreferredHeight, maximumHeight)
+        )
+    }
+
+    private func repositionMenuBarPopover(_ popover: NSPopover, from button: NSStatusBarButton) {
+        guard let window = popover.contentViewController?.view.window else {
+            return
+        }
+
+        let screen = screen(for: button)
+        let visibleFrame = screen.visibleFrame
+        let anchorFrame = screenFrame(for: button)
+        let topEdge = min(anchorFrame?.minY ?? visibleFrame.maxY, visibleFrame.maxY) - Self.menuBarPopoverTopInset
+        let maximumHeight = max(Self.menuBarPopoverMinimumHeight, topEdge - visibleFrame.minY - Self.menuBarPopoverScreenInset)
+        var frame = window.frame
+        frame.size.height = min(frame.height, maximumHeight)
+        frame.origin.x = clamped(
+            (anchorFrame?.midX ?? visibleFrame.midX) - (frame.width / 2),
+            lower: visibleFrame.minX + Self.menuBarPopoverScreenInset,
+            upper: max(visibleFrame.minX + Self.menuBarPopoverScreenInset, visibleFrame.maxX - frame.width - Self.menuBarPopoverScreenInset)
+        )
+        frame.origin.y = clamped(
+            topEdge - frame.height,
+            lower: visibleFrame.minY + Self.menuBarPopoverScreenInset,
+            upper: max(visibleFrame.minY + Self.menuBarPopoverScreenInset, visibleFrame.maxY - frame.height - Self.menuBarPopoverTopInset)
+        )
+
+        window.setFrame(frame, display: true)
+    }
+
+    private func screenFrame(for button: NSStatusBarButton) -> NSRect? {
+        guard let window = button.window else {
+            return nil
+        }
+
+        return window.convertToScreen(button.convert(button.bounds, to: nil))
+    }
+
+    private func screen(for button: NSStatusBarButton) -> NSScreen {
+        if let screen = button.window?.screen {
+            return screen
+        }
+
+        if let anchorFrame = screenFrame(for: button),
+           let screen = NSScreen.screens.first(where: { $0.frame.intersects(anchorFrame) }) {
+            return screen
+        }
+
+        return NSScreen.main ?? NSScreen.screens.first!
+    }
+
+    private func clamped(_ value: CGFloat, lower: CGFloat, upper: CGFloat) -> CGFloat {
+        min(max(value, lower), upper)
+    }
+
+    private static let menuBarPopoverWidth: CGFloat = 408
+    private static let menuBarPopoverPreferredHeight: CGFloat = 620
+    private static let menuBarPopoverMinimumHeight: CGFloat = 320
+    private static let menuBarPopoverScreenInset: CGFloat = 8
+    private static let menuBarPopoverTopInset: CGFloat = 4
 }
 
 @MainActor
